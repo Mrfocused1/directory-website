@@ -112,9 +112,10 @@ function DomainsPageContent() {
     }
   };
 
-  const handleSearchCustomTld = async () => {
-    if (!customTld.trim() || !searchQuery.trim()) return;
-    const tld = customTld.replace(/^\./, "").toLowerCase();
+  const handleSearchCustomTld = async (tldOverride?: string) => {
+    const tldToUse = tldOverride || customTld;
+    if (!tldToUse.trim() || !searchQuery.trim()) return;
+    const tld = tldToUse.replace(/^\./, "").toLowerCase();
     setIsSearching(true);
     setSearchError(null);
     try {
@@ -215,13 +216,16 @@ function DomainsPageContent() {
 
   const handleRemove = async (domainId: string) => {
     const domainToRemove = domains.find((d) => d.id === domainId);
-    setDomains((prev) => prev.filter((d) => d.id !== domainId));
+    setDomains((prev) => {
+      const filtered = prev.filter((d) => d.id !== domainId);
+      if (filtered.length === 0) setPendingDns(null);
+      return filtered;
+    });
     await fetch("/api/domains", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ domainId, domain: domainToRemove?.domain }),
     });
-    if (domains.length <= 1) setPendingDns(null);
   };
 
   const activeDomain = domains.find((d) => d.status === "active");
@@ -571,7 +575,7 @@ function DomainsPageContent() {
                         </div>
                         <button
                           type="button"
-                          onClick={handleSearchCustomTld}
+                          onClick={() => handleSearchCustomTld()}
                           disabled={isSearching || !customTld.trim()}
                           className="h-10 px-4 bg-purple-100 text-purple-700 rounded-lg text-xs font-semibold hover:bg-purple-200 disabled:opacity-50 transition"
                         >
@@ -587,8 +591,7 @@ function DomainsPageContent() {
                               key={tld}
                               type="button"
                               onClick={() => {
-                                setCustomTld(tld.replace(/^\./, ""));
-                                handleSearchCustomTld();
+                                handleSearchCustomTld(tld);
                               }}
                               className="text-[11px] font-mono font-semibold px-2.5 py-1 bg-gray-100 hover:bg-purple-100 hover:text-purple-700 rounded-md transition"
                             >

@@ -379,6 +379,32 @@ function OnboardingContent() {
                   {pipelineStatus.message}
                 </p>
               </div>
+
+              {/* Error recovery */}
+              {pipelineStatus.step === "error" && (
+                <div className="max-w-sm mx-auto mt-6 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPipelineStatus({ step: "scrape", progress: 0, message: "Starting..." });
+                      setStep("customize");
+                    }}
+                    className="flex-1 h-12 border-2 border-[color:var(--border)] rounded-xl text-sm font-semibold hover:bg-black/5 transition"
+                  >
+                    Go Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPipelineStatus({ step: "scrape", progress: 0, message: "Starting..." });
+                      handleStartBuild({ preventDefault: () => {} } as React.FormEvent);
+                    }}
+                    className="flex-1 h-12 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold hover:opacity-90 transition"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

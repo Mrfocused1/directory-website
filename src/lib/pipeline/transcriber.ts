@@ -34,7 +34,7 @@ export async function transcribeVideo(videoUrl: string): Promise<TranscriptResul
   //   - Must download video first (accepts file upload, not URL)
   //   - const transcription = await openai.audio.transcriptions.create({ file, model: 'whisper-1' })
 
-  console.log(`[transcriber] Would transcribe: ${videoUrl}`);
+  // TODO: Implement with Whisper API
   return {
     text: "",
     duration: 0,

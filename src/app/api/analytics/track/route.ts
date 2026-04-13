@@ -86,9 +86,6 @@ export async function POST(request: NextRequest) {
     //     break;
     // }
 
-    // For now, just log and acknowledge
-    console.log(`[analytics] ${type}`, { siteId, sessionId: sessionId?.toString().slice(0, 8), ...body });
-
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error("[analytics] Track error:", error);

@@ -74,7 +74,7 @@ export async function runPipeline(config: PipelineConfig) {
     const transcript = transcripts.get(post.shortcode)?.text || null;
     const result = categorizeByKeywords(post.caption, transcript, categoryRules);
     // TODO: Update post category in database
-    console.log(`[pipeline] ${post.shortcode} → ${result.category}`);
+    // Categorized: post.shortcode → result.category
   }
 
   onProgress?.("categorize", 100, `Categorized ${scrapedPosts.length} posts`);

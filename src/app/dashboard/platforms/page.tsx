@@ -105,16 +105,20 @@ export default function PlatformsPage() {
     e.preventDefault();
     if (!newHandle.trim()) return;
 
-    const res = await fetch("/api/platforms", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ siteId: "demo", platform: newPlatform, handle: newHandle }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setConnections((prev) => [...prev, data.connection]);
-      setShowConnect(false);
-      setNewHandle("");
+    try {
+      const res = await fetch("/api/platforms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId: "demo", platform: newPlatform, handle: newHandle }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setConnections((prev) => [...prev, data.connection]);
+        setShowConnect(false);
+        setNewHandle("");
+      }
+    } catch {
+      // Network error
     }
   };
 
@@ -122,32 +126,48 @@ export default function PlatformsPage() {
     setConnections((prev) =>
       prev.map((c) => (c.id === connectionId ? { ...c, syncStatus: "syncing" as const } : c)),
     );
-    await fetch("/api/platforms", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ connectionId, action: "sync" }),
-    });
-    // Simulate sync completion
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/platforms", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ connectionId, action: "sync" }),
+      });
+      if (res.ok) {
+        setConnections((prev) =>
+          prev.map((c) =>
+            c.id === connectionId
+              ? { ...c, syncStatus: "completed" as const, lastSyncAt: new Date().toISOString() }
+              : c,
+          ),
+        );
+      } else {
+        setConnections((prev) =>
+          prev.map((c) => (c.id === connectionId ? { ...c, syncStatus: "completed" as const } : c)),
+        );
+      }
+    } catch {
       setConnections((prev) =>
-        prev.map((c) =>
-          c.id === connectionId
-            ? { ...c, syncStatus: "completed" as const, lastSyncAt: new Date().toISOString() }
-            : c,
-        ),
+        prev.map((c) => (c.id === connectionId ? { ...c, syncStatus: "completed" as const } : c)),
       );
-    }, 2000);
+    }
   };
 
   const handleDisconnect = async (connectionId: string) => {
     setConnections((prev) =>
       prev.map((c) => (c.id === connectionId ? { ...c, isConnected: false } : c)),
     );
-    await fetch("/api/platforms", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ connectionId, action: "disconnect" }),
-    });
+    try {
+      await fetch("/api/platforms", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ connectionId, action: "disconnect" }),
+      });
+    } catch {
+      // Revert on failure
+      setConnections((prev) =>
+        prev.map((c) => (c.id === connectionId ? { ...c, isConnected: true } : c)),
+      );
+    }
   };
 
   const formatFollowers = (n: number) => {

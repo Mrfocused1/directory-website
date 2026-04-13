@@ -55,7 +55,7 @@ async function scrapeInstagram(handle: string, maxPosts = 100): Promise<ScrapedP
   //   - Most reliable for MVP
   //   - Costs per request but handles all edge cases
 
-  console.log(`[scraper] Would scrape Instagram @${handle} (max ${maxPosts} posts)`);
+  // TODO: Implement Instagram scraping
   return [];
 }
 
@@ -71,6 +71,6 @@ async function scrapeTikTok(handle: string, maxPosts = 100): Promise<ScrapedPost
   //
   // Option C: Third-party API
 
-  console.log(`[scraper] Would scrape TikTok @${handle} (max ${maxPosts} posts)`);
+  // TODO: Implement TikTok scraping
   return [];
 }

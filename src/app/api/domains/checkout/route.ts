@@ -1,27 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
+import { getDomainPrice } from "@/lib/vercel-domains";
 
 /**
  * POST /api/domains/checkout
  *
  * Creates a Stripe Checkout session for a domain purchase.
- * After payment, the Stripe webhook registers the domain via Vercel.
+ * Price is looked up server-side via Vercel API — never trust the client.
  *
- * Body: { domain: string, price: number (cents), siteId: string }
+ * Body: { domain: string, siteId: string }
  */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { domain, price, siteId } = body;
+    const { domain, siteId } = body;
 
-    if (!domain || !price || !siteId) {
+    if (!domain || !siteId) {
       return NextResponse.json(
-        { error: "Missing domain, price, or siteId" },
+        { error: "Missing domain or siteId" },
         { status: 400 },
       );
     }
 
-    // Create a Stripe Checkout session
+    // Look up the real price server-side
+    const pricing = await getDomainPrice(domain);
+    if (!pricing.price || pricing.price <= 0) {
+      return NextResponse.json(
+        { error: "Could not determine price for this domain" },
+        { status: 400 },
+      );
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
@@ -33,7 +42,7 @@ export async function POST(request: NextRequest) {
               name: `Domain: ${domain}`,
               description: `1 year registration for ${domain}. Includes DNS and SSL setup.`,
             },
-            unit_amount: price, // in cents
+            unit_amount: pricing.price,
           },
           quantity: 1,
         },
@@ -42,7 +51,6 @@ export async function POST(request: NextRequest) {
         type: "domain_purchase",
         domain,
         siteId,
-        price: String(price),
       },
       success_url: `${request.nextUrl.origin}/dashboard/domains?purchased=${encodeURIComponent(domain)}`,
       cancel_url: `${request.nextUrl.origin}/dashboard/domains?cancelled=true`,

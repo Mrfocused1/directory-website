@@ -68,7 +68,7 @@ export async function categorizeWithLLM(
   //   }]
   // });
 
-  console.log(`[categorizer] Would categorize with LLM. Categories: ${availableCategories.join(", ")}`);
+  // TODO: Call LLM for real categorization
   return {
     category: availableCategories[0] || "Uncategorized",
     confidence: 0,

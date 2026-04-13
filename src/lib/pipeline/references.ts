@@ -40,7 +40,7 @@ export async function findYouTubeReferences(
   //   note: item.snippet.channelTitle,
   // }));
 
-  console.log(`[references] Would search YouTube for: ${query}`);
+  // TODO: Implement YouTube search
   return [];
 }
 
@@ -71,7 +71,7 @@ export async function findArticleReferences(
   //   }),
   // });
 
-  console.log(`[references] Would search articles for: ${query}`);
+  // TODO: Implement article search
   return [];
 }
 

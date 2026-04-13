@@ -37,15 +37,21 @@ export default function FloatingSubscribe({
     if (!email.trim()) return;
 
     setStatus("submitting");
-    const res = await fetch("/api/subscribe", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ siteId, email }),
-    });
-    if (res.ok) {
-      setStatus("success");
-      sessionStorage.setItem(`bmd_subscribed_${siteId}`, "true");
-      setTimeout(() => setDismissed(true), 3000);
+    try {
+      const res = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId, email }),
+      });
+      if (res.ok) {
+        setStatus("success");
+        sessionStorage.setItem(`bmd_subscribed_${siteId}`, "true");
+        setTimeout(() => setDismissed(true), 3000);
+      } else {
+        setStatus("idle");
+      }
+    } catch {
+      setStatus("idle");
     }
   };
 

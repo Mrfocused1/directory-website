@@ -4,7 +4,6 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import DashboardNav from "@/components/dashboard/DashboardNav";
 import FeatureGate from "@/components/plans/FeatureGate";
-import UpgradeBanner from "@/components/plans/UpgradeBanner";
 import StatCard from "@/components/analytics/StatCard";
 import TopPostsTable from "@/components/analytics/TopPostsTable";
 import SearchTermsTable from "@/components/analytics/SearchTermsTable";

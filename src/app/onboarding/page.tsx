@@ -1,11 +1,22 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import Link from "next/link";
 
 type Step = "handle" | "customize" | "processing" | "done";
 
 export default function OnboardingPage() {
+  return (
+    <Suspense fallback={null}>
+      <OnboardingContent />
+    </Suspense>
+  );
+}
+
+function OnboardingContent() {
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>("handle");
   const pollRef = useRef<ReturnType<typeof setInterval>>(undefined);
 
@@ -16,7 +27,9 @@ export default function OnboardingPage() {
     };
   }, []);
   const [platform, setPlatform] = useState<"instagram" | "tiktok">("instagram");
-  const [handle, setHandle] = useState("");
+  const [handle, setHandle] = useState(() => {
+    return searchParams.get("handle")?.replace(/^@/, "") || "";
+  });
   const [slug, setSlug] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [pipelineStatus, setPipelineStatus] = useState<{

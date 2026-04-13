@@ -20,7 +20,7 @@ export const users = pgTable("users", {
   name: text("name"),
   avatarUrl: text("avatar_url"),
   stripeCustomerId: text("stripe_customer_id"),
-  plan: varchar("plan", { length: 32 }).notNull().default("free"), // free | starter | pro
+  plan: varchar("plan", { length: 32 }).notNull().default("free"), // free | creator | pro | agency
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -433,7 +433,7 @@ export const customDomains = pgTable(
     purchasePrice: integer("purchase_price"), // cents
     renewalPrice: integer("renewal_price"), // cents
     expiresAt: timestamp("expires_at"),
-    registrar: varchar("registrar", { length: 32 }), // resellerclub | enom | namecheap
+    registrar: varchar("registrar", { length: 32 }), // vercel
     registrarOrderId: text("registrar_order_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),

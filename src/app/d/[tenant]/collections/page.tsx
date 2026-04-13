@@ -32,15 +32,17 @@ export default function CollectionsPage() {
 
   const fetchCollections = useCallback(async () => {
     if (!email) return;
-    const res = await fetch(`/api/bookmarks?siteId=${tenant}&email=${encodeURIComponent(email)}`);
-    const data = await res.json();
-    if (data.collections) {
-      setCollections(data.collections);
-      if (!activeTab && data.collections.length > 0) {
-        setActiveTab(data.collections[0].id);
+    try {
+      const res = await fetch(`/api/bookmarks?siteId=${tenant}&email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+      if (data.collections) {
+        setCollections(data.collections);
+        setActiveTab((prev) => prev || (data.collections.length > 0 ? data.collections[0].id : null));
       }
+    } catch {
+      // Network error — keep existing state
     }
-  }, [tenant, email, activeTab]);
+  }, [tenant, email]);
 
   useEffect(() => {
     fetchCollections();

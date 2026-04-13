@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import DashboardNav from "@/components/dashboard/DashboardNav";
 import FeatureGate from "@/components/plans/FeatureGate";
 import { STATUS_CONFIG, type ContentRequest } from "@/lib/requests/mock-data";

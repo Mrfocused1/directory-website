@@ -12,7 +12,7 @@
  * - Be monitored and debugged
  */
 
-import { scrapeProfile, type ScraperConfig } from "./scraper";
+import { scrapeProfile } from "./scraper";
 import { transcribeBatch } from "./transcriber";
 import { categorizeByKeywords, detectCategories } from "./categorizer";
 import { findReferencesForPosts } from "./references";

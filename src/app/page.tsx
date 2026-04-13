@@ -170,23 +170,24 @@ export default function LandingPage() {
           </p>
 
           {/* CTA input */}
-          <div className="max-w-md mx-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-2">
+          <form action="/onboarding" method="GET" className="max-w-md mx-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-2">
             <div className="relative flex-1">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--fg-subtle)] text-sm font-medium">@</span>
               <input
                 type="text"
+                name="handle"
                 placeholder="yourhandle"
                 aria-label="Instagram or TikTok handle"
                 className="w-full h-14 pl-9 pr-4 bg-white border-2 border-[color:var(--border)] rounded-2xl text-lg font-medium placeholder:text-[color:var(--fg-subtle)] focus:outline-none focus:border-[color:var(--fg)] transition"
               />
             </div>
-            <Link
-              href="/onboarding"
+            <button
+              type="submit"
               className="h-14 px-8 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-2xl text-base font-semibold flex items-center justify-center hover:opacity-90 transition whitespace-nowrap"
             >
               Build My Directory
-            </Link>
-          </div>
+            </button>
+          </form>
           <p className="mt-4 text-xs text-[color:var(--fg-subtle)]">
             Free to try. No credit card required.
           </p>

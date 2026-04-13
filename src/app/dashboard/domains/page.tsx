@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import DashboardNav from "@/components/dashboard/DashboardNav";
 import FeatureGate from "@/components/plans/FeatureGate";
@@ -26,15 +27,46 @@ type ConnectedDomain = {
 
 type Flow = null | "buy" | "connect";
 
+const POPULAR_TLD_SUGGESTIONS = [
+  ".com", ".co", ".io", ".directory", ".me", ".xyz", ".app", ".dev",
+  ".store", ".online", ".tech", ".site", ".shop", ".org", ".net",
+];
+
 export default function DomainsPage() {
+  const searchParams = useSearchParams();
   const [domains, setDomains] = useState<ConnectedDomain[]>([]);
   const [flow, setFlow] = useState<Flow>(null);
+  const [purchaseSuccess, setPurchaseSuccess] = useState<string | null>(null);
+
+  // Handle return from Stripe checkout
+  useEffect(() => {
+    const purchased = searchParams.get("purchased");
+    if (purchased) {
+      setPurchaseSuccess(purchased);
+      setDomains((prev) => [
+        ...prev,
+        {
+          id: `dom-${Date.now()}`,
+          domain: purchased,
+          type: "purchased",
+          status: "active",
+          dnsVerified: true,
+          sslProvisioned: true,
+        },
+      ]);
+      // Clean URL
+      window.history.replaceState({}, "", "/dashboard/domains");
+    }
+  }, [searchParams]);
 
   // Buy flow
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<DomainResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [purchasingDomain, setPurchasingDomain] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [customTld, setCustomTld] = useState("");
+  const [showAllTlds, setShowAllTlds] = useState(false);
 
   // Connect flow
   const [connectDomain, setConnectDomain] = useState("");
@@ -44,15 +76,62 @@ export default function DomainsPage() {
     records: { type: string; name: string; value: string; purpose: string }[];
   } | null>(null);
 
-  const handleSearch = async (e: React.FormEvent) => {
+  // Verification
+  const [verifyingDomain, setVerifyingDomain] = useState<string | null>(null);
+
+  const handleSearch = async (e: React.FormEvent, extraTlds?: string[]) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     setIsSearching(true);
+    setSearchError(null);
     setSearchResults([]);
     try {
-      const res = await fetch(`/api/domains?action=search&q=${encodeURIComponent(searchQuery)}`);
+      let url = `/api/domains?action=search&q=${encodeURIComponent(searchQuery)}`;
+      if (extraTlds?.length) {
+        url += `&tlds=${extraTlds.map((t) => t.replace(/^\./, "")).join(",")}`;
+      }
+      const res = await fetch(url);
       const data = await res.json();
+      if (!res.ok) {
+        setSearchError(data.error || "Search failed");
+        return;
+      }
       setSearchResults(data.results || []);
+    } catch {
+      setSearchError("Network error. Please try again.");
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSearchCustomTld = async () => {
+    if (!customTld.trim() || !searchQuery.trim()) return;
+    const tld = customTld.replace(/^\./, "").toLowerCase();
+    setIsSearching(true);
+    setSearchError(null);
+    try {
+      const res = await fetch(
+        `/api/domains?action=search&q=${encodeURIComponent(searchQuery)}&tlds=${tld}`,
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        setSearchError(data.error || "Search failed");
+        return;
+      }
+      // Merge with existing results (avoid duplicates)
+      setSearchResults((prev) => {
+        const existingDomains = new Set(prev.map((r) => r.domain));
+        const newResults = (data.results || []).filter(
+          (r: DomainResult) => !existingDomains.has(r.domain),
+        );
+        return [...prev, ...newResults].sort((a, b) => {
+          if (a.available !== b.available) return a.available ? -1 : 1;
+          return a.price - b.price;
+        });
+      });
+      setCustomTld("");
+    } catch {
+      setSearchError("Network error. Please try again.");
     } finally {
       setIsSearching(false);
     }
@@ -61,17 +140,24 @@ export default function DomainsPage() {
   const handlePurchase = async (result: DomainResult) => {
     setPurchasingDomain(result.domain);
     try {
-      const res = await fetch("/api/domains", {
+      // Create a Stripe Checkout session — user pays, then webhook registers the domain
+      const res = await fetch("/api/domains/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ siteId: "demo", domain: result.domain, action: "purchase", price: result.price, renewal: result.renewal }),
+        body: JSON.stringify({
+          domain: result.domain,
+          price: result.price,
+          siteId: "demo",
+        }),
       });
       if (res.ok) {
         const data = await res.json();
-        setDomains((prev) => [...prev, data.domain]);
-        setSearchResults([]);
-        setSearchQuery("");
-        setFlow(null);
+        if (data.url) {
+          window.location.href = data.url; // Redirect to Stripe Checkout
+        }
+      } else {
+        const data = await res.json();
+        setSearchError(data.error || "Failed to start checkout. Please try again.");
       }
     } finally {
       setPurchasingDomain(null);
@@ -99,9 +185,34 @@ export default function DomainsPage() {
     }
   };
 
+  const handleVerify = async (domain: string) => {
+    setVerifyingDomain(domain);
+    try {
+      const res = await fetch(`/api/domains?action=status&domain=${encodeURIComponent(domain)}`);
+      const data = await res.json();
+      if (data.dnsVerified) {
+        setDomains((prev) =>
+          prev.map((d) =>
+            d.domain === domain
+              ? { ...d, status: "active" as const, dnsVerified: true, sslProvisioned: true }
+              : d,
+          ),
+        );
+        setPendingDns(null);
+      }
+    } finally {
+      setVerifyingDomain(null);
+    }
+  };
+
   const handleRemove = async (domainId: string) => {
+    const domainToRemove = domains.find((d) => d.id === domainId);
     setDomains((prev) => prev.filter((d) => d.id !== domainId));
-    await fetch("/api/domains", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ domainId }) });
+    await fetch("/api/domains", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ domainId, domain: domainToRemove?.domain }),
+    });
     if (domains.length <= 1) setPendingDns(null);
   };
 
@@ -130,6 +241,26 @@ export default function DomainsPage() {
               Make your directory truly yours with a custom domain. We handle all the technical stuff.
             </p>
           </div>
+
+          {/* Purchase success banner */}
+          {purchaseSuccess && (
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-6 animate-fade-in">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-green-100 text-green-600 flex items-center justify-center shrink-0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-green-800">Domain purchased!</h3>
+                  <p className="text-xs text-green-700 mt-0.5">
+                    <strong>{purchaseSuccess}</strong> is being configured. It will be live within a few minutes.
+                  </p>
+                </div>
+                <button type="button" onClick={() => setPurchaseSuccess(null)} className="ml-auto text-green-600 hover:text-green-800 transition">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Current URL card */}
           <div className="bg-white border border-[color:var(--border)] rounded-2xl p-5 mb-6 animate-fade-in">
@@ -170,7 +301,17 @@ export default function DomainsPage() {
                     <p className="text-[11px] text-yellow-600 font-semibold">Waiting for DNS verification</p>
                   </div>
                 </div>
-                <button type="button" onClick={() => handleRemove(d.id)} className="text-xs text-[color:var(--fg-subtle)] hover:text-red-600 transition">Remove</button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleVerify(d.domain)}
+                    disabled={verifyingDomain === d.domain}
+                    className="text-xs font-semibold text-amber-700 hover:text-amber-900 transition"
+                  >
+                    {verifyingDomain === d.domain ? "Checking..." : "Re-check"}
+                  </button>
+                  <button type="button" onClick={() => handleRemove(d.id)} className="text-xs text-[color:var(--fg-subtle)] hover:text-red-600 transition">Remove</button>
+                </div>
               </div>
             </div>
           ))}
@@ -228,9 +369,14 @@ export default function DomainsPage() {
                       </div>
                     ))}
                   </div>
-                  <button type="button" className="mt-4 w-full h-11 bg-amber-600 text-white rounded-xl text-sm font-semibold hover:bg-amber-700 transition flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleVerify(pendingDns.domain)}
+                    disabled={verifyingDomain === pendingDns.domain}
+                    className="mt-4 w-full h-11 bg-amber-600 text-white rounded-xl text-sm font-semibold hover:bg-amber-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
+                  >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
-                    Check Verification Status
+                    {verifyingDomain === pendingDns.domain ? "Checking..." : "Check Verification Status"}
                   </button>
                 </div>
               </motion.div>
@@ -258,7 +404,7 @@ export default function DomainsPage() {
                       Search and register a fresh domain. We handle everything &mdash; registration, DNS, SSL. Your directory is live instantly.
                     </p>
                     <div className="flex items-center gap-3 mt-3">
-                      <span className="text-[11px] font-semibold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">From $2.99/yr</span>
+                      <span className="text-[11px] font-semibold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">500+ TLDs</span>
                       <span className="text-[11px] font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Zero setup</span>
                       <span className="text-[11px] font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Instant</span>
                     </div>
@@ -304,7 +450,7 @@ export default function DomainsPage() {
           {/* Buy flow */}
           {flow === "buy" && (
             <div className="bg-white border-2 border-[color:var(--border)] rounded-2xl p-5 sm:p-6 animate-fade-in">
-              <button type="button" onClick={() => { setFlow(null); setSearchResults([]); setSearchQuery(""); }} className="text-xs font-semibold text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] mb-4 flex items-center gap-1 transition">
+              <button type="button" onClick={() => { setFlow(null); setSearchResults([]); setSearchQuery(""); setSearchError(null); }} className="text-xs font-semibold text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] mb-4 flex items-center gap-1 transition">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6" /></svg>
                 Back to options
               </button>
@@ -315,7 +461,7 @@ export default function DomainsPage() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold">Find your perfect domain</h3>
-                  <p className="text-xs text-[color:var(--fg-muted)]">We handle registration, DNS, and SSL automatically</p>
+                  <p className="text-xs text-[color:var(--fg-muted)]">Search 500+ extensions — we handle registration, DNS, and SSL</p>
                 </div>
               </div>
 
@@ -341,8 +487,16 @@ export default function DomainsPage() {
                 </button>
               </form>
 
+              {/* Error message */}
+              {searchError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                  {searchError}
+                </div>
+              )}
+
+              {/* Search results */}
               {searchResults.length > 0 && (
-                <div className="space-y-2">
+                <div className="space-y-2 mb-4">
                   {searchResults.map((r) => (
                     <div
                       key={r.domain}
@@ -368,7 +522,7 @@ export default function DomainsPage() {
                             disabled={purchasingDomain === r.domain}
                             className="h-10 px-5 bg-gradient-to-r from-purple-600 to-violet-600 text-white rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50 transition shadow-sm"
                           >
-                            {purchasingDomain === r.domain ? "..." : "Get it"}
+                            {purchasingDomain === r.domain ? "Redirecting..." : "Get it"}
                           </button>
                         </div>
                       ) : (
@@ -379,7 +533,67 @@ export default function DomainsPage() {
                 </div>
               )}
 
-              {searchResults.length === 0 && !isSearching && (
+              {/* Search more TLDs */}
+              {searchResults.length > 0 && (
+                <div className="border-t border-[color:var(--border)] pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAllTlds(!showAllTlds)}
+                    className="text-xs font-semibold text-purple-600 hover:text-purple-800 transition flex items-center gap-1 mb-3"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`transition-transform ${showAllTlds ? "rotate-90" : ""}`}>
+                      <path d="M9 18l6-6-6-6" />
+                    </svg>
+                    Search a specific extension
+                  </button>
+
+                  {showAllTlds && (
+                    <div className="space-y-3 animate-fade-in">
+                      <div className="flex gap-2">
+                        <div className="flex-1 relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--fg-subtle)] text-xs">.</span>
+                          <input
+                            type="text"
+                            value={customTld}
+                            onChange={(e) => setCustomTld(e.target.value.toLowerCase().replace(/[^a-z]/g, ""))}
+                            placeholder="photography"
+                            aria-label="Custom TLD"
+                            className="w-full h-10 pl-6 pr-3 bg-white border-2 border-[color:var(--border)] rounded-lg text-sm font-mono placeholder:text-[color:var(--fg-subtle)] focus:outline-none focus:border-purple-400 transition"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleSearchCustomTld}
+                          disabled={isSearching || !customTld.trim()}
+                          className="h-10 px-4 bg-purple-100 text-purple-700 rounded-lg text-xs font-semibold hover:bg-purple-200 disabled:opacity-50 transition"
+                        >
+                          Check
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {POPULAR_TLD_SUGGESTIONS
+                          .filter((tld) => !searchResults.some((r) => r.tld === tld))
+                          .slice(0, 10)
+                          .map((tld) => (
+                            <button
+                              key={tld}
+                              type="button"
+                              onClick={() => {
+                                setCustomTld(tld.replace(/^\./, ""));
+                                handleSearchCustomTld();
+                              }}
+                              className="text-[11px] font-mono font-semibold px-2.5 py-1 bg-gray-100 hover:bg-purple-100 hover:text-purple-700 rounded-md transition"
+                            >
+                              {tld}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {searchResults.length === 0 && !isSearching && !searchError && (
                 <div className="text-center py-6 text-sm text-[color:var(--fg-subtle)]">
                   Type a name above and hit search to see available domains
                 </div>

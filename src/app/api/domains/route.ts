@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-
-// Mock TLD pricing (in production, query registrar API)
-const TLD_PRICING: Record<string, { available: boolean; price: number; renewal: number }> = {
-  ".com": { available: true, price: 1299, renewal: 1499 },
-  ".co": { available: true, price: 2499, renewal: 2999 },
-  ".io": { available: true, price: 3999, renewal: 4999 },
-  ".org": { available: true, price: 999, renewal: 1299 },
-  ".net": { available: true, price: 1199, renewal: 1399 },
-  ".xyz": { available: true, price: 299, renewal: 1299 },
-  ".me": { available: true, price: 1999, renewal: 2499 },
-  ".directory": { available: true, price: 2999, renewal: 3499 },
-};
-
-// Domains that are "taken" for demo purposes
-const TAKEN_DOMAINS = ["google.com", "facebook.com", "amazon.com", "apple.com", "example.com"];
+import {
+  searchDomains,
+  addDomainToProject,
+  removeDomainFromProject,
+  getDomainConfig,
+  isConfigured,
+} from "@/lib/vercel-domains";
 
 function generateToken(): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -25,6 +17,7 @@ function generateToken(): string {
 }
 
 // GET /api/domains?action=search&q=yourname — Search domain availability
+// GET /api/domains?action=search&q=yourname&tlds=com,io,xyz — Search specific TLDs
 // GET /api/domains?action=status&domain=yourdomain.com — Check verification status
 export async function GET(request: NextRequest) {
   const action = request.nextUrl.searchParams.get("action");
@@ -35,34 +28,33 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Missing search query" }, { status: 400 });
     }
 
-    // Strip any existing TLD
     const baseName = query.replace(/\.[a-z]+$/, "").replace(/[^a-z0-9-]/g, "");
     if (!baseName || baseName.length < 2) {
       return NextResponse.json({ error: "Invalid domain name" }, { status: 400 });
     }
 
-    // Check multiple TLDs
-    const results = Object.entries(TLD_PRICING).map(([tld, pricing]) => {
-      const domain = `${baseName}${tld}`;
-      const isTaken = TAKEN_DOMAINS.includes(domain);
-      return {
-        domain,
-        tld,
-        available: !isTaken,
-        price: pricing.price,
-        renewal: pricing.renewal,
-        priceFormatted: `$${(pricing.price / 100).toFixed(2)}`,
-        renewalFormatted: `$${(pricing.renewal / 100).toFixed(2)}/yr`,
-      };
-    });
+    if (!isConfigured()) {
+      return NextResponse.json(
+        { error: "Domain service is not configured. Please add Vercel API credentials." },
+        { status: 503 },
+      );
+    }
 
-    // Sort: available first, then by price
-    results.sort((a, b) => {
-      if (a.available !== b.available) return a.available ? -1 : 1;
-      return a.price - b.price;
-    });
+    const tldsParam = request.nextUrl.searchParams.get("tlds");
+    const tlds = tldsParam
+      ? tldsParam.split(",").map((t) => t.replace(/^\./, ""))
+      : undefined;
 
-    return NextResponse.json({ results, query: baseName });
+    try {
+      const results = await searchDomains(baseName, tlds);
+      return NextResponse.json({ results, query: baseName });
+    } catch (err) {
+      console.error("Domain search error:", err);
+      return NextResponse.json(
+        { error: "Failed to check domain availability. Please try again." },
+        { status: 502 },
+      );
+    }
   }
 
   if (action === "status") {
@@ -71,24 +63,35 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Missing domain" }, { status: 400 });
     }
 
-    // TODO: In production, do actual DNS lookup to verify CNAME/TXT records
-    // For demo, return a mock status
+    if (isConfigured()) {
+      try {
+        const config = await getDomainConfig(domain);
+        const verified = config?.configured === true;
+        return NextResponse.json({
+          domain,
+          status: verified ? "active" : "pending",
+          dnsVerified: verified,
+          sslProvisioned: verified,
+          misconfigured: config?.misconfigured ?? false,
+        });
+      } catch {
+        // Fall through to basic response
+      }
+    }
+
     return NextResponse.json({
       domain,
       status: "pending",
       dnsVerified: false,
       sslProvisioned: false,
-      records: {
-        cname: { expected: "proxy.buildmy.directory", found: null, verified: false },
-        txt: { expected: `bmd-verify-${domain.replace(/\./g, "")}`, found: null, verified: false },
-      },
     });
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
 }
 
-// POST /api/domains — Register/connect a domain
+// POST /api/domains — Connect an external domain (BYO)
+// Domain purchases now go through /api/domains/checkout → Stripe → webhook
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -98,32 +101,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing siteId or domain" }, { status: 400 });
     }
 
-    if (domainAction === "purchase") {
-      // TODO: In production, call registrar API to purchase domain
-      // const order = await resellerClub.registerDomain(domain, { nameservers: [...] });
-
-      const token = generateToken();
-      return NextResponse.json({
-        domain: {
-          id: `dom-${Date.now()}`,
-          domain,
-          type: "purchased",
-          status: "active",
-          verificationToken: token,
-          dnsVerified: true,
-          sslProvisioned: true,
-          purchasePrice: body.price || 1299,
-          renewalPrice: body.renewal || 1499,
-          expiresAt: new Date(Date.now() + 365 * 86400000).toISOString(),
-        },
-        message: "Domain purchased and configured automatically!",
-      }, { status: 201 });
-    }
-
     if (domainAction === "connect") {
-      // BYO domain — generate verification token and return DNS instructions
       const token = generateToken();
       const cleanDomain = domain.toLowerCase().trim();
+
+      // Add domain to Vercel project
+      if (isConfigured()) {
+        try {
+          await addDomainToProject(cleanDomain);
+        } catch (err) {
+          console.error("Failed to add domain to Vercel:", err);
+        }
+      }
 
       return NextResponse.json({
         domain: {
@@ -139,7 +128,7 @@ export async function POST(request: NextRequest) {
           {
             type: "CNAME",
             name: "www",
-            value: "proxy.buildmy.directory",
+            value: "cname.vercel-dns.com",
             purpose: "Points your domain to our servers",
           },
           {
@@ -159,7 +148,7 @@ export async function POST(request: NextRequest) {
       }, { status: 201 });
     }
 
-    return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+    return NextResponse.json({ error: "Unknown action. Use /api/domains/checkout for purchases." }, { status: 400 });
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
@@ -169,11 +158,19 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const body = await request.json();
-    const { domainId } = body;
+    const { domainId, domain } = body;
     if (!domainId) {
       return NextResponse.json({ error: "Missing domainId" }, { status: 400 });
     }
-    // TODO: In production, release domain from registrar if purchased, remove DNS
+
+    if (domain && isConfigured()) {
+      try {
+        await removeDomainFromProject(domain);
+      } catch (err) {
+        console.error("Failed to remove domain from Vercel:", err);
+      }
+    }
+
     return NextResponse.json({ deleted: true });
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });

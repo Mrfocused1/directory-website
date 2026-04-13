@@ -221,8 +221,8 @@ export default function LandingPage() {
                 </p>
               </div>
               {/* Fake grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {Array.from({ length: 8 }).map((_, i) => (
+              <div className="grid grid-cols-3 gap-3">
+                {Array.from({ length: 9 }).map((_, i) => (
                   <div key={i} className="aspect-[4/5] bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl" />
                 ))}
               </div>

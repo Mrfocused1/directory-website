@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import DashboardNav from "@/components/dashboard/DashboardNav";
@@ -33,6 +33,14 @@ const POPULAR_TLD_SUGGESTIONS = [
 ];
 
 export default function DomainsPage() {
+  return (
+    <Suspense fallback={null}>
+      <DomainsPageContent />
+    </Suspense>
+  );
+}
+
+function DomainsPageContent() {
   const searchParams = useSearchParams();
   const [domains, setDomains] = useState<ConnectedDomain[]>([]);
   const [flow, setFlow] = useState<Flow>(null);

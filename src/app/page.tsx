@@ -231,15 +231,31 @@ export default function LandingPage() {
         </section>
 
         {/* Features */}
-        <section className="px-6 pb-24 max-w-5xl mx-auto">
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-center mb-4">
+        <section className="pb-24 max-w-5xl mx-auto">
+          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-center mb-4 px-6">
             Everything automated
           </h2>
-          <p className="text-center text-[color:var(--fg-muted)] mb-14 max-w-xl mx-auto">
+          <p className="text-center text-[color:var(--fg-muted)] mb-14 max-w-xl mx-auto px-6">
             From scraping to transcription to categorization — we handle the entire pipeline
             so you can focus on creating.
           </p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Mobile: horizontal scroll slider */}
+          <div className="sm:hidden flex gap-4 overflow-x-auto snap-x snap-mandatory px-6 pb-4 scrollbar-hide">
+            {FEATURES.map((f) => (
+              <div
+                key={f.title}
+                className="bg-white border border-[color:var(--border)] rounded-2xl p-6 min-w-[280px] w-[280px] shrink-0 snap-center"
+              >
+                <div className="w-12 h-12 rounded-xl bg-black/5 flex items-center justify-center text-[color:var(--fg)] mb-4">
+                  {f.icon}
+                </div>
+                <h3 className="text-base font-bold mb-2">{f.title}</h3>
+                <p className="text-sm text-[color:var(--fg-muted)] leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+          {/* Desktop: grid */}
+          <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-6 px-6">
             {FEATURES.map((f) => (
               <div
                 key={f.title}

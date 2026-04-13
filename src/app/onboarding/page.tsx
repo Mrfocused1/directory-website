@@ -430,14 +430,12 @@ function OnboardingContent() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 max-w-sm mx-auto">
-                <a
-                  href={`https://${slug}.buildmy.directory`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  href={`/d/${slug}`}
                   className="flex-1 h-12 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold flex items-center justify-center hover:opacity-90 transition"
                 >
                   View Directory
-                </a>
+                </Link>
                 <Link
                   href="/dashboard"
                   className="flex-1 h-12 border-2 border-[color:var(--border)] rounded-xl text-sm font-semibold flex items-center justify-center hover:bg-black/5 transition"

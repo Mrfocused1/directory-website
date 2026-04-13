@@ -33,7 +33,8 @@ const PLAN_PRICES: Record<string, { name: string; price: number; features: strin
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { plan } = body;
+    const { plan, userId } = body;
+    // TODO: When auth is added, get userId from session instead of request body
 
     const planConfig = PLAN_PRICES[plan];
     if (!planConfig) {
@@ -65,6 +66,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         type: "subscription",
         plan,
+        userId: userId || "anonymous",
       },
       success_url: `${request.nextUrl.origin}/dashboard?upgraded=${plan}`,
       cancel_url: `${request.nextUrl.origin}/dashboard?cancelled=true`,

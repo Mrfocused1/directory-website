@@ -149,34 +149,43 @@ function DomainsPageContent() {
   const handlePurchase = async (result: DomainResult) => {
     setPurchasingDomain(result.domain);
     try {
-      // Create a Stripe Checkout session — user pays, then webhook registers the domain
       const res = await fetch("/api/domains/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           domain: result.domain,
-          price: result.price,
           siteId: "demo",
         }),
       });
       if (res.ok) {
         const data = await res.json();
         if (data.url) {
-          window.location.href = data.url; // Redirect to Stripe Checkout
+          window.location.href = data.url;
         }
       } else {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({ error: "Failed to start checkout." }));
         setSearchError(data.error || "Failed to start checkout. Please try again.");
       }
+    } catch {
+      setSearchError("Network error. Please check your connection and try again.");
     } finally {
       setPurchasingDomain(null);
     }
   };
 
+  const validateDomain = (domain: string): boolean => {
+    return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z]{2,})+$/.test(domain);
+  };
+
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!connectDomain.trim()) return;
+    if (!validateDomain(connectDomain.trim())) {
+      setSearchError("Please enter a valid domain name (e.g. yourdomain.com)");
+      return;
+    }
     setIsConnecting(true);
+    setSearchError(null);
     try {
       const res = await fetch("/api/domains", {
         method: "POST",
@@ -188,7 +197,11 @@ function DomainsPageContent() {
         setDomains((prev) => [...prev, data.domain]);
         setPendingDns({ domain: data.domain.domain, records: data.dnsRecords });
         setConnectDomain("");
+      } else {
+        setSearchError("Failed to connect domain. Please try again.");
       }
+    } catch {
+      setSearchError("Network error. Please check your connection.");
     } finally {
       setIsConnecting(false);
     }
@@ -590,10 +603,11 @@ function DomainsPageContent() {
                             <button
                               key={tld}
                               type="button"
+                              disabled={isSearching}
                               onClick={() => {
                                 handleSearchCustomTld(tld);
                               }}
-                              className="text-[11px] font-mono font-semibold px-2.5 py-1 bg-gray-100 hover:bg-purple-100 hover:text-purple-700 rounded-md transition"
+                              className="text-[11px] font-mono font-semibold px-2.5 py-1 bg-gray-100 hover:bg-purple-100 hover:text-purple-700 rounded-md transition disabled:opacity-50"
                             >
                               {tld}
                             </button>

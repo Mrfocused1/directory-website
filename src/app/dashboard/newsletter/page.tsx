@@ -47,6 +47,7 @@ export default function NewsletterDashboard() {
             </div>
             <button
               type="button"
+              onClick={() => alert("Digest sending will be available once the newsletter pipeline is connected.")}
               className="h-9 px-4 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:opacity-90 transition self-start"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

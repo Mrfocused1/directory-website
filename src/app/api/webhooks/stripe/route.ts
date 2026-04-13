@@ -5,6 +5,13 @@ import {
   addDomainToProject,
 } from "@/lib/vercel-domains";
 
+// Plan ID mapping from Stripe price amounts (cents) to plan IDs
+const PRICE_TO_PLAN: Record<number, string> = {
+  1900: "creator",
+  3900: "pro",
+  9900: "agency",
+};
+
 // POST /api/webhooks/stripe — Handle Stripe webhook events
 export async function POST(request: NextRequest) {
   const body = await request.text();
@@ -14,12 +21,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Missing signature" }, { status: 400 });
   }
 
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    console.error("STRIPE_WEBHOOK_SECRET is not configured");
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+  }
+
   let event;
   try {
     event = stripe.webhooks.constructEvent(
       body,
       signature,
-      process.env.STRIPE_WEBHOOK_SECRET!,
+      process.env.STRIPE_WEBHOOK_SECRET,
     );
   } catch (err) {
     console.error("Webhook signature verification failed:", err);
@@ -35,53 +47,68 @@ export async function POST(request: NextRequest) {
         // Handle domain purchase
         if (metadata.type === "domain_purchase" && metadata.domain) {
           const domain = metadata.domain;
-          console.log(`Processing domain purchase: ${domain}`);
 
           try {
-            // 1. Register/purchase the domain through Vercel
             await purchaseDomain(domain);
-            console.log(`Domain registered: ${domain}`);
-
-            // 2. Add domain to the Vercel project for DNS + SSL
             await addDomainToProject(domain);
-            console.log(`Domain added to project: ${domain}`);
           } catch (domainErr) {
             console.error(`Failed to register domain ${domain}:`, domainErr);
-            // Domain registration failed after payment — needs manual resolution
             // TODO: Send alert email to admin, or queue for retry
           }
         }
 
         // Handle plan subscription checkout
-        if (metadata.type === "subscription") {
-          // const userId = metadata.userId;
-          // await db.update(users).set({ plan: metadata.plan, stripeCustomerId: session.customer }).where(eq(users.id, userId));
+        if (metadata.type === "subscription" && metadata.plan) {
+          const plan = metadata.plan;
+          const userId = metadata.userId;
+          const customerId = typeof session.customer === "string" ? session.customer : null;
+
+          // TODO: When DB is connected, uncomment:
+          // if (userId) {
+          //   await db.update(users)
+          //     .set({ plan, stripeCustomerId: customerId })
+          //     .where(eq(users.id, userId));
+          // }
+
+          // For now, log the successful subscription for manual tracking
+          console.error(`[SUBSCRIPTION] User ${userId || "unknown"} upgraded to ${plan} (customer: ${customerId})`);
         }
 
         break;
       }
 
       case "checkout.session.expired": {
-        // Checkout expired — user didn't complete payment. No action needed.
         const session = event.data.object;
         const metadata = session.metadata ?? {};
         if (metadata.type === "domain_purchase") {
-          console.log(`Domain checkout expired: ${metadata.domain}`);
+          console.error(`[DOMAIN] Checkout expired for ${metadata.domain}`);
         }
         break;
       }
 
       case "customer.subscription.updated": {
-        // Plan changed
-        // const subscription = event.data.object;
-        // await db.update(users).set({ plan: planMap[subscription.items.data[0].price.id] }).where(eq(users.stripeCustomerId, subscription.customer));
+        const subscription = event.data.object;
+        const amount = subscription.items?.data?.[0]?.price?.unit_amount;
+        const plan = amount ? PRICE_TO_PLAN[amount] : null;
+        const customerId = typeof subscription.customer === "string" ? subscription.customer : null;
+
+        if (plan && customerId) {
+          // TODO: When DB is connected:
+          // await db.update(users).set({ plan }).where(eq(users.stripeCustomerId, customerId));
+          console.error(`[SUBSCRIPTION] Customer ${customerId} plan changed to ${plan}`);
+        }
         break;
       }
 
       case "customer.subscription.deleted": {
-        // Subscription cancelled — downgrade to free
-        // const subscription = event.data.object;
-        // await db.update(users).set({ plan: 'free' }).where(eq(users.stripeCustomerId, subscription.customer));
+        const subscription = event.data.object;
+        const customerId = typeof subscription.customer === "string" ? subscription.customer : null;
+
+        if (customerId) {
+          // TODO: When DB is connected:
+          // await db.update(users).set({ plan: "free" }).where(eq(users.stripeCustomerId, customerId));
+          console.error(`[SUBSCRIPTION] Customer ${customerId} cancelled — downgraded to free`);
+        }
         break;
       }
 

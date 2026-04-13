@@ -61,12 +61,14 @@ export default function DashboardNav() {
           const isActive = pathname === tab.href;
           const locked = tab.requiredFeature && !can(tab.requiredFeature);
           return isActive ? (
-            <span
+            <Link
               key={tab.href}
+              href={tab.href}
+              aria-current="page"
               className="flex-1 text-center py-3 text-sm font-semibold border-b-2 border-[color:var(--fg)] whitespace-nowrap px-3 flex items-center justify-center gap-1"
             >
               {tab.label}
-            </span>
+            </Link>
           ) : (
             <Link
               key={tab.href}

@@ -105,18 +105,18 @@ export default function DashboardPage() {
                           <path d="M7 17L17 7M17 7H9M17 7v8" />
                         </svg>
                       </a>
-                      <button
-                        type="button"
+                      <Link
+                        href="/dashboard/platforms"
                         className="h-9 px-4 bg-black/5 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:bg-black/10 transition"
                       >
                         Sync Now
-                      </button>
-                      <button
-                        type="button"
+                      </Link>
+                      <Link
+                        href="/dashboard/domains"
                         className="h-9 px-4 bg-black/5 rounded-lg text-xs font-semibold flex items-center hover:bg-black/10 transition"
                       >
                         Settings
-                      </button>
+                      </Link>
                     </div>
                   </div>
                 </div>

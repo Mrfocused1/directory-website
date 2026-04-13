@@ -64,8 +64,8 @@ export default function PostModal({
     };
   }, [post, onClose]);
 
-  const shareUrl = post
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}${window.location.pathname.replace(/\/p\/.*$/, "")}/p/${post.shortcode}`
+  const shareUrl = post && typeof window !== "undefined"
+    ? `${window.location.origin}${window.location.pathname.replace(/\/p\/.*$/, "")}/p/${post.shortcode}`
     : "";
 
   return (

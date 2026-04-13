@@ -94,17 +94,15 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <a
-                        href={`https://${site.slug}.buildmy.directory`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <Link
+                        href={`/d/${site.slug}`}
                         className="h-9 px-4 bg-black/5 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:bg-black/10 transition"
                       >
                         Visit
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                           <path d="M7 17L17 7M17 7H9M17 7v8" />
                         </svg>
-                      </a>
+                      </Link>
                       <Link
                         href="/dashboard/platforms"
                         className="h-9 px-4 bg-black/5 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:bg-black/10 transition"

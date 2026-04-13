@@ -4,47 +4,46 @@ import { NextRequest, NextResponse } from "next/server";
  * Proxy for subdomain-based multi-tenant routing.
  *
  * Routes:
- * - buildmy.directory (root) → marketing / dashboard pages
+ * - buildmy.directory / www.buildmy.directory (root) → marketing / dashboard pages
  * - *.buildmy.directory (subdomain) → tenant directory
  * - Custom domains → tenant directory (via DNS + lookup)
  */
 export function proxy(request: NextRequest) {
   const url = request.nextUrl.clone();
-  const hostname = request.headers.get("host") || "";
+  const hostname = (request.headers.get("host") || "").replace(/:\d+$/, ""); // strip port
 
-  // Define the root domains (add production domain when deployed)
+  // Root domains that should show the marketing/dashboard site
   const rootDomains = [
-    "localhost:3000",
-    "localhost:3001",
-    "localhost:3002",
+    "localhost",
     "buildmy.directory",
     "www.buildmy.directory",
   ];
 
-  // Check if this is a root domain request (marketing/dashboard)
-  const isRootDomain = rootDomains.some(
-    (d) => hostname === d,
-  );
+  // Also treat Vercel preview/production URLs as root
+  const isVercelUrl = hostname.endsWith(".vercel.app");
 
-  // Extract subdomain
-  let tenant: string | null = null;
+  // Check if this is a root domain request
+  const isRootDomain = isVercelUrl || rootDomains.includes(hostname);
 
-  for (const root of rootDomains) {
-    if (hostname.endsWith(`.${root}`) && hostname !== root) {
-      tenant = hostname.replace(`.${root}`, "");
-      break;
-    }
+  if (isRootDomain) {
+    return NextResponse.next();
   }
 
-  // If it's not a root domain and not a known subdomain, it might be a custom domain
-  if (!isRootDomain && !tenant) {
+  // Extract subdomain from *.buildmy.directory
+  let tenant: string | null = null;
+
+  if (hostname.endsWith(".buildmy.directory")) {
+    tenant = hostname.replace(".buildmy.directory", "");
+  }
+
+  // If not a subdomain, it might be a custom domain
+  if (!tenant) {
     // In production: look up custom domain in the database
-    // For now, treat unknown hosts as potential custom domains
     tenant = hostname;
   }
 
-  // If we have a tenant, rewrite to the tenant directory
-  if (tenant && !tenant.includes("localhost")) {
+  // Rewrite to the tenant directory
+  if (tenant) {
     url.pathname = `/d/${tenant}${url.pathname}`;
     return NextResponse.rewrite(url);
   }
@@ -53,6 +52,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Skip proxy for static files, api routes, and Next.js internals
   matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)"],
 };

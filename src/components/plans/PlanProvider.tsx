@@ -18,6 +18,7 @@ type PlanContextValue = {
   planName: string;
   can: (feature: FeatureKey) => boolean;
   requiredPlan: (feature: FeatureKey) => string;
+  requiredPlanId: (feature: FeatureKey) => PlanId;
   requiredPrice: (feature: FeatureKey) => number;
   canAddPlatform: (platform: Platform, currentCount: number) => boolean;
   platformLimit: (platform: Platform) => number;
@@ -46,6 +47,7 @@ export default function PlanProvider({
     planName: plan.name,
     can: (feature) => hasFeature(planId, feature),
     requiredPlan: (feature) => requiredPlanFor(feature).name,
+    requiredPlanId: (feature) => requiredPlanFor(feature).id,
     requiredPrice: (feature) => requiredPlanFor(feature).price,
     canAddPlatform: (platform, currentCount) => canAddPlatformAccount(planId, platform, currentCount),
     platformLimit: (platform) => getPlatformLimit(planId, platform),

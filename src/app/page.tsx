@@ -73,6 +73,7 @@ const PRICING = [
       "Basic analytics",
     ],
     cta: "Start Free",
+    href: "/onboarding",
     highlight: false,
   },
   {
@@ -91,6 +92,7 @@ const PRICING = [
       "yourname.buildmy.directory subdomain",
     ],
     cta: "Get Started",
+    href: "/onboarding?plan=creator",
     highlight: false,
   },
   {
@@ -107,6 +109,7 @@ const PRICING = [
       "Remove BuildMy.Directory branding",
     ],
     cta: "Go Pro",
+    href: "/onboarding?plan=pro",
     highlight: true,
   },
   {
@@ -123,6 +126,7 @@ const PRICING = [
       "Bulk domain purchasing",
     ],
     cta: "Contact Us",
+    href: "/onboarding?plan=agency",
     highlight: false,
   },
 ];
@@ -292,7 +296,7 @@ export default function LandingPage() {
                   ))}
                 </ul>
                 <Link
-                  href="/onboarding"
+                  href={p.href}
                   className={`w-full h-12 rounded-xl text-sm font-semibold flex items-center justify-center transition ${
                     p.highlight
                       ? "bg-gradient-to-r from-purple-600 to-violet-600 text-white hover:opacity-90 shadow-md shadow-purple-200"

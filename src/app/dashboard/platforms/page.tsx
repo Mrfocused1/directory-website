@@ -243,6 +243,16 @@ export default function PlatformsPage() {
                   </div>
                   <button
                     type="button"
+                    onClick={async () => {
+                      const planId = upgradePlan.name.toLowerCase();
+                      const res = await fetch("/api/checkout", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ plan: planId }),
+                      });
+                      const data = await res.json();
+                      if (data.url) window.location.href = data.url;
+                    }}
                     className="h-9 px-4 bg-gradient-to-r from-purple-600 to-violet-600 text-white rounded-lg text-xs font-semibold hover:opacity-90 transition shadow-sm shadow-purple-200 whitespace-nowrap shrink-0"
                   >
                     Upgrade to {upgradePlan.name} &mdash; ${upgradePlan.price}/mo

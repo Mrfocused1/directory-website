@@ -12,13 +12,30 @@ export default function UpgradeBanner({
 }: {
   feature: FeatureKey;
 }) {
-  const { can, requiredPlan, requiredPrice } = usePlan();
+  const { can, requiredPlan, requiredPlanId, requiredPrice } = usePlan();
 
   if (can(feature)) return null;
 
   const prompt = UPGRADE_PROMPTS[feature];
   const plan = requiredPlan(feature);
+  const planId = requiredPlanId(feature);
   const price = requiredPrice(feature);
+
+  const handleUpgrade = async () => {
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: planId }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch {
+      // Checkout failed
+    }
+  };
 
   return (
     <div className="bg-gradient-to-r from-purple-50 via-violet-50 to-purple-50 border border-purple-200 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
@@ -34,6 +51,7 @@ export default function UpgradeBanner({
       </div>
       <button
         type="button"
+        onClick={handleUpgrade}
         className="h-9 px-4 bg-gradient-to-r from-purple-600 to-violet-600 text-white rounded-lg text-xs font-semibold hover:opacity-90 transition shadow-sm shadow-purple-200 whitespace-nowrap shrink-0"
       >
         Upgrade to {plan} &mdash; ${price}/mo

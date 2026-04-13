@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Middleware for subdomain-based multi-tenant routing.
+ * Proxy for subdomain-based multi-tenant routing.
  *
  * Routes:
  * - buildmy.directory (root) → marketing / dashboard pages
  * - *.buildmy.directory (subdomain) → tenant directory
  * - Custom domains → tenant directory (via DNS + lookup)
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const url = request.nextUrl.clone();
   const hostname = request.headers.get("host") || "";
 
@@ -23,7 +23,7 @@ export function middleware(request: NextRequest) {
 
   // Check if this is a root domain request (marketing/dashboard)
   const isRootDomain = rootDomains.some(
-    (d) => hostname === d || hostname.endsWith(`.${d}`),
+    (d) => hostname === d,
   );
 
   // Extract subdomain
@@ -40,13 +40,11 @@ export function middleware(request: NextRequest) {
   if (!isRootDomain && !tenant) {
     // In production: look up custom domain in the database
     // For now, treat unknown hosts as potential custom domains
-    // You'd cache this lookup in a KV store for performance
-    tenant = hostname; // Will be resolved in the page handler
+    tenant = hostname;
   }
 
   // If we have a tenant, rewrite to the tenant directory
   if (tenant && !tenant.includes("localhost")) {
-    // Rewrite /anything to /[tenant]/anything
     url.pathname = `/d/${tenant}${url.pathname}`;
     return NextResponse.rewrite(url);
   }
@@ -55,6 +53,6 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Skip middleware for static files, api routes, and Next.js internals
+  // Skip proxy for static files, api routes, and Next.js internals
   matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)"],
 };

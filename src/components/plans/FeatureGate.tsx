@@ -15,7 +15,7 @@ export default function FeatureGate({
   feature: FeatureKey;
   children: ReactNode;
 }) {
-  const { can, requiredPlan, requiredPrice } = usePlan();
+  const { can, requiredPlan, requiredPlanId, requiredPrice } = usePlan();
 
   if (can(feature)) {
     return <>{children}</>;
@@ -23,7 +23,24 @@ export default function FeatureGate({
 
   const prompt = UPGRADE_PROMPTS[feature];
   const plan = requiredPlan(feature);
+  const planId = requiredPlanId(feature);
   const price = requiredPrice(feature);
+
+  const handleUpgrade = async () => {
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: planId }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch {
+      // Checkout failed
+    }
+  };
 
   return (
     <div className="relative">
@@ -49,6 +66,7 @@ export default function FeatureGate({
           </p>
           <button
             type="button"
+            onClick={handleUpgrade}
             className="w-full h-11 bg-gradient-to-r from-purple-600 to-violet-600 text-white rounded-xl text-sm font-semibold hover:opacity-90 transition shadow-md shadow-purple-200"
           >
             Upgrade to {plan} &mdash; ${price}/mo

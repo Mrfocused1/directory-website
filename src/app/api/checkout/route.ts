@@ -32,6 +32,13 @@ const PLAN_PRICES: Record<string, { name: string; price: number; features: strin
  */
 export async function POST(request: NextRequest) {
   try {
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return NextResponse.json(
+        { error: "Payment system is not configured." },
+        { status: 503 },
+      );
+    }
+
     const body = await request.json();
     const { plan, userId } = body;
     // TODO: When auth is added, get userId from session instead of request body

@@ -33,39 +33,44 @@ export default function PricingButton({
     );
   }
 
+  const [error, setError] = useState<string | null>(null);
+
   // Paid plans — Stripe Checkout first, then onboarding
   const handleClick = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plan }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.url) {
-          window.location.href = data.url;
-          return;
-        }
+      const data = await res.json();
+      if (res.ok && data.url) {
+        window.location.href = data.url;
+        return;
       }
-      // Fallback if checkout fails
-      window.location.href = `/onboarding?plan=${plan}`;
+      setError(data.error || "Checkout unavailable. Please try again.");
+      setLoading(false);
     } catch {
-      window.location.href = `/onboarding?plan=${plan}`;
-    } finally {
+      setError("Network error. Please try again.");
       setLoading(false);
     }
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={loading}
-      className={`${baseClass} disabled:opacity-60`}
-    >
-      {loading ? "Redirecting..." : cta}
-    </button>
+    <div>
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={loading}
+        className={`${baseClass} disabled:opacity-60`}
+      >
+        {loading ? "Redirecting..." : cta}
+      </button>
+      {error && (
+        <p className="text-xs text-red-600 text-center mt-2">{error}</p>
+      )}
+    </div>
   );
 }

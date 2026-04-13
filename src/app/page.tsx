@@ -1,5 +1,6 @@
 import Link from "next/link";
 import HowItWorks from "@/components/landing/HowItWorks";
+import PricingButton from "@/components/landing/PricingButton";
 
 const FEATURES = [
   {
@@ -73,7 +74,7 @@ const PRICING = [
       "Basic analytics",
     ],
     cta: "Start Free",
-    href: "/onboarding",
+    planId: null as string | null,
     highlight: false,
   },
   {
@@ -92,7 +93,7 @@ const PRICING = [
       "yourname.buildmy.directory subdomain",
     ],
     cta: "Get Started",
-    href: "/onboarding?plan=creator",
+    planId: "creator" as string | null,
     highlight: false,
   },
   {
@@ -109,7 +110,7 @@ const PRICING = [
       "Remove BuildMy.Directory branding",
     ],
     cta: "Go Pro",
-    href: "/onboarding?plan=pro",
+    planId: "pro" as string | null,
     highlight: true,
   },
   {
@@ -125,8 +126,8 @@ const PRICING = [
       "Dedicated support",
       "Bulk domain purchasing",
     ],
-    cta: "Contact Us",
-    href: "/onboarding?plan=agency",
+    cta: "Pay Now",
+    planId: "agency" as string | null,
     highlight: false,
   },
 ];
@@ -295,16 +296,7 @@ export default function LandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link
-                  href={p.href}
-                  className={`w-full h-12 rounded-xl text-sm font-semibold flex items-center justify-center transition ${
-                    p.highlight
-                      ? "bg-gradient-to-r from-purple-600 to-violet-600 text-white hover:opacity-90 shadow-md shadow-purple-200"
-                      : "bg-black/5 text-[color:var(--fg)] hover:bg-black/10"
-                  }`}
-                >
-                  {p.cta}
-                </Link>
+                <PricingButton plan={p.planId} cta={p.cta} highlight={p.highlight} />
               </div>
             ))}
           </div>

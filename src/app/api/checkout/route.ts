@@ -68,8 +68,8 @@ export async function POST(request: NextRequest) {
         plan,
         userId: userId || "anonymous",
       },
-      success_url: `${request.nextUrl.origin}/dashboard?upgraded=${plan}`,
-      cancel_url: `${request.nextUrl.origin}/dashboard?cancelled=true`,
+      success_url: `${request.nextUrl.origin}/onboarding?plan=${plan}&paid=true`,
+      cancel_url: `${request.nextUrl.origin}/#pricing`,
     });
 
     return NextResponse.json({ url: session.url });

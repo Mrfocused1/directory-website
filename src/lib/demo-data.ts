@@ -69,7 +69,7 @@ export async function getSiteData(tenantSlug: string): Promise<{
   const demoSite: SiteConfig = {
     slug: tenantSlug,
     displayName: `${name} Directory`,
-    bio: "Content archive with transcriptions, references, and more",
+    bio: "Content archive with transcriptions, references, and more.",
     avatarUrl: null,
     handle: `@${tenantSlug}`,
     platform: "instagram",

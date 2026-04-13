@@ -137,7 +137,7 @@ export default function Directory({ site, siteId, posts, initialShortcode }: Dir
                 <Image src={site.avatarUrl} alt={site.displayName} fill className="object-cover" />
               </div>
             )}
-            <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight mb-3 uppercase">
+            <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight mb-3">
               {site.displayName}
             </h1>
             {site.bio && (
@@ -266,8 +266,8 @@ export default function Directory({ site, siteId, posts, initialShortcode }: Dir
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <div className="relative aspect-[4/5] bg-black overflow-hidden">
-                      {p.thumbUrl && (
+                    <div className="relative aspect-[4/5] bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+                      {p.thumbUrl ? (
                         <Image
                           src={p.thumbUrl}
                           alt={p.title}
@@ -275,15 +275,31 @@ export default function Directory({ site, siteId, posts, initialShortcode }: Dir
                           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 288px"
                           className="object-cover"
                         />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-xl bg-white/60 flex items-center justify-center">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-gray-400">
+                              {p.type === "video" ? (
+                                <path d="M8 5v14l11-7z" fill="currentColor" stroke="none" />
+                              ) : (
+                                <>
+                                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                                  <circle cx="8.5" cy="8.5" r="1.5" />
+                                  <path d="M21 15l-5-5L5 21" />
+                                </>
+                              )}
+                            </svg>
+                          </div>
+                        </div>
                       )}
-                      {p.type === "video" && (
+                      {p.type === "video" && p.thumbUrl && (
                         <span className="absolute top-2 right-2 text-white drop-shadow" aria-label="Video">
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
                             <path d="M8 5v14l11-7z" />
                           </svg>
                         </span>
                       )}
-                      {p.type === "carousel" && (
+                      {p.type === "carousel" && p.thumbUrl && (
                         <span className="absolute top-2 right-2 text-white drop-shadow" aria-label="Carousel">
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                             <rect x="7" y="7" width="13" height="13" rx="2" />

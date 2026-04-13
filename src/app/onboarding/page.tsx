@@ -102,6 +102,15 @@ export default function OnboardingPage() {
           <Link href="/" className="text-lg font-extrabold tracking-tight">
             BuildMy<span className="text-black/40">.</span>Directory
           </Link>
+          <Link
+            href="/"
+            className="text-sm font-medium text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] transition flex items-center gap-1.5"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+            Back to home
+          </Link>
         </nav>
 
         <main className="max-w-xl mx-auto px-6 pt-10 pb-20">
@@ -400,6 +409,18 @@ export default function OnboardingPage() {
             </div>
           )}
         </main>
+
+        {/* Footer */}
+        <footer className="border-t border-[color:var(--border)] py-8 px-6">
+          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+            <span className="text-sm font-bold">
+              BuildMy<span className="text-black/40">.</span>Directory
+            </span>
+            <p className="text-xs text-[color:var(--fg-subtle)]">
+              Built for creators who want their content to live beyond the feed.
+            </p>
+          </div>
+        </footer>
       </div>
     </div>
   );

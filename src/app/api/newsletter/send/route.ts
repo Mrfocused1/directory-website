@@ -111,9 +111,15 @@ export async function POST(request: NextRequest) {
       });
 
       try {
+        // Prefer the creator's custom "from name" if configured
+        const fromName = sanitizeFromName(site.newsletterFromName || siteName);
+        // Replies route to the creator's configured email, or their account email
+        const replyTo = site.newsletterReplyTo || user.email || undefined;
+
         const { error: sendError } = await resend.emails.send({
-          from: `${sanitizeFromName(siteName)} <hello@buildmy.directory>`,
+          from: `${fromName} <hello@buildmy.directory>`,
           to: sub.email,
+          replyTo,
           subject: template.subject,
           html: template.html,
         });

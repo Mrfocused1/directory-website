@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import DashboardNav from "@/components/dashboard/DashboardNav";
 import { useSiteContext } from "@/components/dashboard/SiteContext";
 import FeatureGate from "@/components/plans/FeatureGate";
+import SenderSettings from "@/components/subscribe/SenderSettings";
 import {
   getMockSubscribers,
   getMockDigests,
@@ -27,7 +28,8 @@ export default function NewsletterDashboard() {
       try {
         const res = await fetch(`/api/newsletter?siteId=${siteId}`);
         const data = await res.json();
-        if (data.hasData) {
+        if (res.ok) {
+          // Always capture settings; only swap content when real data exists
           setRealData(data);
         }
       } catch {
@@ -40,16 +42,19 @@ export default function NewsletterDashboard() {
   }, [siteId]);
 
   const mockSubs = getMockSubscribers();
-  const subscribers = realData?.subscribers
+  // Only use real data for content when the site actually has subscribers;
+  // otherwise show the mock preview. Settings panel always reads from realData.
+  const hasRealData = Boolean((realData as { hasData?: boolean } | null)?.hasData);
+  const subscribers = hasRealData && realData?.subscribers
     ? (realData.subscribers as typeof mockSubs)
     : mockSubs;
-  const digests = realData?.digests
+  const digests = hasRealData && realData?.digests
     ? (realData.digests as ReturnType<typeof getMockDigests>)
     : getMockDigests();
-  const growth = realData?.growth
+  const growth = hasRealData && realData?.growth
     ? (realData.growth as ReturnType<typeof getMockGrowth>)
     : getMockGrowth();
-  const categoryBreakdown = realData?.categoryBreakdown
+  const categoryBreakdown = hasRealData && realData?.categoryBreakdown
     ? (realData.categoryBreakdown as ReturnType<typeof getMockCategoryBreakdown>)
     : getMockCategoryBreakdown(subscribers);
 
@@ -211,6 +216,19 @@ export default function NewsletterDashboard() {
                   ))}
                 </div>
               </div>
+
+              {/* Sender settings — customise from name + reply-to */}
+              {siteId && (
+                <SenderSettings
+                  siteId={siteId}
+                  initialFromName={
+                    (realData?.settings as { fromName?: string } | undefined)?.fromName || ""
+                  }
+                  initialReplyTo={
+                    (realData?.settings as { replyTo?: string } | undefined)?.replyTo || ""
+                  }
+                />
+              )}
             </div>
           </div>
 

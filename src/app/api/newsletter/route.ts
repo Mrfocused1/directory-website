@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { subscribers, digestHistory } from "@/db/schema";
+import { subscribers, digestHistory, sites } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { ownedSiteId } from "@/db/utils";
 import { getApiUser } from "@/lib/supabase/api";
@@ -99,12 +99,24 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Include newsletter settings so the dashboard can show/edit them
+    const siteSettings = await db.query.sites.findFirst({
+      where: eq(sites.id, resolvedSiteId),
+      columns: { newsletterFromName: true, newsletterReplyTo: true, displayName: true, slug: true },
+    });
+
     return NextResponse.json({
       hasData: allSubscribers.length > 0,
       subscribers: formattedSubs,
       digests: formattedDigests,
       categoryBreakdown,
       growth,
+      settings: {
+        fromName: siteSettings?.newsletterFromName || siteSettings?.displayName || siteSettings?.slug || "",
+        replyTo: siteSettings?.newsletterReplyTo || "",
+        fromNameCustom: !!siteSettings?.newsletterFromName,
+        replyToCustom: !!siteSettings?.newsletterReplyTo,
+      },
     });
   } catch (error) {
     console.error("[newsletter] Error:", error);

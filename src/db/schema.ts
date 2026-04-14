@@ -44,6 +44,11 @@ export const sites = pgTable(
     categories: jsonb("categories").$type<string[]>().default([]),
     isPublished: boolean("is_published").notNull().default(false),
     lastSyncAt: timestamp("last_sync_at"),
+    // Newsletter settings — customise the sender identity for digest emails.
+    // If unset, we fall back to the site displayName and the site owner's
+    // auth email respectively.
+    newsletterFromName: varchar("newsletter_from_name", { length: 64 }),
+    newsletterReplyTo: varchar("newsletter_reply_to", { length: 320 }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

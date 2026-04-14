@@ -220,9 +220,9 @@ export default function LandingPage() {
                   Exploring Business, Africa, Economics & Current Affairs
                 </p>
               </div>
-              {/* Fake grid */}
+              {/* Fake grid — 3 cols × 2 rows = 6 tiles */}
               <div className="grid grid-cols-3 gap-3">
-                {Array.from({ length: 9 }).map((_, i) => (
+                {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="aspect-[4/5] bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl" />
                 ))}
               </div>

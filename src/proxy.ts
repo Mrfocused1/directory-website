@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
  * - *.buildmy.directory (subdomain) → tenant directory
  * - Custom domains → tenant directory (via DNS + lookup)
  */
-export function proxy(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const url = request.nextUrl.clone();
   const hostname = (request.headers.get("host") || "").replace(/:\d+$/, ""); // strip port
 

@@ -56,7 +56,31 @@ export default function NewsletterDashboard() {
   const monthlyCount = active.filter((s) => s.frequency === "monthly").length;
 
   const [showAllSubs, setShowAllSubs] = useState(false);
+  const [sending, setSending] = useState(false);
   const displayedSubs = showAllSubs ? subscribers : subscribers.slice(0, 8);
+
+  const handleSendDigest = async () => {
+    if (sending) return;
+    setSending(true);
+    try {
+      // TODO: get siteId from auth context
+      const res = await fetch("/api/newsletter/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId: "demo" }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Digest sent to ${data.sent} subscriber${data.sent === 1 ? "" : "s"} (${data.postCount} posts)`);
+      } else {
+        alert(data.error || "Failed to send digest");
+      }
+    } catch {
+      alert("Failed to send digest. Please try again.");
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <div className="min-h-screen relative">
@@ -77,8 +101,9 @@ export default function NewsletterDashboard() {
             </div>
             <button
               type="button"
-              onClick={() => alert("Digest sending will be available once the newsletter pipeline is connected.")}
-              className="h-9 px-4 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:opacity-90 transition self-start"
+              onClick={handleSendDigest}
+              disabled={sending}
+              className="h-9 px-4 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:opacity-90 transition self-start disabled:opacity-50"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />

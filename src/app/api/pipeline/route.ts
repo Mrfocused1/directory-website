@@ -16,6 +16,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (displayName.length > 256) {
+      return NextResponse.json({ error: "Display name too long (max 256 characters)" }, { status: 400 });
+    }
+    if (slug.length > 63) {
+      return NextResponse.json({ error: "Slug too long (max 63 characters)" }, { status: 400 });
+    }
+    if (handle.length > 128) {
+      return NextResponse.json({ error: "Handle too long (max 128 characters)" }, { status: 400 });
+    }
+
     if (!db) {
       return NextResponse.json(
         { error: "Database not configured" },

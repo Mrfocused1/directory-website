@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { subscribers } from "@/db/schema";
+import { subscribers, sites } from "@/db/schema";
 import { eq, and, count } from "drizzle-orm";
 import { resolveSiteId } from "@/db/utils";
+import { resend } from "@/lib/email/resend";
+import { verificationEmail } from "@/lib/email/templates";
 import crypto from "crypto";
 
 // POST /api/subscribe — Subscribe to a directory
@@ -66,7 +68,33 @@ export async function POST(request: NextRequest) {
       isActive: true,
     });
 
-    // TODO: Send verification email with unsubscribeToken link
+    // Send verification email
+    if (resend) {
+      // Look up site display name
+      const site = await db.query.sites.findFirst({
+        where: eq(sites.id, resolvedSiteId),
+        columns: { displayName: true, slug: true },
+      });
+      const siteName = site?.displayName || site?.slug || siteId;
+
+      const origin = request.nextUrl.origin;
+      const verifyUrl = `${origin}/api/subscribe/verify?token=${unsubscribeToken}&siteId=${resolvedSiteId}`;
+      const template = verificationEmail({
+        siteName,
+        verifyUrl,
+      });
+      try {
+        await resend.emails.send({
+          from: "BuildMy.Directory <hello@buildmy.directory>",
+          to: normalizedEmail,
+          subject: template.subject,
+          html: template.html,
+        });
+      } catch (emailErr) {
+        console.error("[subscribe] Failed to send verification email:", emailErr);
+        // Don't fail the subscription — email will be unverified until manually verified
+      }
+    }
 
     return NextResponse.json({ message: "Subscribed successfully" }, { status: 201 });
   } catch (err) {

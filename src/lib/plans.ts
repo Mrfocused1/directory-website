@@ -16,6 +16,8 @@ export type FeatureKey =
   | "platforms_multi"
   | "multi_accounts_per_platform"
   | "references"
+  | "transcription"
+  | "auto_categorization"
   | "seo_meta"
   | "remove_branding"
   | "white_label"
@@ -67,6 +69,7 @@ const PLANS: Record<PlanId, PlanConfig> = {
       "bookmarks",
       "platforms_multi",
       "references",
+      "transcription",
       "unlimited_posts",
     ]),
   },
@@ -87,6 +90,8 @@ const PLANS: Record<PlanId, PlanConfig> = {
       "bookmarks",
       "platforms_multi",
       "references",
+      "transcription",
+      "auto_categorization",
       "custom_domain",
       "seo_meta",
       "remove_branding",
@@ -112,6 +117,8 @@ const PLANS: Record<PlanId, PlanConfig> = {
       "platforms_multi",
       "multi_accounts_per_platform",
       "references",
+      "transcription",
+      "auto_categorization",
       "custom_domain",
       "seo_meta",
       "remove_branding",
@@ -179,6 +186,8 @@ export const UPGRADE_PROMPTS: Record<FeatureKey, { title: string; desc: string; 
   platforms_multi: { title: "Multi-Platform", desc: "Connect Instagram, TikTok, and YouTube in one unified directory.", benefit: "All your content in one place" },
   multi_accounts_per_platform: { title: "Multiple Accounts Per Platform", desc: "Connect more than one Instagram, TikTok, or YouTube account to a single directory.", benefit: "Build multi-creator directories under one roof" },
   references: { title: "Smart References", desc: "We auto-find YouTube videos and articles related to your content.", benefit: "Add credibility with cited sources" },
+  transcription: { title: "Video Transcription", desc: "AI-powered transcripts for every video — searchable, copyable, SEO-indexed.", benefit: "Make your video content discoverable in search" },
+  auto_categorization: { title: "AI Auto-Categorization", desc: "Claude AI detects topics and assigns the perfect category to each post.", benefit: "Smart organization, zero manual tagging" },
   seo_meta: { title: "SEO & Open Graph", desc: "Custom meta tags, Open Graph previews, and Twitter cards for every post.", benefit: "Get found on Google and look great when shared" },
   remove_branding: { title: "Remove Branding", desc: "Remove the BuildMy.Directory badge from your site.", benefit: "A fully white-label experience" },
   white_label: { title: "White Label", desc: "Fully rebrand the platform for your clients.", benefit: "Run it as your own product" },

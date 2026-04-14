@@ -7,12 +7,13 @@
  */
 
 import { db } from "@/db";
-import { sites, posts, pipelineJobs } from "@/db/schema";
+import { sites, posts, pipelineJobs, users } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { scrapeProfile } from "./scraper";
 import { uploadThumbnail, uploadMedia } from "./storage";
 import { transcribeVideo } from "./transcriber";
-import { categorizeWithLLM, detectCategories } from "./categorizer";
+import { categorizeWithLLM, detectCategories, categorizeByKeywords } from "./categorizer";
+import { hasFeature, type PlanId } from "@/lib/plans";
 
 type ProgressCallback = (step: string, progress: number, message: string) => Promise<void>;
 
@@ -25,6 +26,15 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
 
   const site = await database.query.sites.findFirst({ where: eq(sites.id, siteId) });
   if (!site) throw new Error(`Site ${siteId} not found`);
+
+  // Look up the site owner's plan to gate paid features
+  const owner = await database.query.users.findFirst({
+    where: eq(users.id, site.userId),
+    columns: { plan: true },
+  });
+  const userPlan: PlanId = (owner?.plan as PlanId) || "free";
+  const canTranscribe = hasFeature(userPlan, "transcription");
+  const canAutoCategorize = hasFeature(userPlan, "auto_categorization");
 
   const report = onProgress || (async () => {});
 
@@ -84,57 +94,72 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
       await report("transcribe", pct, `Uploaded ${i + 1}/${scrapedPosts.length}...`);
     }
 
-    // ── Step 3: TRANSCRIBE ──────────────────────────────────────────
-    await report("transcribe", 40, "Transcribing videos...");
-    await updateJob(siteId, "transcribe", "running", 40, "Transcribing videos...");
+    // ── Step 3: TRANSCRIBE (Creator+ plans only) ────────────────────
+    if (canTranscribe) {
+      await report("transcribe", 40, "Transcribing videos...");
+      await updateJob(siteId, "transcribe", "running", 40, "Transcribing videos...");
 
-    const videoPosts = scrapedPosts.filter((p) => p.type === "video" && p.mediaUrls[0]);
-    let transcribed = 0;
+      const videoPosts = scrapedPosts.filter((p) => p.type === "video" && p.mediaUrls[0]);
+      let transcribed = 0;
 
-    for (const vp of videoPosts) {
-      const result = await transcribeVideo(vp.mediaUrls[0]);
-      if (result.text) {
-        await db.update(posts)
-          .set({
-            transcript: result.text,
-            transcriptSegments: result.segments,
-          })
-          .where(and(eq(posts.siteId, siteId), eq(posts.shortcode, vp.shortcode)));
-        transcribed++;
+      for (const vp of videoPosts) {
+        const result = await transcribeVideo(vp.mediaUrls[0]);
+        if (result.text) {
+          await database.update(posts)
+            .set({
+              transcript: result.text,
+              transcriptSegments: result.segments,
+            })
+            .where(and(eq(posts.siteId, siteId), eq(posts.shortcode, vp.shortcode)));
+          transcribed++;
+        }
+        const pct = Math.round(40 + (transcribed / Math.max(videoPosts.length, 1)) * 20);
+        await report("transcribe", pct, `Transcribed ${transcribed}/${videoPosts.length} videos`);
       }
-      const pct = Math.round(40 + (transcribed / Math.max(videoPosts.length, 1)) * 20);
-      await report("transcribe", pct, `Transcribed ${transcribed}/${videoPosts.length} videos`);
-    }
 
-    await updateJob(siteId, "transcribe", "completed", 100, `Transcribed ${transcribed} videos`);
+      await updateJob(siteId, "transcribe", "completed", 100, `Transcribed ${transcribed} videos`);
+    } else {
+      await report("transcribe", 60, "Skipping transcription (upgrade to Creator for this feature)");
+      await updateJob(siteId, "transcribe", "completed", 100, "Transcription not available on Free plan");
+    }
 
     // ── Step 4: CATEGORIZE ──────────────────────────────────────────
     await report("categorize", 60, "Categorizing posts...");
     await updateJob(siteId, "categorize", "running", 60, "Categorizing posts...");
 
-    // First, detect categories from all captions
+    // Detect categories — Pro+ uses Claude AI; Free/Creator get a default set
     const allCaptions = scrapedPosts.map((p) => p.caption).filter(Boolean);
-    const detectedCategories = await detectCategories(allCaptions);
+    const detectedCategories = canAutoCategorize
+      ? await detectCategories(allCaptions)
+      : ["General", "Updates", "Featured"];
 
-    // Update site with detected categories
-    await db.update(sites)
+    // Update site with categories
+    await database.update(sites)
       .set({ categories: detectedCategories })
       .where(eq(sites.id, siteId));
 
-    // Categorize posts in parallel batches of 5 (respect rate limits)
     // Limit to 1000 posts per pipeline run to avoid OOM
-    const dbPosts = await db.query.posts.findMany({
+    const dbPosts = await database.query.posts.findMany({
       where: eq(posts.siteId, siteId),
       limit: 1000,
     });
     const BATCH_SIZE = 5;
     let categorized = 0;
 
+    // Pre-build keyword rules for fallback categorization
+    const keywordRules: Record<string, string[]> = canAutoCategorize ? {} : {
+      General: ["update", "news", "today"],
+      Updates: ["new", "launch", "release"],
+      Featured: ["best", "top", "favorite"],
+    };
+
     for (let i = 0; i < dbPosts.length; i += BATCH_SIZE) {
       const batch = dbPosts.slice(i, i + BATCH_SIZE);
       await Promise.all(
         batch.map(async (post) => {
-          const result = await categorizeWithLLM(post.caption, post.transcript, detectedCategories);
+          const result = canAutoCategorize
+            ? await categorizeWithLLM(post.caption, post.transcript, detectedCategories)
+            : categorizeByKeywords(post.caption, post.transcript, keywordRules);
           await database.update(posts)
             .set({ category: result.category })
             .where(eq(posts.id, post.id));

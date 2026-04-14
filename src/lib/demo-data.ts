@@ -1,9 +1,109 @@
-import type { SiteConfig, SitePost, Reference, Platform, PlatformConnection } from "@/lib/types";
+import { db } from "@/db";
+import { sites, posts, references, platformConnections } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import type { SiteConfig, SitePost, Reference, PlatformConnection, Platform } from "@/lib/types";
 
 /**
- * Shared demo data generator for tenant pages.
- * In production, this is replaced by DB queries.
+ * Fetches site data from the database for tenant pages.
+ * Falls back to demo data when DB is unavailable (development).
  */
+export async function getSiteData(tenantSlug: string): Promise<{
+  site: SiteConfig;
+  posts: SitePost[];
+} | null> {
+  if (db) {
+    return getSiteDataFromDB(tenantSlug);
+  }
+  // Fallback: generate demo data when DB is unavailable
+  return getDemoSiteData(tenantSlug);
+}
+
+async function getSiteDataFromDB(tenantSlug: string): Promise<{
+  site: SiteConfig;
+  posts: SitePost[];
+} | null> {
+  const site = await db!.query.sites.findFirst({
+    where: eq(sites.slug, tenantSlug),
+  });
+
+  if (!site) {
+    // No site found in DB — fall back to demo for the "demo" slug
+    if (tenantSlug === "demo") return getDemoSiteData(tenantSlug);
+    return null;
+  }
+
+  // Fetch platform connections
+  const connections = await db!.query.platformConnections.findMany({
+    where: eq(platformConnections.siteId, site.id),
+  });
+
+  const platforms: PlatformConnection[] = connections.map((c) => ({
+    id: c.id,
+    platform: c.platform as Platform,
+    handle: c.handle,
+    displayName: c.displayName,
+    avatarUrl: c.avatarUrl,
+    followerCount: c.followerCount,
+    postCount: c.postCount ?? 0,
+    isConnected: c.isConnected,
+    lastSyncAt: c.lastSyncAt?.toISOString() ?? null,
+    syncStatus: c.syncStatus as PlatformConnection["syncStatus"],
+  }));
+
+  // Fetch posts with references
+  const sitePosts = await db!.query.posts.findMany({
+    where: eq(posts.siteId, site.id),
+    orderBy: (posts, { desc }) => [desc(posts.takenAt)],
+  });
+
+  const postList: SitePost[] = await Promise.all(
+    sitePosts.map(async (p) => {
+      const refs = await db!.query.references.findMany({
+        where: eq(references.postId, p.id),
+      });
+
+      const mappedRefs: Reference[] = refs.map((r) =>
+        r.kind === "youtube"
+          ? { kind: "youtube" as const, title: r.title, videoId: r.videoId || "", note: r.note || undefined }
+          : { kind: "article" as const, title: r.title, url: r.url || "", note: r.note || undefined },
+      );
+
+      return {
+        id: p.id,
+        shortcode: p.shortcode,
+        type: p.type as SitePost["type"],
+        caption: p.caption,
+        title: p.title,
+        category: p.category,
+        platform: (site.platform || "instagram") as Platform,
+        takenAt: p.takenAt?.toISOString() ?? null,
+        mediaUrl: p.mediaUrl,
+        thumbUrl: p.thumbUrl,
+        numSlides: p.numSlides ?? 0,
+        slides: p.slides ?? null,
+        transcript: p.transcript,
+        platformUrl: p.platformUrl,
+        references: mappedRefs,
+      };
+    }),
+  );
+
+  const siteConfig: SiteConfig = {
+    slug: site.slug,
+    displayName: site.displayName || site.slug,
+    bio: site.bio,
+    avatarUrl: site.avatarUrl,
+    handle: site.handle,
+    platform: site.platform as Platform,
+    accentColor: site.accentColor || "#000000",
+    categories: (site.categories as string[]) || [],
+    platforms,
+  };
+
+  return { site: siteConfig, posts: postList };
+}
+
+// ─── Demo data fallback ─────────────────────────────────────────────
 
 const PLATFORM_URLS: Record<Platform, (handle: string, id: string) => string> = {
   instagram: (handle, id) => `https://www.instagram.com/p/${id}/`,
@@ -13,44 +113,22 @@ const PLATFORM_URLS: Record<Platform, (handle: string, id: string) => string> = 
 
 const DEMO_PLATFORMS: PlatformConnection[] = [
   {
-    id: "pc-1",
-    platform: "instagram",
-    handle: "demo_creator",
-    displayName: "Demo Creator",
-    avatarUrl: null,
-    followerCount: 48200,
-    postCount: 14,
-    isConnected: true,
-    lastSyncAt: "2026-04-12T10:00:00Z",
-    syncStatus: "completed",
+    id: "pc-1", platform: "instagram", handle: "demo_creator", displayName: "Demo Creator",
+    avatarUrl: null, followerCount: 48200, postCount: 14, isConnected: true,
+    lastSyncAt: "2026-04-12T10:00:00Z", syncStatus: "completed",
   },
   {
-    id: "pc-2",
-    platform: "tiktok",
-    handle: "demo_creator",
-    displayName: "Demo Creator",
-    avatarUrl: null,
-    followerCount: 125000,
-    postCount: 8,
-    isConnected: true,
-    lastSyncAt: "2026-04-12T10:05:00Z",
-    syncStatus: "completed",
+    id: "pc-2", platform: "tiktok", handle: "demo_creator", displayName: "Demo Creator",
+    avatarUrl: null, followerCount: 125000, postCount: 8, isConnected: true,
+    lastSyncAt: "2026-04-12T10:05:00Z", syncStatus: "completed",
   },
   {
-    id: "pc-3",
-    platform: "youtube",
-    handle: "DemoCreator",
-    displayName: "Demo Creator",
-    avatarUrl: null,
-    followerCount: 12400,
-    postCount: 6,
-    isConnected: true,
-    lastSyncAt: "2026-04-11T18:00:00Z",
-    syncStatus: "completed",
+    id: "pc-3", platform: "youtube", handle: "DemoCreator", displayName: "Demo Creator",
+    avatarUrl: null, followerCount: 12400, postCount: 6, isConnected: true,
+    lastSyncAt: "2026-04-11T18:00:00Z", syncStatus: "completed",
   },
 ];
 
-// Distribute posts across platforms
 const PLATFORM_SEQUENCE: Platform[] = [
   "instagram", "tiktok", "instagram", "youtube",
   "tiktok", "instagram", "instagram", "tiktok",
@@ -60,10 +138,10 @@ const PLATFORM_SEQUENCE: Platform[] = [
   "tiktok", "instagram", "instagram", "youtube",
 ];
 
-export async function getSiteData(tenantSlug: string): Promise<{
+function getDemoSiteData(tenantSlug: string): {
   site: SiteConfig;
   posts: SitePost[];
-} | null> {
+} {
   const name = tenantSlug.charAt(0).toUpperCase() + tenantSlug.slice(1);
 
   const demoSite: SiteConfig = {
@@ -85,14 +163,7 @@ export async function getSiteData(tenantSlug: string): Promise<{
     const handle = platform === "youtube" ? "DemoCreator" : tenantSlug;
     const refs: Reference[] =
       i % 3 === 0
-        ? [
-            {
-              kind: "youtube" as const,
-              title: `Related video about ${category}`,
-              videoId: "dQw4w9WgXcQ",
-              note: "Example Channel",
-            },
-          ]
+        ? [{ kind: "youtube" as const, title: `Related video about ${category}`, videoId: "dQw4w9WgXcQ", note: "Example Channel" }]
         : [];
 
     return {
@@ -108,10 +179,7 @@ export async function getSiteData(tenantSlug: string): Promise<{
       thumbUrl: null,
       numSlides: i % 4 === 0 ? 3 : 0,
       slides: null,
-      transcript:
-        i % 2 !== 0
-          ? "This is a demo transcript. In production, this would be the full AI-generated transcription of the video content."
-          : null,
+      transcript: i % 2 !== 0 ? "This is a demo transcript. In production, this would be the full AI-generated transcription of the video content." : null,
       platformUrl: PLATFORM_URLS[platform](handle, `demo${i}`),
       references: refs,
     };

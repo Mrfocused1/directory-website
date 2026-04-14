@@ -54,10 +54,18 @@ export default function RequestBoard({
       ),
     );
 
+    // Get sessionId for vote tracking
+    const sessionId = typeof window !== "undefined"
+      ? (sessionStorage.getItem("bmd_session") || crypto.randomUUID())
+      : "unknown";
+    if (typeof window !== "undefined" && !sessionStorage.getItem("bmd_session")) {
+      sessionStorage.setItem("bmd_session", sessionId);
+    }
+
     await fetch("/api/requests", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requestId, action: "vote" }),
+      body: JSON.stringify({ requestId, action: "vote", sessionId }),
     });
   };
 

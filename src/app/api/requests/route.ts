@@ -126,6 +126,8 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
+    let didVote = false;
+
     if (action === "vote") {
       if (!sessionId) {
         return NextResponse.json({ error: "Missing sessionId" }, { status: 400 });
@@ -142,12 +144,14 @@ export async function PATCH(request: NextRequest) {
         await db.update(contentRequests)
           .set({ voteCount: sql`GREATEST(0, ${contentRequests.voteCount} - 1)` })
           .where(eq(contentRequests.id, requestId));
+        didVote = false;
       } else {
         // Vote
         await db.insert(requestVotes).values({ requestId, sessionId });
         await db.update(contentRequests)
           .set({ voteCount: sql`${contentRequests.voteCount} + 1` })
           .where(eq(contentRequests.id, requestId));
+        didVote = true;
       }
     } else if (action === "update_status") {
       await db.update(contentRequests)
@@ -174,7 +178,7 @@ export async function PATCH(request: NextRequest) {
         status: updated.status,
         isPinned: updated.isPinned,
         voteCount: updated.voteCount,
-        hasVoted: action === "vote" ? !body.hasVoted : false,
+        hasVoted: didVote,
         creatorNote: updated.creatorNote,
         completedPostShortcode: updated.completedPostShortcode,
         createdAt: updated.createdAt.toISOString(),

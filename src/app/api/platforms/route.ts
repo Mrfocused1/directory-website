@@ -1,4 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { platformConnections } from "@/db/schema";
+import { eq } from "drizzle-orm";
+
+// GET /api/platforms?siteId=xxx — List platform connections for a site
+export async function GET(request: NextRequest) {
+  const siteId = request.nextUrl.searchParams.get("siteId");
+
+  if (!siteId) {
+    return NextResponse.json({ error: "Missing siteId" }, { status: 400 });
+  }
+
+  if (!db) {
+    return NextResponse.json({ connections: [] });
+  }
+
+  const connections = await db.query.platformConnections.findMany({
+    where: eq(platformConnections.siteId, siteId),
+  });
+
+  return NextResponse.json({
+    connections: connections.map((c) => ({
+      id: c.id,
+      platform: c.platform,
+      handle: c.handle,
+      displayName: c.displayName,
+      avatarUrl: c.avatarUrl,
+      followerCount: c.followerCount,
+      postCount: c.postCount ?? 0,
+      isConnected: c.isConnected,
+      lastSyncAt: c.lastSyncAt?.toISOString() ?? null,
+      syncStatus: c.syncStatus,
+    })),
+  });
+}
 
 // POST /api/platforms — Connect a new platform
 export async function POST(request: NextRequest) {

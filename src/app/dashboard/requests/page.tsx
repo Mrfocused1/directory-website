@@ -13,16 +13,31 @@ export default function CreatorRequestsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNote, setEditNote] = useState("");
+  const [siteId, setSiteId] = useState("demo");
 
-  const siteId = "demo"; // In production, from auth context
+  // Fetch user's first site to get real siteId
+  useEffect(() => {
+    async function fetchSiteId() {
+      try {
+        const res = await fetch("/api/sites");
+        const data = await res.json();
+        if (data.sites?.length > 0) {
+          setSiteId(data.sites[0].id);
+        }
+      } catch {
+        // Keep "demo" fallback
+      }
+    }
+    fetchSiteId();
+  }, []);
 
   const fetchRequests = useCallback(async () => {
     try {
       const res = await fetch(`/api/requests?siteId=${siteId}&sort=votes`);
       const data = await res.json();
-      setRequests(data.requests);
+      setRequests(data.requests || []);
     } catch {
-      // silently fail
+      console.warn("[requests] Failed to fetch");
     } finally {
       setIsLoading(false);
     }

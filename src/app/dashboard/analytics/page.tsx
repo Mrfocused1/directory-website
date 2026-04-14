@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import DashboardNav from "@/components/dashboard/DashboardNav";
 import FeatureGate from "@/components/plans/FeatureGate";
@@ -33,17 +33,51 @@ type ChartMetric = "views" | "clicks" | "searches" | "shares" | "uniqueVisitors"
 export default function AnalyticsDashboard() {
   const [period, setPeriod] = useState<Period>("30d");
   const [chartMetric, setChartMetric] = useState<ChartMetric>("views");
+  const [realData, setRealData] = useState<Record<string, unknown> | null>(null);
 
   const days = period === "7d" ? 7 : 30;
-  const dailyStats = getMockDailyStats(days);
-  const summary = getMockSummary(period);
-  const topPosts = getMockTopPosts();
-  const searchTerms = getMockSearchTerms();
-  const referrers = getMockReferrers();
-  const devices = getMockDeviceStats();
-  const countries = getMockCountryStats();
-  const categories = getMockCategoryStats();
-  const heatmap = getMockHeatmap();
+
+  // Try to fetch real analytics data
+  useEffect(() => {
+    async function fetchAnalytics() {
+      try {
+        // TODO: get siteId from auth context
+        const res = await fetch(`/api/analytics/summary?siteId=demo&days=${days}`);
+        const data = await res.json();
+        if (data.hasData) {
+          setRealData(data);
+        } else {
+          setRealData(null);
+        }
+      } catch {
+        setRealData(null);
+      }
+    }
+    fetchAnalytics();
+  }, [days]);
+
+  // Use real data when available, otherwise fall back to mock
+  const summary = realData
+    ? (realData.summary as ReturnType<typeof getMockSummary>)
+    : getMockSummary(period);
+  const dailyStats = realData?.dailyStats
+    ? (realData.dailyStats as ReturnType<typeof getMockDailyStats>)
+    : getMockDailyStats(days);
+  const topPosts = getMockTopPosts(); // TODO: wire to real top posts query
+  const searchTerms = getMockSearchTerms(); // TODO: wire to real search terms
+  const referrers = realData?.referrers
+    ? (realData.referrers as ReturnType<typeof getMockReferrers>)
+    : getMockReferrers();
+  const devices = realData?.devices
+    ? (realData.devices as ReturnType<typeof getMockDeviceStats>)
+    : getMockDeviceStats();
+  const countries = realData?.countries
+    ? (realData.countries as ReturnType<typeof getMockCountryStats>)
+    : getMockCountryStats();
+  const categories = realData?.topCategories
+    ? (realData.topCategories as ReturnType<typeof getMockCategoryStats>)
+    : getMockCategoryStats();
+  const heatmap = getMockHeatmap(); // TODO: wire to real heatmap query
 
   return (
     <div className="min-h-screen relative">

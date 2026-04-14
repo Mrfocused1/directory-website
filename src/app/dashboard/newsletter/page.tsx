@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import DashboardNav from "@/components/dashboard/DashboardNav";
 import FeatureGate from "@/components/plans/FeatureGate";
@@ -15,10 +15,40 @@ import { formatDate } from "@/lib/utils";
 const GrowthChart = dynamic(() => import("@/components/subscribe/GrowthChart"), { ssr: false });
 
 export default function NewsletterDashboard() {
-  const subscribers = getMockSubscribers();
-  const digests = getMockDigests();
-  const growth = getMockGrowth();
-  const categoryBreakdown = getMockCategoryBreakdown(subscribers);
+  const [realData, setRealData] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        // TODO: get siteId from auth context
+        const res = await fetch("/api/newsletter?siteId=demo");
+        const data = await res.json();
+        if (data.hasData) {
+          setRealData(data);
+        }
+      } catch {
+        // Fall back to mock data
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  const mockSubs = getMockSubscribers();
+  const subscribers = realData?.subscribers
+    ? (realData.subscribers as typeof mockSubs)
+    : mockSubs;
+  const digests = realData?.digests
+    ? (realData.digests as ReturnType<typeof getMockDigests>)
+    : getMockDigests();
+  const growth = realData?.growth
+    ? (realData.growth as ReturnType<typeof getMockGrowth>)
+    : getMockGrowth();
+  const categoryBreakdown = realData?.categoryBreakdown
+    ? (realData.categoryBreakdown as ReturnType<typeof getMockCategoryBreakdown>)
+    : getMockCategoryBreakdown(subscribers);
 
   const active = subscribers.filter((s) => s.isActive && s.isVerified);
   const weeklyCount = active.filter((s) => s.frequency === "weekly").length;

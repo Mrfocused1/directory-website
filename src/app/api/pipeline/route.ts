@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { sites, pipelineJobs } from "@/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { sites, pipelineJobs, users } from "@/db/schema";
+import { eq, and, desc, count } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
 import { inngest } from "@/lib/inngest/client";
+import { getPlan, type PlanId } from "@/lib/plans";
 
 // Reserved slugs that conflict with app routes or are commonly squatted
 const RESERVED_SLUGS = new Set([
@@ -65,6 +66,50 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Database not configured" },
         { status: 503 },
+      );
+    }
+
+    // Enforce per-plan site limit
+    const validPlans = ["free", "creator", "pro", "agency"];
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+      columns: { plan: true },
+    });
+    const planId = (validPlans.includes(dbUser?.plan as string) ? dbUser!.plan : "free") as PlanId;
+    const planConfig = getPlan(planId);
+
+    const [countRow] = await db.select({ count: count() })
+      .from(sites)
+      .where(eq(sites.userId, user.id));
+
+    if (countRow.count >= planConfig.siteLimit) {
+      return NextResponse.json(
+        { error: `Site limit reached (${planConfig.siteLimit} max on ${planConfig.name} plan). Upgrade for more.` },
+        { status: 403 },
+      );
+    }
+
+    // If the user already has a site with this slug, return it instead of failing on the unique constraint
+    const existingByUserSlug = await db.query.sites.findFirst({
+      where: and(eq(sites.userId, user.id), eq(sites.slug, slug)),
+    });
+    if (existingByUserSlug) {
+      return NextResponse.json({
+        siteId: existingByUserSlug.id,
+        status: "existing",
+        message: "You already have a directory with this slug.",
+      });
+    }
+
+    // Make sure the slug isn't already taken by another user
+    const slugTaken = await db.query.sites.findFirst({
+      where: eq(sites.slug, slug),
+      columns: { id: true },
+    });
+    if (slugTaken) {
+      return NextResponse.json(
+        { error: "This slug is already taken. Please choose another." },
+        { status: 409 },
       );
     }
 
@@ -158,17 +203,19 @@ export async function GET(request: NextRequest) {
     stepStatuses.reduce((sum, s) => sum + s.progress, 0) / stepStatuses.length,
   );
 
-  // Sanitize error messages — strip anything that looks like a secret/API key/token
+  // Sanitize error messages — redact anything that looks like an API key or token.
+  // We do NOT blanket-reject words like "token" or "auth" because they appear in
+  // legitimate error messages (e.g. "authentication required").
   const sanitizeError = (err: string | null): string | null => {
     if (!err) return null;
-    // Generic safe message for common failure cases
-    if (err.includes("token") || err.includes("key") || err.includes("secret") || err.includes("auth")) {
-      return "A service configuration error occurred. Please contact support.";
-    }
-    // Pattern-match to redact anything that looks like a token
     return err
-      .replace(/\b(apify_api_|re_|sk-ant-|sk-|eyJ[A-Za-z0-9_-]+\.)\S+/gi, "[redacted]")
-      .slice(0, 200);
+      // Match known key prefixes followed by the rest of the token
+      .replace(/\b(apify_api_|re_|sk-ant-|sk-|whsec_|signkey-|Bearer\s+)[A-Za-z0-9_\-]{8,}/gi, "[redacted]")
+      // JWTs: eyJ...base64... (3 dot-separated base64 segments)
+      .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, "[redacted]")
+      // Generic env var names that might contain secrets
+      .replace(/\b(API_KEY|API_TOKEN|SECRET_KEY|SIGNING_KEY)=[^\s]+/gi, "$1=[redacted]")
+      .slice(0, 300);
   };
 
   return NextResponse.json({

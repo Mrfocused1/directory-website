@@ -32,7 +32,8 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     where: eq(users.id, site.userId),
     columns: { plan: true },
   });
-  const userPlan: PlanId = (owner?.plan as PlanId) || "free";
+  const validPlans = ["free", "creator", "pro", "agency"];
+  const userPlan: PlanId = (validPlans.includes(owner?.plan as string) ? owner!.plan : "free") as PlanId;
   const canTranscribe = hasFeature(userPlan, "transcription");
   const canAutoCategorize = hasFeature(userPlan, "auto_categorization");
 
@@ -129,9 +130,13 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
 
     // Detect categories — Pro+ uses Claude AI; Free/Creator get a default set
     const allCaptions = scrapedPosts.map((p) => p.caption).filter(Boolean);
-    const detectedCategories = canAutoCategorize
+    let detectedCategories = canAutoCategorize
       ? await detectCategories(allCaptions)
       : ["General", "Updates", "Featured"];
+    // Always include "Uncategorized" so keyword/LLM fallbacks don't produce orphan categories
+    if (!detectedCategories.includes("Uncategorized")) {
+      detectedCategories = [...detectedCategories, "Uncategorized"];
+    }
 
     // Update site with categories
     await database.update(sites)

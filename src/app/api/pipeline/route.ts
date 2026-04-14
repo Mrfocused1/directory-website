@@ -185,7 +185,7 @@ export async function GET(request: NextRequest) {
   }
 
   const latestJob = jobs[0];
-  const stepOrder = ["scrape", "transcribe", "categorize", "references", "complete"];
+  const stepOrder = ["scrape", "transcribe", "categorize", "complete"];
 
   // Build step statuses from all jobs
   const stepStatuses = stepOrder.map((step) => {

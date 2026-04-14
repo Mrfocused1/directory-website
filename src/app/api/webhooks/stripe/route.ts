@@ -111,6 +111,7 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      case "customer.subscription.created":
       case "customer.subscription.updated": {
         const subscription = event.data.object;
         const amount = subscription.items?.data?.[0]?.price?.unit_amount;
@@ -122,7 +123,7 @@ export async function POST(request: NextRequest) {
             .set({ plan, updatedAt: new Date() })
             .where(eq(users.stripeCustomerId, customerId));
         }
-        console.log(`[SUBSCRIPTION] Customer ${customerId} plan changed to ${plan}`);
+        console.log(`[SUBSCRIPTION] Customer ${customerId} plan changed to ${plan} (${event.type})`);
         break;
       }
 

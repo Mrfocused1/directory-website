@@ -366,10 +366,9 @@ function OnboardingContent() {
                   { key: "scrape", label: "Scraping your content" },
                   { key: "transcribe", label: "Transcribing videos" },
                   { key: "categorize", label: "Categorizing posts" },
-                  { key: "references", label: "Finding references" },
                   { key: "complete", label: "Publishing directory" },
                 ].map((s) => {
-                  const stepOrder = ["scrape", "transcribe", "categorize", "references", "complete"];
+                  const stepOrder = ["scrape", "transcribe", "categorize", "complete"];
                   const currentIdx = stepOrder.indexOf(pipelineStatus.step);
                   const thisIdx = stepOrder.indexOf(s.key);
                   const isDone = thisIdx < currentIdx;

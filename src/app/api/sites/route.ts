@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { sites, posts } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
 
 // GET /api/sites — List sites for the authenticated user
@@ -49,5 +49,39 @@ export async function GET() {
   } catch (error) {
     console.error("[sites] GET error:", error);
     return NextResponse.json({ sites: [] });
+  }
+}
+
+// DELETE /api/sites?id=xxx — Delete a site owned by the authenticated user.
+// Cascading FKs in the schema delete posts, jobs, subscribers, etc.
+export async function DELETE(request: NextRequest) {
+  if (!db) {
+    return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+  }
+
+  const user = await getApiUser();
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
+  const siteId = request.nextUrl.searchParams.get("id");
+  if (!siteId) {
+    return NextResponse.json({ error: "Missing site id" }, { status: 400 });
+  }
+
+  try {
+    // Only allow deletion if the user owns the site
+    const result = await db.delete(sites)
+      .where(and(eq(sites.id, siteId), eq(sites.userId, user.id)))
+      .returning({ id: sites.id });
+
+    if (result.length === 0) {
+      return NextResponse.json({ error: "Site not found or not owned by you" }, { status: 404 });
+    }
+
+    return NextResponse.json({ deleted: true, id: result[0].id });
+  } catch (error) {
+    console.error("[sites] DELETE error:", error);
+    return NextResponse.json({ error: "Failed to delete site" }, { status: 500 });
   }
 }

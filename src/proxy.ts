@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { updateSession } from "@/lib/supabase/middleware";
 
 /**
  * Proxy for subdomain-based multi-tenant routing.
@@ -8,7 +9,9 @@ import { NextRequest, NextResponse } from "next/server";
  * - *.buildmy.directory (subdomain) → tenant directory
  * - Custom domains → tenant directory (via DNS + lookup)
  */
-export default function proxy(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
+  // Refresh Supabase auth session on every request
+  const sessionResponse = await updateSession(request);
   const url = request.nextUrl.clone();
   const hostname = (request.headers.get("host") || "").replace(/:\d+$/, ""); // strip port
 
@@ -26,7 +29,7 @@ export default function proxy(request: NextRequest) {
   const isRootDomain = isVercelUrl || rootDomains.includes(hostname);
 
   if (isRootDomain) {
-    return NextResponse.next();
+    return sessionResponse;
   }
 
   // Extract subdomain from *.buildmy.directory
@@ -57,7 +60,7 @@ export default function proxy(request: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
-  return NextResponse.next();
+  return sessionResponse;
 }
 
 export const config = {

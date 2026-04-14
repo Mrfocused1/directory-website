@@ -1,33 +1,37 @@
-"use client";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import DashboardShell from "@/components/dashboard/DashboardShell";
 
-import PlanProvider from "@/components/plans/PlanProvider";
-
-/**
- * Dashboard layout — wraps all /dashboard/* pages with PlanProvider.
- * Change the planId here to test different plan levels:
- * "free" | "creator" | "pro" | "agency"
- */
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // In production, this comes from the user's session/auth context
-  const userPlan = "free" as const;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  // Look up user's plan from the database
+  let userPlan: "free" | "creator" | "pro" | "agency" = "free";
+  if (db) {
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+      columns: { plan: true },
+    });
+    if (dbUser?.plan) {
+      userPlan = dbUser.plan as typeof userPlan;
+    }
+  }
 
   return (
-    <PlanProvider planId={userPlan}>
+    <DashboardShell planId={userPlan} userId={user.id} email={user.email || ""}>
       {children}
-      <footer className="border-t border-[color:var(--border)] py-8 px-6 relative z-10">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <span className="text-sm font-bold">
-            BuildMy<span className="text-black/40">.</span>Directory
-          </span>
-          <p className="text-xs text-[color:var(--fg-subtle)]">
-            Built for creators who want their content to live beyond the feed.
-          </p>
-        </div>
-      </footer>
-    </PlanProvider>
+    </DashboardShell>
   );
 }

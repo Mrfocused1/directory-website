@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
+import { getApiUser } from "@/lib/supabase/api";
 
 /**
  * Plan pricing configuration.
@@ -42,10 +43,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { plan } = body;
 
-    // TODO: Get userId from authenticated session (cookie/JWT) — never trust client body
-    // const session = await getSession(request);
-    // const userId = session?.userId;
-    const userId: string | null = null;
+    const user = await getApiUser();
+    const userId = user?.id || null;
 
     const planConfig = PLAN_PRICES[plan];
     if (!planConfig) {

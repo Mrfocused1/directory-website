@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { sites, pipelineJobs } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { getApiUser } from "@/lib/supabase/api";
 
 // POST /api/pipeline — Start a new pipeline for a site
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { platform, handle, slug, displayName, userId } = body;
+    const { platform, handle, slug, displayName } = body;
+    const user = await getApiUser();
 
     if (!platform || !handle || !slug || !displayName) {
       return NextResponse.json(
@@ -35,7 +37,7 @@ export async function POST(request: NextRequest) {
 
     // Create the site record in the database
     const [site] = await db.insert(sites).values({
-      userId: userId || "00000000-0000-0000-0000-000000000000", // placeholder until auth is added
+      userId: user?.id || "00000000-0000-0000-0000-000000000000",
       slug,
       platform,
       handle,

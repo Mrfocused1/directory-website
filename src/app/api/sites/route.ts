@@ -1,18 +1,20 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { sites, posts } from "@/db/schema";
-import { eq, count, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import { getApiUser } from "@/lib/supabase/api";
 
-// GET /api/sites — List all sites for the current user
-// TODO: Filter by authenticated userId once auth is implemented
+// GET /api/sites — List sites for the authenticated user
 export async function GET() {
   if (!db) {
     return NextResponse.json({ sites: [] });
   }
 
   try {
-    // Single query with LEFT JOIN to get post counts (avoids N+1)
-    const rows = await db
+    const user = await getApiUser();
+
+    // Single query with LEFT JOIN to get post counts
+    const baseQuery = db
       .select({
         id: sites.id,
         slug: sites.slug,
@@ -24,9 +26,12 @@ export async function GET() {
         postCount: sql<number>`cast(count(${posts.id}) as int)`,
       })
       .from(sites)
-      .leftJoin(posts, eq(posts.siteId, sites.id))
-      .groupBy(sites.id)
-      .orderBy(sites.createdAt);
+      .leftJoin(posts, eq(posts.siteId, sites.id));
+
+    // Filter by userId if authenticated
+    const rows = user
+      ? await baseQuery.where(eq(sites.userId, user.id)).groupBy(sites.id).orderBy(sites.createdAt)
+      : await baseQuery.groupBy(sites.id).orderBy(sites.createdAt);
 
     const result = rows.map((row) => ({
       id: row.id,

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import PlanBadge from "@/components/plans/PlanBadge";
 import { usePlan } from "@/components/plans/PlanProvider";
+import { createClient } from "@/lib/supabase/client";
 import type { FeatureKey } from "@/lib/plans";
 
 const TABS: { href: string; label: string; requiredFeature?: FeatureKey }[] = [
@@ -17,7 +18,15 @@ const TABS: { href: string; label: string; requiredFeature?: FeatureKey }[] = [
 
 export default function DashboardNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const { can } = usePlan();
+
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  };
 
   return (
     <>
@@ -52,6 +61,13 @@ export default function DashboardNav() {
             })}
           </div>
           <PlanBadge />
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="text-xs font-medium text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] transition"
+          >
+            Sign out
+          </button>
         </div>
       </nav>
 

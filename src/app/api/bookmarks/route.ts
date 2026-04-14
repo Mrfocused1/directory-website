@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { visitorProfiles, collections, bookmarks } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { resolveSiteId } from "@/db/utils";
 
 // GET /api/bookmarks?siteId=xxx&email=xxx — Get visitor's collections and bookmarks
@@ -33,24 +33,31 @@ export async function GET(request: NextRequest) {
 
   const cols = await db.query.collections.findMany({
     where: eq(collections.visitorId, visitor.id),
-    with: { },
   });
 
-  // Fetch bookmarks for each collection
-  const result = await Promise.all(
-    cols.map(async (col) => {
-      const bms = await db!.query.bookmarks.findMany({
-        where: eq(bookmarks.collectionId, col.id),
-      });
-      return {
-        id: col.id,
-        name: col.name,
-        emoji: col.emoji,
-        isDefault: col.isDefault,
-        bookmarks: bms.map((b) => b.postShortcode),
-      };
-    }),
-  );
+  // Batch fetch all bookmarks for all collections in one query
+  const colIds = cols.map((c) => c.id);
+  const allBookmarks = colIds.length > 0
+    ? await db.query.bookmarks.findMany({
+        where: sql`${bookmarks.collectionId} IN (${sql.join(colIds.map((id) => sql`${id}`), sql`, `)})`,
+      })
+    : [];
+
+  // Group bookmarks by collection ID
+  const bookmarksByCol = new Map<string, string[]>();
+  for (const bm of allBookmarks) {
+    const list = bookmarksByCol.get(bm.collectionId) || [];
+    list.push(bm.postShortcode);
+    bookmarksByCol.set(bm.collectionId, list);
+  }
+
+  const result = cols.map((col) => ({
+    id: col.id,
+    name: col.name,
+    emoji: col.emoji,
+    isDefault: col.isDefault,
+    bookmarks: bookmarksByCol.get(col.id) || [],
+  }));
 
   return NextResponse.json({ collections: result, authenticated: true });
 }
@@ -195,20 +202,25 @@ export async function POST(request: NextRequest) {
     const cols = await db.query.collections.findMany({
       where: eq(collections.visitorId, visitor.id),
     });
-    const result = await Promise.all(
-      cols.map(async (col) => {
-        const bms = await db!.query.bookmarks.findMany({
-          where: eq(bookmarks.collectionId, col.id),
-        });
-        return {
-          id: col.id,
-          name: col.name,
-          emoji: col.emoji,
-          isDefault: col.isDefault,
-          bookmarks: bms.map((b) => b.postShortcode),
-        };
-      }),
-    );
+    const colIds = cols.map((c) => c.id);
+    const allBms = colIds.length > 0
+      ? await db.query.bookmarks.findMany({
+          where: sql`${bookmarks.collectionId} IN (${sql.join(colIds.map((id) => sql`${id}`), sql`, `)})`,
+        })
+      : [];
+    const bmsByCol = new Map<string, string[]>();
+    for (const bm of allBms) {
+      const list = bmsByCol.get(bm.collectionId) || [];
+      list.push(bm.postShortcode);
+      bmsByCol.set(bm.collectionId, list);
+    }
+    const result = cols.map((col) => ({
+      id: col.id,
+      name: col.name,
+      emoji: col.emoji,
+      isDefault: col.isDefault,
+      bookmarks: bmsByCol.get(col.id) || [],
+    }));
 
     return NextResponse.json({ authenticated: true, collections: result });
   } catch (err) {

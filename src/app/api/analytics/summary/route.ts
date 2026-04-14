@@ -12,7 +12,9 @@ import { resolveSiteId } from "@/db/utils";
  */
 export async function GET(request: NextRequest) {
   const siteId = request.nextUrl.searchParams.get("siteId");
-  const days = parseInt(request.nextUrl.searchParams.get("days") || "30", 10);
+  let days = parseInt(request.nextUrl.searchParams.get("days") || "30", 10);
+  if (isNaN(days) || days < 1) days = 30;
+  if (days > 365) days = 365;
 
   if (!siteId) {
     return NextResponse.json({ error: "Missing siteId" }, { status: 400 });

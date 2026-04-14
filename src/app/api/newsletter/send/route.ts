@@ -111,16 +111,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Update last digest timestamp for subscribers
-    await db.update(subscribers)
-      .set({ lastDigestAt: new Date() })
-      .where(and(
-        eq(subscribers.siteId, resolvedSiteId),
-        eq(subscribers.isActive, true),
-        eq(subscribers.isVerified, true),
-      ));
-
-    // Record digest in history
+    // Record digest in history first (so if this fails, timestamps stay consistent)
     await db.insert(digestHistory).values({
       siteId: resolvedSiteId,
       subject: `New posts on ${siteName}`,
@@ -129,6 +120,15 @@ export async function POST(request: NextRequest) {
       openCount: 0,
       clickCount: 0,
     });
+
+    // Then update last digest timestamp for subscribers
+    await db.update(subscribers)
+      .set({ lastDigestAt: new Date() })
+      .where(and(
+        eq(subscribers.siteId, resolvedSiteId),
+        eq(subscribers.isActive, true),
+        eq(subscribers.isVerified, true),
+      ));
 
     return NextResponse.json({
       sent: sentCount,

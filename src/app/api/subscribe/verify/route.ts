@@ -19,6 +19,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing token or siteId" }, { status: 400 });
   }
 
+  // Validate siteId is a UUID
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(siteId);
+  if (!isUUID) {
+    return NextResponse.json({ error: "Invalid siteId" }, { status: 400 });
+  }
+
   if (!db) {
     return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   }

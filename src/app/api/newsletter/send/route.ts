@@ -111,13 +111,18 @@ export async function POST(request: NextRequest) {
       });
 
       try {
-        await resend.emails.send({
+        const { error: sendError } = await resend.emails.send({
           from: `${sanitizeFromName(siteName)} <hello@buildmy.directory>`,
           to: sub.email,
           subject: template.subject,
           html: template.html,
         });
-        sentCount++;
+        if (sendError) {
+          errors.push(sub.email);
+          console.error(`[newsletter/send] Resend rejected ${sub.email}:`, sendError);
+        } else {
+          sentCount++;
+        }
       } catch (err) {
         errors.push(sub.email);
         console.error(`[newsletter/send] Failed to send to ${sub.email}:`, err);

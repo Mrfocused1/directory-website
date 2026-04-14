@@ -43,13 +43,19 @@ export async function POST(request: NextRequest) {
     });
 
     try {
-      await resend.emails.send({
+      const { error: sendError } = await resend.emails.send({
         from: "BuildMy.Directory <hello@buildmy.directory>",
         to: "hello@buildmy.directory",
         replyTo: email.trim(),
         subject: template.subject,
         html: template.html,
       });
+      if (sendError) {
+        // Resend SDK returns { data, error } instead of throwing on API errors.
+        // Common causes: unverified sender domain, invalid API key, rate limit.
+        console.error("[contact] Resend rejected:", sendError);
+        return NextResponse.json({ error: "Failed to send. Please try again." }, { status: 502 });
+      }
     } catch (emailErr) {
       console.error("[contact] Failed to send email:", emailErr);
       return NextResponse.json({ error: "Failed to send. Please try again." }, { status: 502 });

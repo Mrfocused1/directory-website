@@ -67,12 +67,13 @@ export async function GET(request: NextRequest) {
       siteUrl: `${origin}/d/${slug}`,
     });
     try {
-      await resend.emails.send({
+      const { error: sendError } = await resend.emails.send({
         from: "BuildMy.Directory <hello@buildmy.directory>",
         to: subscriber.email,
         subject: template.subject,
         html: template.html,
       });
+      if (sendError) console.error("[subscribe/verify] Resend rejected welcome:", sendError);
     } catch (emailErr) {
       console.error("[subscribe/verify] Failed to send welcome email:", emailErr);
     }

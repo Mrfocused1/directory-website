@@ -84,12 +84,13 @@ export async function POST(request: NextRequest) {
         verifyUrl,
       });
       try {
-        await resend.emails.send({
+        const { error: sendError } = await resend.emails.send({
           from: "BuildMy.Directory <hello@buildmy.directory>",
           to: normalizedEmail,
           subject: template.subject,
           html: template.html,
         });
+        if (sendError) console.error("[subscribe] Resend rejected verification:", sendError);
       } catch (emailErr) {
         console.error("[subscribe] Failed to send verification email:", emailErr);
         // Don't fail the subscription — email will be unverified until manually verified

@@ -115,8 +115,8 @@ export default function HowItWorks() {
                 )}
               </div>
 
-              {/* Demo side — fixed height to prevent layout shifts */}
-              <div className="w-full sm:w-52 h-[160px] shrink-0">
+              {/* Demo side — decorative miniature UI preview, hidden from a11y tree */}
+              <div className="w-full sm:w-52 h-[160px] shrink-0" aria-hidden="true">
                 <s.Demo />
               </div>
             </div>

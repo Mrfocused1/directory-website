@@ -9,7 +9,7 @@ export function DemoHandleInput() {
   const [platform, setPlatform] = useState(0);
   const full = "@creativemind";
   const platforms = ["instagram", "tiktok", "youtube"];
-  const platformColors = ["text-pink-500", "text-black", "text-red-500"];
+  const platformColors = ["text-pink-700", "text-black", "text-red-700"];
 
   useEffect(() => {
     let i = 0;
@@ -56,7 +56,7 @@ export function DemoHandleInput() {
           <span className="w-px h-3.5 bg-black/60 animate-pulse ml-px" />
         </div>
         <div className={`h-8 px-3 rounded-lg text-[10px] font-bold text-white flex items-center transition-all duration-300 ${
-          text.length >= full.length ? "bg-green-500 scale-105" : "bg-black/30"
+          text.length >= full.length ? "bg-green-700 scale-105" : "bg-black/60"
         }`}>
           Go
         </div>
@@ -104,7 +104,7 @@ export function DemoPipeline() {
                   <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" className="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
                 ) : null}
               </div>
-              <span className={`text-[10px] font-semibold flex-1 ${isDone ? "text-green-600" : isCurrent ? "text-black" : "text-black/30"}`}>
+              <span className={`text-[10px] font-semibold flex-1 ${isDone ? "text-green-700" : isCurrent ? "text-black" : "text-black/60"}`}>
                 {s.label}
               </span>
               <span className={`text-[9px] font-bold min-w-[60px] text-right transition-opacity duration-300 ${isDone ? "text-green-600 opacity-100" : "opacity-0"}`}>
@@ -143,10 +143,10 @@ export function DemoDirectoryGrid() {
     <div className="bg-white rounded-xl border border-[color:var(--border)] p-3 shadow-sm h-full overflow-hidden">
       {/* Mini search bar */}
       <div className="h-5 bg-black/[0.03] rounded-full mb-2 flex items-center px-2">
-        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-black/20">
+        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-black/60">
           <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
         </svg>
-        <span className="text-[8px] text-black/20 ml-1">Search posts...</span>
+        <span className="text-[8px] text-black/60 ml-1">Search posts...</span>
       </div>
       {/* Grid */}
       <div className="grid grid-cols-3 gap-1">
@@ -161,7 +161,7 @@ export function DemoDirectoryGrid() {
             }}
             transition={{ duration: 0.3, delay: i * 0.05 }}
           >
-            <span className="absolute bottom-0.5 left-0.5 text-[5px] font-bold bg-white/80 px-1 rounded">
+            <span className="absolute bottom-0.5 left-0.5 text-[5px] font-bold bg-white text-black/90 px-1 rounded">
               {categories[i]}
             </span>
           </motion.div>
@@ -199,7 +199,7 @@ export function DemoDomainSetup() {
               {[".com", ".co", ".io"].map((tld) => (
                 <div key={tld} className="flex items-center justify-between h-5 px-1.5 rounded bg-black/[0.02]">
                   <span className="text-[8px] font-mono font-bold">mysite{tld}</span>
-                  <span className="text-[8px] font-bold text-green-500">Available</span>
+                  <span className="text-[8px] font-bold text-green-700">Available</span>
                 </div>
               ))}
             </div>
@@ -226,7 +226,7 @@ export function DemoDomainSetup() {
                   />
                 </div>
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.3 + 0.7 }}>
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-green-500"><path d="M20 6L9 17l-5-5" /></svg>
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-green-700"><path d="M20 6L9 17l-5-5" /></svg>
                 </motion.div>
               </motion.div>
             ))}
@@ -235,7 +235,7 @@ export function DemoDomainSetup() {
         {phase === 2 && (
           <motion.div key="done" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="absolute inset-3 flex items-center justify-center">
             <div className="text-center">
-              <div className="w-10 h-10 rounded-full bg-green-100 text-green-500 flex items-center justify-center mx-auto mb-1.5">
+              <div className="w-10 h-10 rounded-full bg-green-100 text-green-700 flex items-center justify-center mx-auto mb-1.5">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
               </div>
               <p className="text-[10px] font-bold">mysite.com is live!</p>
@@ -299,14 +299,14 @@ export function DemoEmailGrowth() {
             animate={{ opacity: i === 0 ? 1 : 0.35 }}
             className="flex items-center gap-1.5 h-4"
           >
-            <div className="w-3.5 h-3.5 rounded-full bg-green-100 text-green-500 flex items-center justify-center shrink-0">
+            <div className="w-3.5 h-3.5 rounded-full bg-green-100 text-green-700 flex items-center justify-center shrink-0">
               <svg width="6" height="6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5v14M5 12h14" /></svg>
             </div>
             <motion.span
               key={email}
               initial={{ opacity: 0, x: -5 }}
               animate={{ opacity: 1, x: 0 }}
-              className="text-[8px] text-[color:var(--fg-muted)] font-medium truncate"
+              className="text-[8px] text-black/75 font-medium truncate"
             >
               {email} subscribed
             </motion.span>
@@ -356,7 +356,7 @@ export function DemoDashboard() {
           <span
             key={t}
             className={`text-[7px] font-bold px-1.5 py-0.5 rounded transition-all ${
-              activeTab === i ? "bg-black text-white" : "bg-black/5 text-black/40"
+              activeTab === i ? "bg-black text-white" : "bg-black/10 text-black/70"
             }`}
           >
             {t}

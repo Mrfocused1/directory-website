@@ -38,9 +38,11 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
   const canAutoCategorize = hasFeature(userPlan, "auto_categorization");
 
   const report = onProgress || (async () => {});
+  let currentStep = "scrape";
 
   try {
     // ── Step 1: SCRAPE ──────────────────────────────────────────────
+    currentStep = "scrape";
     await report("scrape", 0, "Scraping your content...");
     await updateJob(siteId, "scrape", "running", 0, "Scraping content...");
 
@@ -60,6 +62,7 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     }
 
     // ── Step 2: STORE MEDIA ─────────────────────────────────────────
+    currentStep = "transcribe";
     await report("transcribe", 10, "Uploading media...");
     await updateJob(siteId, "transcribe", "running", 10, "Uploading media...");
 
@@ -125,6 +128,7 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     }
 
     // ── Step 4: CATEGORIZE ──────────────────────────────────────────
+    currentStep = "categorize";
     await report("categorize", 60, "Categorizing posts...");
     await updateJob(siteId, "categorize", "running", 60, "Categorizing posts...");
 
@@ -160,14 +164,20 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
 
     for (let i = 0; i < dbPosts.length; i += BATCH_SIZE) {
       const batch = dbPosts.slice(i, i + BATCH_SIZE);
+      // Per-post try-catch so one failure doesn't kill the entire batch.
+      // Posts that fail to categorize stay as "Uncategorized".
       await Promise.all(
         batch.map(async (post) => {
-          const result = canAutoCategorize
-            ? await categorizeWithLLM(post.caption, post.transcript, detectedCategories)
-            : categorizeByKeywords(post.caption, post.transcript, keywordRules);
-          await database.update(posts)
-            .set({ category: result.category })
-            .where(eq(posts.id, post.id));
+          try {
+            const result = canAutoCategorize
+              ? await categorizeWithLLM(post.caption, post.transcript, detectedCategories)
+              : categorizeByKeywords(post.caption, post.transcript, keywordRules);
+            await database.update(posts)
+              .set({ category: result.category })
+              .where(eq(posts.id, post.id));
+          } catch (err) {
+            console.error(`[runner] Failed to categorize post ${post.id}:`, err);
+          }
         }),
       );
       categorized += batch.length;
@@ -178,6 +188,7 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     await updateJob(siteId, "categorize", "completed", 100, `Categorized into ${detectedCategories.length} categories`);
 
     // ── Step 5: PUBLISH ─────────────────────────────────────────────
+    currentStep = "complete";
     await report("complete", 90, "Publishing your directory...");
     await updateJob(siteId, "complete", "running", 90, "Publishing...");
 
@@ -188,9 +199,9 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     await updateJob(siteId, "complete", "completed", 100, "Your directory is ready!");
     await report("complete", 100, "Your directory is ready!");
   } catch (error) {
-    console.error("[pipeline] Error:", error);
+    console.error(`[pipeline] Error in ${currentStep}:`, error);
     const message = error instanceof Error ? error.message : "Pipeline failed";
-    await updateJob(siteId, "scrape", "failed", 0, message);
+    await updateJob(siteId, currentStep, "failed", 0, message);
     throw error;
   }
 }
@@ -198,14 +209,14 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
 async function updateJob(siteId: string, step: string, status: string, progress: number, message: string) {
   if (!db) return;
 
-  // Upsert the pipeline job for this step
+  // Upsert the pipeline job for this site+step combination
   const existing = await db.query.pipelineJobs.findFirst({
-    where: eq(pipelineJobs.siteId, siteId),
+    where: and(eq(pipelineJobs.siteId, siteId), eq(pipelineJobs.step, step)),
   });
 
   if (existing) {
     await db.update(pipelineJobs)
-      .set({ step, status, progress, message, completedAt: status === "completed" ? new Date() : null })
+      .set({ status, progress, message, completedAt: status === "completed" ? new Date() : null })
       .where(eq(pipelineJobs.id, existing.id));
   } else {
     await db.insert(pipelineJobs).values({

@@ -75,7 +75,14 @@ function OnboardingContent() {
       });
 
       if (!res.ok) {
-        throw new Error("Failed to start pipeline");
+        let errMsg = "Failed to start pipeline";
+        try {
+          const errData = await res.json();
+          if (errData?.error) errMsg = errData.error;
+        } catch {
+          // Response wasn't JSON — use generic message
+        }
+        throw new Error(errMsg);
       }
 
       const data = await res.json();
@@ -131,11 +138,12 @@ function OnboardingContent() {
 
       // Start first poll
       pollRef.current = setTimeout(poll, pollDelay);
-    } catch {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to start. Please try again.";
       setPipelineStatus({
         step: "error",
         progress: 0,
-        message: "Failed to start. Please try again.",
+        message,
       });
       setIsBuilding(false);
     }

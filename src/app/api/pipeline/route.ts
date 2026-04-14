@@ -11,6 +11,7 @@ const RESERVED_SLUGS = new Set([
   "api", "admin", "dashboard", "auth", "login", "signup", "www",
   "mail", "email", "blog", "help", "support", "docs", "status",
   "billing", "settings", "account", "onboarding", "demo",
+  "d", "p", "static", "_next", "favicon",
 ]);
 
 // POST /api/pipeline — Start a new pipeline for a site

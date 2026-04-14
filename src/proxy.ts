@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
+// Subdomains that should NOT be treated as tenant slugs.
+// Matches RESERVED_SLUGS in /api/pipeline plus app/marketing subdomains.
+const RESERVED_SUBDOMAINS = new Set([
+  "api", "admin", "dashboard", "auth", "login", "signup", "www",
+  "mail", "email", "blog", "help", "support", "docs", "status",
+  "billing", "settings", "account", "onboarding",
+  "app", "static", "cdn", "assets", "media",
+]);
+
 /**
  * Proxy for subdomain-based multi-tenant routing.
  *
@@ -40,6 +49,10 @@ export default async function proxy(request: NextRequest) {
     // Strip www prefix if present (e.g., www.demo.buildmy.directory)
     if (tenant.startsWith("www.")) {
       tenant = tenant.slice(4);
+    }
+    // Reserved subdomains should be treated as the root domain (not rewritten to a tenant)
+    if (tenant && RESERVED_SUBDOMAINS.has(tenant.toLowerCase())) {
+      return sessionResponse;
     }
   }
 

@@ -21,8 +21,9 @@ type ProgressCallback = (step: string, progress: number, message: string) => Pro
  */
 export async function runPipeline(siteId: string, onProgress?: ProgressCallback) {
   if (!db) throw new Error("Database not configured");
+  const database = db; // Stable non-null reference for closures
 
-  const site = await db.query.sites.findFirst({ where: eq(sites.id, siteId) });
+  const site = await database.query.sites.findFirst({ where: eq(sites.id, siteId) });
   if (!site) throw new Error(`Site ${siteId} not found`);
 
   const report = onProgress || (async () => {});
@@ -121,7 +122,11 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
       .where(eq(sites.id, siteId));
 
     // Categorize posts in parallel batches of 5 (respect rate limits)
-    const dbPosts = await db.query.posts.findMany({ where: eq(posts.siteId, siteId) });
+    // Limit to 1000 posts per pipeline run to avoid OOM
+    const dbPosts = await db.query.posts.findMany({
+      where: eq(posts.siteId, siteId),
+      limit: 1000,
+    });
     const BATCH_SIZE = 5;
     let categorized = 0;
 
@@ -130,7 +135,7 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
       await Promise.all(
         batch.map(async (post) => {
           const result = await categorizeWithLLM(post.caption, post.transcript, detectedCategories);
-          await db!.update(posts)
+          await database.update(posts)
             .set({ category: result.category })
             .where(eq(posts.id, post.id));
         }),

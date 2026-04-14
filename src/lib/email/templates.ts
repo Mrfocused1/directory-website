@@ -12,11 +12,15 @@ function esc(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
-/** Escape a URL for safe use in href attributes (ensures https and escapes quotes) */
+/** Escape a URL for safe use in href attributes (validates http(s) protocol via URL parser) */
 function escUrl(url: string): string {
-  // Only allow http(s) URLs
-  if (!/^https?:\/\//i.test(url)) return "#";
-  return url.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "#";
+    return url.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  } catch {
+    return "#";
+  }
 }
 
 /** Sanitize a name for use in the email "From" header (remove angle brackets, newlines, control chars) */

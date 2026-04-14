@@ -5,12 +5,24 @@ import { eq, and, desc } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
 import { inngest } from "@/lib/inngest/client";
 
+// Reserved slugs that conflict with app routes or are commonly squatted
+const RESERVED_SLUGS = new Set([
+  "api", "admin", "dashboard", "auth", "login", "signup", "www",
+  "mail", "email", "blog", "help", "support", "docs", "status",
+  "billing", "settings", "account", "onboarding", "demo",
+]);
+
 // POST /api/pipeline — Start a new pipeline for a site
 export async function POST(request: NextRequest) {
   try {
+    // Require authentication — pipeline triggers paid services (Apify, Deepgram, Claude)
+    const user = await getApiUser();
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { platform, handle, slug, displayName } = body;
-    const user = await getApiUser();
 
     if (!platform || !handle || !slug || !displayName) {
       return NextResponse.json(
@@ -44,6 +56,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid slug format (lowercase letters, numbers, hyphens only)" }, { status: 400 });
     }
 
+    // Reject reserved slugs
+    if (RESERVED_SLUGS.has(slug.toLowerCase())) {
+      return NextResponse.json({ error: "This slug is reserved. Please choose another." }, { status: 400 });
+    }
+
     if (!db) {
       return NextResponse.json(
         { error: "Database not configured" },
@@ -53,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     // Create the site record in the database
     const [site] = await db.insert(sites).values({
-      userId: user?.id || "00000000-0000-0000-0000-000000000000",
+      userId: user.id,
       slug,
       platform,
       handle,

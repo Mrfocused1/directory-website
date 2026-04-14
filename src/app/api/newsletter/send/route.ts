@@ -5,16 +5,26 @@ import { eq, and, desc, gte } from "drizzle-orm";
 import { resolveSiteId } from "@/db/utils";
 import { resend } from "@/lib/email/resend";
 import { digestEmail, sanitizeFromName } from "@/lib/email/templates";
+import { getApiUser } from "@/lib/supabase/api";
+
+// Sending to many subscribers can take a while
+export const maxDuration = 60;
 
 /**
  * POST /api/newsletter/send
  *
  * Sends a digest email to all active, verified subscribers for a site.
- * Includes posts published since the last digest.
+ * Requires authentication and the user must own the site.
  * Body: { siteId: string }
  */
 export async function POST(request: NextRequest) {
   try {
+    // Require authentication
+    const user = await getApiUser();
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { siteId } = body;
 
@@ -35,12 +45,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Site not found" }, { status: 404 });
     }
 
-    // Get site info
+    // Get site info and verify ownership
     const site = await db.query.sites.findFirst({
       where: eq(sites.id, resolvedSiteId),
     });
     if (!site) {
       return NextResponse.json({ error: "Site not found" }, { status: 404 });
+    }
+    if (site.userId !== user.id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Get active, verified subscribers

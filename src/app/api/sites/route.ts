@@ -12,9 +12,12 @@ export async function GET() {
 
   try {
     const user = await getApiUser();
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
 
-    // Single query with LEFT JOIN to get post counts
-    const baseQuery = db
+    // Single query with LEFT JOIN to get post counts, scoped to authenticated user
+    const rows = await db
       .select({
         id: sites.id,
         slug: sites.slug,
@@ -26,12 +29,10 @@ export async function GET() {
         postCount: sql<number>`cast(count(${posts.id}) as int)`,
       })
       .from(sites)
-      .leftJoin(posts, eq(posts.siteId, sites.id));
-
-    // Filter by userId if authenticated
-    const rows = user
-      ? await baseQuery.where(eq(sites.userId, user.id)).groupBy(sites.id).orderBy(sites.createdAt)
-      : await baseQuery.groupBy(sites.id).orderBy(sites.createdAt);
+      .leftJoin(posts, eq(posts.siteId, sites.id))
+      .where(eq(sites.userId, user.id))
+      .groupBy(sites.id)
+      .orderBy(sites.createdAt);
 
     const result = rows.map((row) => ({
       id: row.id,

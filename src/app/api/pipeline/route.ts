@@ -29,6 +29,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Handle too long (max 128 characters)" }, { status: 400 });
     }
 
+    // Validate platform is one of the supported values
+    if (!["instagram", "tiktok", "youtube"].includes(platform)) {
+      return NextResponse.json({ error: "Invalid platform" }, { status: 400 });
+    }
+
+    // Validate handle format (alphanumeric, underscores, dots, dashes, optional @)
+    if (!/^@?[a-zA-Z0-9_.-]+$/.test(handle)) {
+      return NextResponse.json({ error: "Invalid handle format" }, { status: 400 });
+    }
+
+    // Validate slug format (lowercase alphanumeric and hyphens only)
+    if (!/^[a-z0-9-]+$/.test(slug)) {
+      return NextResponse.json({ error: "Invalid slug format (lowercase letters, numbers, hyphens only)" }, { status: 400 });
+    }
+
     if (!db) {
       return NextResponse.json(
         { error: "Database not configured" },
@@ -126,6 +141,19 @@ export async function GET(request: NextRequest) {
     stepStatuses.reduce((sum, s) => sum + s.progress, 0) / stepStatuses.length,
   );
 
+  // Sanitize error messages — strip anything that looks like a secret/API key/token
+  const sanitizeError = (err: string | null): string | null => {
+    if (!err) return null;
+    // Generic safe message for common failure cases
+    if (err.includes("token") || err.includes("key") || err.includes("secret") || err.includes("auth")) {
+      return "A service configuration error occurred. Please contact support.";
+    }
+    // Pattern-match to redact anything that looks like a token
+    return err
+      .replace(/\b(apify_api_|re_|sk-ant-|sk-|eyJ[A-Za-z0-9_-]+\.)\S+/gi, "[redacted]")
+      .slice(0, 200);
+  };
+
   return NextResponse.json({
     siteId,
     status: allCompleted ? "completed" : anyFailed ? "failed" : "processing",
@@ -134,9 +162,9 @@ export async function GET(request: NextRequest) {
     message: allCompleted
       ? "Your directory is ready!"
       : anyFailed
-        ? latestJob.error || "Something went wrong"
+        ? sanitizeError(latestJob.error) || "Something went wrong"
         : latestJob.message || "Processing...",
-    error: anyFailed ? latestJob.error : null,
+    error: anyFailed ? sanitizeError(latestJob.error) : null,
     steps: stepStatuses,
   });
 }

@@ -8,7 +8,7 @@
 
 import { db } from "@/db";
 import { sites, posts, pipelineJobs } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { scrapeProfile } from "./scraper";
 import { uploadThumbnail, uploadMedia } from "./storage";
 import { transcribeVideo } from "./transcriber";
@@ -98,7 +98,7 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
             transcript: result.text,
             transcriptSegments: result.segments,
           })
-          .where(eq(posts.shortcode, vp.shortcode));
+          .where(and(eq(posts.siteId, siteId), eq(posts.shortcode, vp.shortcode)));
         transcribed++;
       }
       const pct = Math.round(40 + (transcribed / Math.max(videoPosts.length, 1)) * 20);
@@ -120,22 +120,22 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
       .set({ categories: detectedCategories })
       .where(eq(sites.id, siteId));
 
-    // Categorize each post
+    // Categorize posts in parallel batches of 5 (respect rate limits)
     const dbPosts = await db.query.posts.findMany({ where: eq(posts.siteId, siteId) });
+    const BATCH_SIZE = 5;
     let categorized = 0;
 
-    for (const post of dbPosts) {
-      const result = await categorizeWithLLM(
-        post.caption,
-        post.transcript,
-        detectedCategories,
+    for (let i = 0; i < dbPosts.length; i += BATCH_SIZE) {
+      const batch = dbPosts.slice(i, i + BATCH_SIZE);
+      await Promise.all(
+        batch.map(async (post) => {
+          const result = await categorizeWithLLM(post.caption, post.transcript, detectedCategories);
+          await db!.update(posts)
+            .set({ category: result.category })
+            .where(eq(posts.id, post.id));
+        }),
       );
-
-      await db.update(posts)
-        .set({ category: result.category })
-        .where(eq(posts.id, post.id));
-
-      categorized++;
+      categorized += batch.length;
       const pct = Math.round(60 + (categorized / dbPosts.length) * 25);
       await report("categorize", pct, `Categorized ${categorized}/${dbPosts.length} posts`);
     }

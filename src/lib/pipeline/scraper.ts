@@ -51,15 +51,19 @@ async function scrapeInstagram(handle: string, maxPosts: number): Promise<Scrape
 
   const cleanHandle = handle.replace(/^@/, "");
 
-  // Use Apify's Instagram Profile Scraper actor
-  const run = await apify.actor("apify/instagram-profile-scraper").call({
-    usernames: [cleanHandle],
-    resultsLimit: maxPosts,
-    addParentData: false,
-  });
-
-  // Fetch results from the dataset
-  const { items } = await apify.dataset(run.defaultDatasetId).listItems();
+  let items: Record<string, unknown>[] = [];
+  try {
+    const run = await apify.actor("apify/instagram-profile-scraper").call({
+      usernames: [cleanHandle],
+      resultsLimit: maxPosts,
+      addParentData: false,
+    });
+    const result = await apify.dataset(run.defaultDatasetId).listItems();
+    items = result.items;
+  } catch (error) {
+    console.error("[scraper] Apify Instagram error:", error);
+    throw new Error(`Failed to scrape Instagram profile @${cleanHandle}. Please check the handle and try again.`);
+  }
 
   return items.map((item: Record<string, unknown>) => {
     const shortcode = (item.shortCode as string) || (item.id as string) || `ig-${Date.now()}`;
@@ -94,13 +98,18 @@ async function scrapeTikTok(handle: string, maxPosts: number): Promise<ScrapedPo
 
   const cleanHandle = handle.replace(/^@/, "");
 
-  // Use Apify's TikTok Profile Scraper actor
-  const run = await apify.actor("clockworks/tiktok-profile-scraper").call({
-    profiles: [cleanHandle],
-    resultsPerPage: maxPosts,
-  });
-
-  const { items } = await apify.dataset(run.defaultDatasetId).listItems();
+  let items: Record<string, unknown>[] = [];
+  try {
+    const run = await apify.actor("clockworks/tiktok-profile-scraper").call({
+      profiles: [cleanHandle],
+      resultsPerPage: maxPosts,
+    });
+    const result = await apify.dataset(run.defaultDatasetId).listItems();
+    items = result.items;
+  } catch (error) {
+    console.error("[scraper] Apify TikTok error:", error);
+    throw new Error(`Failed to scrape TikTok profile @${cleanHandle}. Please check the handle and try again.`);
+  }
 
   return items.map((item: Record<string, unknown>) => {
     const id = (item.id as string) || `tt-${Date.now()}`;

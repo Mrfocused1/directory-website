@@ -1,14 +1,17 @@
 /**
- * Content Scraper Module
+ * Content Scraper Module — powered by Apify
  *
- * Handles scraping posts from Instagram and TikTok.
- * In production, this should use official APIs where possible:
- * - Instagram Graph API (requires Facebook app approval)
- * - TikTok Research API or Display API
- *
- * Fallback: Playwright-based browser-based scraping
- * but this is fragile and rate-limited at scale.
+ * Uses Apify actors to scrape Instagram and TikTok profiles.
+ * Actors used:
+ * - Instagram: apify/instagram-profile-scraper
+ * - TikTok: clockworks/tiktok-profile-scraper
  */
+
+import { ApifyClient } from "apify-client";
+
+const apify = process.env.APIFY_API_TOKEN
+  ? new ApifyClient({ token: process.env.APIFY_API_TOKEN })
+  : null;
 
 export type ScrapedPost = {
   shortcode: string;
@@ -18,6 +21,7 @@ export type ScrapedPost = {
   mediaUrls: string[];
   thumbUrl: string;
   numSlides: number;
+  platformUrl: string;
 };
 
 export type ScraperConfig = {
@@ -27,50 +31,89 @@ export type ScraperConfig = {
 };
 
 export async function scrapeProfile(config: ScraperConfig): Promise<ScrapedPost[]> {
+  if (!apify) {
+    console.warn("[scraper] Apify not configured — returning empty results");
+    return [];
+  }
+
   const { platform, handle } = config;
+  const maxPosts = config.maxPosts || 50;
 
   if (platform === "instagram") {
-    return scrapeInstagram(handle, config.maxPosts);
+    return scrapeInstagram(handle, maxPosts);
   } else {
-    return scrapeTikTok(handle, config.maxPosts);
+    return scrapeTikTok(handle, maxPosts);
   }
 }
 
-async function scrapeInstagram(handle: string, maxPosts = 100): Promise<ScrapedPost[]> {
-  // TODO: Implement Instagram scraping
-  //
-  // Option A (recommended for production): Instagram Graph API
-  //   - Requires a Facebook App and user authorization
-  //   - GET /{user-id}/media?fields=id,caption,media_type,media_url,thumbnail_url,timestamp,permalink
-  //   - Handles pagination automatically
-  //   - Rate limited to 200 calls/hour per user
-  //
-  // Option B (fallback): Playwright browser-based scraping
-  //   - Uses pw_scrape.py approach: scroll profile, harvest shortcodes
-  //   - Then fetch each post via OG meta tags with Googlebot UA
-  //   - Fragile — Instagram changes their markup frequently
-  //   - Rate limited — need proxies for scale
-  //
-  // Option C: Third-party API (Apify, RapidAPI, etc.)
-  //   - Most reliable for MVP
-  //   - Costs per request but handles all edge cases
+async function scrapeInstagram(handle: string, maxPosts: number): Promise<ScrapedPost[]> {
+  if (!apify) return [];
 
-  // TODO: Implement Instagram scraping
-  return [];
+  const cleanHandle = handle.replace(/^@/, "");
+
+  // Use Apify's Instagram Profile Scraper actor
+  const run = await apify.actor("apify/instagram-profile-scraper").call({
+    usernames: [cleanHandle],
+    resultsLimit: maxPosts,
+    addParentData: false,
+  });
+
+  // Fetch results from the dataset
+  const { items } = await apify.dataset(run.defaultDatasetId).listItems();
+
+  return items.map((item: Record<string, unknown>) => {
+    const shortcode = (item.shortCode as string) || (item.id as string) || `ig-${Date.now()}`;
+    const type = item.type === "Video"
+      ? "video"
+      : item.type === "Sidecar"
+        ? "carousel"
+        : "image";
+
+    const mediaUrls: string[] = [];
+    if (item.videoUrl) mediaUrls.push(item.videoUrl as string);
+    if (item.displayUrl) mediaUrls.push(item.displayUrl as string);
+    if (Array.isArray(item.images)) {
+      mediaUrls.push(...(item.images as string[]));
+    }
+
+    return {
+      shortcode,
+      type,
+      caption: (item.caption as string) || "",
+      takenAt: new Date((item.timestamp as string) || Date.now()),
+      mediaUrls,
+      thumbUrl: (item.displayUrl as string) || (item.thumbnailUrl as string) || "",
+      numSlides: type === "carousel" ? (item.childPosts as unknown[] || []).length : 0,
+      platformUrl: (item.url as string) || `https://www.instagram.com/p/${shortcode}/`,
+    } satisfies ScrapedPost;
+  });
 }
 
-async function scrapeTikTok(handle: string, maxPosts = 100): Promise<ScrapedPost[]> {
-  // TODO: Implement TikTok scraping
-  //
-  // Option A: TikTok Research API (requires approval)
-  //   - GET /user/info/ and /user/posts/
-  //
-  // Option B: TikTok Display API
-  //   - Requires OAuth flow
-  //   - Limited to user's own content
-  //
-  // Option C: Third-party API
+async function scrapeTikTok(handle: string, maxPosts: number): Promise<ScrapedPost[]> {
+  if (!apify) return [];
 
-  // TODO: Implement TikTok scraping
-  return [];
+  const cleanHandle = handle.replace(/^@/, "");
+
+  // Use Apify's TikTok Profile Scraper actor
+  const run = await apify.actor("clockworks/tiktok-profile-scraper").call({
+    profiles: [cleanHandle],
+    resultsPerPage: maxPosts,
+  });
+
+  const { items } = await apify.dataset(run.defaultDatasetId).listItems();
+
+  return items.map((item: Record<string, unknown>) => {
+    const id = (item.id as string) || `tt-${Date.now()}`;
+
+    return {
+      shortcode: id,
+      type: "video" as const,
+      caption: (item.text as string) || (item.desc as string) || "",
+      takenAt: new Date(((item.createTime as number) || 0) * 1000 || Date.now()),
+      mediaUrls: [(item.videoUrl as string) || (item.video as Record<string, unknown>)?.downloadAddr as string || ""].filter(Boolean),
+      thumbUrl: (item.coverUrl as string) || (item.video as Record<string, unknown>)?.cover as string || "",
+      numSlides: 0,
+      platformUrl: (item.webVideoUrl as string) || `https://www.tiktok.com/@${cleanHandle}/video/${id}`,
+    } satisfies ScrapedPost;
+  });
 }

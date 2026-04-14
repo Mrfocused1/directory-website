@@ -1,9 +1,8 @@
 /**
- * Video Transcription Module
+ * Video Transcription Module — powered by Deepgram
  *
- * Transcribes video content using AI services.
- * Previously used local faster-whisper — for SaaS scale,
- * we use cloud APIs instead.
+ * Transcribes video content using Deepgram's Nova-2 model.
+ * Falls back to empty transcript if Deepgram is not configured.
  */
 
 export type TranscriptResult = {
@@ -18,29 +17,49 @@ export type TranscriptResult = {
 };
 
 export async function transcribeVideo(videoUrl: string): Promise<TranscriptResult> {
-  // TODO: Implement using one of these services:
-  //
-  // Option A (recommended): Deepgram
-  //   - Fast, accurate, cost-effective
-  //   - const { result } = await deepgram.listen.prerecorded.transcribeUrl({ url: videoUrl }, { model: 'nova-2', smart_format: true })
-  //   - Returns word-level timestamps
-  //
-  // Option B: AssemblyAI
-  //   - Great accuracy, good for long content
-  //   - const transcript = await client.transcripts.transcribe({ audio_url: videoUrl })
-  //
-  // Option C: OpenAI Whisper API
-  //   - Simple API, good accuracy
-  //   - Must download video first (accepts file upload, not URL)
-  //   - const transcription = await openai.audio.transcriptions.create({ file, model: 'whisper-1' })
+  if (!process.env.DEEPGRAM_API_KEY || !videoUrl) {
+    return { text: "", duration: 0, language: "en", segments: [] };
+  }
 
-  // TODO: Implement with Whisper API
-  return {
-    text: "",
-    duration: 0,
-    language: "en",
-    segments: [],
-  };
+  try {
+    const response = await fetch("https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&utterances=true", {
+      method: "POST",
+      headers: {
+        Authorization: `Token ${process.env.DEEPGRAM_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ url: videoUrl }),
+    });
+
+    if (!response.ok) {
+      console.error("[transcriber] Deepgram error:", response.status, await response.text());
+      return { text: "", duration: 0, language: "en", segments: [] };
+    }
+
+    const data = await response.json();
+    const result = data.results?.channels?.[0]?.alternatives?.[0];
+
+    if (!result) {
+      return { text: "", duration: 0, language: "en", segments: [] };
+    }
+
+    // Build segments from utterances or paragraphs
+    const segments = (data.results?.utterances || []).map((u: { start: number; end: number; transcript: string }) => ({
+      start: u.start,
+      end: u.end,
+      text: u.transcript,
+    }));
+
+    return {
+      text: result.transcript || "",
+      duration: data.metadata?.duration || 0,
+      language: data.results?.channels?.[0]?.detected_language || "en",
+      segments,
+    };
+  } catch (error) {
+    console.error("[transcriber] Error:", error);
+    return { text: "", duration: 0, language: "en", segments: [] };
+  }
 }
 
 export async function transcribeBatch(

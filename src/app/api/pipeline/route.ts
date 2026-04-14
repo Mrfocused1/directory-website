@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { sites, pipelineJobs } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
+import { inngest } from "@/lib/inngest/client";
 
 // POST /api/pipeline — Start a new pipeline for a site
 export async function POST(request: NextRequest) {
@@ -54,9 +55,11 @@ export async function POST(request: NextRequest) {
       message: "Queued for processing",
     });
 
-    // TODO: Enqueue a background job (BullMQ, Inngest, etc.) to actually run:
-    //   scrape → transcribe → categorize → references → publish
-    // For now the pipeline job stays in "pending" until a worker picks it up.
+    // Trigger the background pipeline via Inngest
+    await inngest.send({
+      name: "pipeline/run",
+      data: { siteId: site.id },
+    });
 
     return NextResponse.json({
       siteId: site.id,

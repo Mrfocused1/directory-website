@@ -15,8 +15,18 @@
 
 import puppeteer from "puppeteer";
 import { AxePuppeteer } from "@axe-core/puppeteer";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import lighthouse from "lighthouse";
 import * as ChromeLauncher from "chrome-launcher";
+
+// Resolve axe-core script source manually (works around path-with-spaces require issues)
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const axeSource = readFileSync(
+  join(__dirname, "../../node_modules/axe-core/axe.min.js"),
+  "utf8",
+);
 
 const BASE = process.argv.find((a) => a.startsWith("--base="))?.split("=")[1] || "https://buildmy.directory";
 const issues = [];
@@ -51,7 +61,9 @@ async function suiteHealth(browser, pages) {
     });
     page.on("requestfailed", (r) => {
       const u = r.url();
-      if (!/favicon|analytics/i.test(u)) {
+      // Ignore: favicon, analytics, and Next.js RSC prefetch aborts (expected when
+      // a Link prefetches a route that server-side redirects)
+      if (!/favicon|analytics/i.test(u) && !u.includes("?_rsc=")) {
         netErrs.push(`${r.method()} ${u} — ${r.failure()?.errorText}`);
       }
     });
@@ -243,7 +255,7 @@ async function suiteA11y(browser, pages) {
     try {
       await page.goto(`${BASE}${path}`, { waitUntil: "networkidle2", timeout: 25000 });
       await new Promise((r) => setTimeout(r, 800));
-      const results = await new AxePuppeteer(page)
+      const results = await new AxePuppeteer(page, axeSource)
         .options({ runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa"] } })
         .analyze();
       const violations = results.violations;

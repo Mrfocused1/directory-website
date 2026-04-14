@@ -11,8 +11,8 @@
 :root {
   --bg: #ffffff;
   --fg: #0a0a0a;
-  --fg-muted: rgba(10, 10, 10, 0.7);
-  --fg-subtle: rgba(10, 10, 10, 0.45);
+  --fg-muted: rgba(10, 10, 10, 0.72);
+  --fg-subtle: rgba(10, 10, 10, 0.58);
   --card: rgba(255, 255, 255, 0.85);
   --card-hover: rgba(255, 255, 255, 1);
   --border: rgba(10, 10, 10, 0.12);

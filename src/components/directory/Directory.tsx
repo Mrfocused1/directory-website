@@ -257,17 +257,21 @@ export default function Directory({ site, siteId, posts, initialShortcode }: Dir
                 {pageItems.map((p, i) => (
                   <motion.div
                     key={p.shortcode}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handlePostClick(p)}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handlePostClick(p); } }}
-                    className="text-left bg-[color:var(--card)] border border-[color:var(--border)] hover:bg-[color:var(--card-hover)] transition-all cursor-pointer overflow-hidden rounded-xl shadow-sm"
+                    className="relative bg-[color:var(--card)] border border-[color:var(--border)] hover:bg-[color:var(--card-hover)] transition-all overflow-hidden rounded-xl shadow-sm"
                     initial={shouldStagger ? { opacity: 0, y: 14, scale: 0.96 } : false}
                     animate={shouldStagger ? { opacity: 1, y: 0, scale: 1 } : undefined}
                     transition={shouldStagger ? { duration: 0.35, delay: Math.min(i * 0.03, 0.35) } : { duration: 0 }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
+                    {/* Main interactive area: opens post modal. BookmarkButton is a DOM sibling
+                        below this button to avoid nested-interactive a11y violations. */}
+                    <button
+                      type="button"
+                      onClick={() => handlePostClick(p)}
+                      className="block w-full text-left cursor-pointer"
+                      aria-label={`Open ${p.title}`}
+                    >
                     <div className="relative aspect-[4/5] bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
                       {p.thumbUrl ? (
                         <Image
@@ -309,9 +313,6 @@ export default function Directory({ site, siteId, posts, initialShortcode }: Dir
                           </svg>
                         </span>
                       )}
-                      <div className="absolute top-2 left-2 z-10">
-                        <BookmarkButton shortcode={p.shortcode} size="sm" />
-                      </div>
                       <div className="absolute bottom-2 left-2 flex items-center gap-1">
                         <span className="text-[10px] font-semibold uppercase tracking-wide bg-white/90 text-black px-1.5 py-0.5 rounded">
                           {p.category}
@@ -332,6 +333,11 @@ export default function Directory({ site, siteId, posts, initialShortcode }: Dir
                           {p.references.length} reference{p.references.length === 1 ? "" : "s"}
                         </p>
                       )}
+                    </div>
+                    </button>
+                    {/* BookmarkButton is a DOM sibling of the main button to avoid nested-interactive */}
+                    <div className="absolute top-2 left-2 z-10">
+                      <BookmarkButton shortcode={p.shortcode} size="sm" />
                     </div>
                   </motion.div>
                 ))}

@@ -15,26 +15,26 @@ export default function TopPostsTable({ posts }: { posts: TopPost[] }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-t border-b border-[color:var(--border)] text-[color:var(--fg-subtle)]">
-              <th className="text-left text-xs font-semibold uppercase tracking-wider px-5 py-2.5">Post</th>
-              <th className="text-right text-xs font-semibold uppercase tracking-wider px-5 py-2.5">Views</th>
-              <th className="text-right text-xs font-semibold uppercase tracking-wider px-5 py-2.5">Clicks</th>
-              <th className="text-right text-xs font-semibold uppercase tracking-wider px-5 py-2.5">CTR</th>
-              <th className="text-right text-xs font-semibold uppercase tracking-wider px-5 py-2.5">Avg Watch</th>
-              <th className="text-right text-xs font-semibold uppercase tracking-wider px-5 py-2.5">Shares</th>
+              <th className="text-left text-xs font-semibold uppercase tracking-wider px-3 lg:px-5 py-2.5">Post</th>
+              <th className="text-right text-xs font-semibold uppercase tracking-wider px-3 lg:px-5 py-2.5">Views</th>
+              <th className="text-right text-xs font-semibold uppercase tracking-wider px-3 lg:px-5 py-2.5">Clicks</th>
+              <th className="text-right text-xs font-semibold uppercase tracking-wider px-3 lg:px-5 py-2.5">CTR</th>
+              <th className="text-right text-xs font-semibold uppercase tracking-wider px-3 lg:px-5 py-2.5 hidden md:table-cell">Avg Watch</th>
+              <th className="text-right text-xs font-semibold uppercase tracking-wider px-3 lg:px-5 py-2.5 hidden md:table-cell">Shares</th>
             </tr>
           </thead>
           <tbody>
             {posts.map((post, i) => (
               <tr key={post.shortcode} className="border-b border-[color:var(--border)] last:border-b-0 hover:bg-black/[0.02] transition">
-                <td className="px-5 py-3">
-                  <div className="flex items-center gap-3">
+                <td className="px-3 lg:px-5 py-3">
+                  <div className="flex items-center gap-2 lg:gap-3">
                     <span className="text-xs font-bold text-[color:var(--fg-subtle)] w-5 tabular-nums">{i + 1}</span>
-                    <span className="font-semibold text-sm truncate max-w-[260px]">{post.title}</span>
+                    <span className="font-semibold text-sm truncate max-w-[180px] lg:max-w-[260px]">{post.title}</span>
                   </div>
                 </td>
-                <td className="text-right px-5 py-3 tabular-nums font-medium">{post.views.toLocaleString()}</td>
-                <td className="text-right px-5 py-3 tabular-nums font-medium">{post.clicks.toLocaleString()}</td>
-                <td className="text-right px-5 py-3">
+                <td className="text-right px-3 lg:px-5 py-3 tabular-nums font-medium">{post.views.toLocaleString()}</td>
+                <td className="text-right px-3 lg:px-5 py-3 tabular-nums font-medium">{post.clicks.toLocaleString()}</td>
+                <td className="text-right px-3 lg:px-5 py-3">
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                     post.ctr >= 40 ? "bg-green-100 text-green-700" :
                     post.ctr >= 25 ? "bg-yellow-100 text-yellow-700" :
@@ -43,10 +43,10 @@ export default function TopPostsTable({ posts }: { posts: TopPost[] }) {
                     {post.ctr}%
                   </span>
                 </td>
-                <td className="text-right px-5 py-3 tabular-nums text-[color:var(--fg-muted)]">
+                <td className="text-right px-3 lg:px-5 py-3 tabular-nums text-[color:var(--fg-muted)] hidden md:table-cell">
                   {Math.floor(post.avgWatchTime / 60)}:{String(post.avgWatchTime % 60).padStart(2, "0")}
                 </td>
-                <td className="text-right px-5 py-3 tabular-nums text-[color:var(--fg-muted)]">{post.shares}</td>
+                <td className="text-right px-3 lg:px-5 py-3 tabular-nums text-[color:var(--fg-muted)] hidden md:table-cell">{post.shares}</td>
               </tr>
             ))}
           </tbody>

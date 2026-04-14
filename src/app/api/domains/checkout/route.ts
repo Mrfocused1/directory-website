@@ -22,6 +22,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!stripe) {
+      return NextResponse.json(
+        { error: "Stripe is not configured" },
+        { status: 500 },
+      );
+    }
+
     // Look up the real price server-side
     const pricing = await getDomainPrice(domain);
     if (!pricing.price || pricing.price <= 0) {

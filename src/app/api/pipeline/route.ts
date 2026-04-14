@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/db";
+import { sites, pipelineJobs } from "@/db/schema";
+import { eq, and, desc } from "drizzle-orm";
 
 // POST /api/pipeline — Start a new pipeline for a site
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { platform, handle, slug, displayName } = body;
+    const { platform, handle, slug, displayName, userId } = body;
 
     if (!platform || !handle || !slug || !displayName) {
       return NextResponse.json(
@@ -13,45 +16,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // In production: create the site in the DB and kick off background jobs
-    // For now, return a mock response
-    const siteId = crypto.randomUUID();
+    if (!db) {
+      return NextResponse.json(
+        { error: "Database not configured" },
+        { status: 503 },
+      );
+    }
 
-    // TODO: In production, this would:
-    // 1. Create the site record in the database
-    // 2. Enqueue a background job for the scraping pipeline
-    // 3. The pipeline would run: scrape → transcribe → categorize → references → publish
+    // Create the site record in the database
+    const [site] = await db.insert(sites).values({
+      userId: userId || "00000000-0000-0000-0000-000000000000", // placeholder until auth is added
+      slug,
+      platform,
+      handle,
+      displayName,
+      isPublished: false,
+    }).returning();
 
-    /*
-    Pipeline steps (to be implemented with a job queue like BullMQ or Inngest):
+    // Create initial pipeline job record
+    await db.insert(pipelineJobs).values({
+      siteId: site.id,
+      step: "scrape",
+      status: "pending",
+      progress: 0,
+      message: "Queued for processing",
+    });
 
-    Step 1 - SCRAPE:
-    - Use Instagram Graph API or TikTok API to fetch all posts
-    - Download media (videos, images, thumbnails)
-    - Store in S3/R2/Vercel Blob
-    - Save post metadata to the posts table
-
-    Step 2 - TRANSCRIBE:
-    - For each video post, send to Deepgram/AssemblyAI/Whisper
-    - Save transcript text and segments to the posts table
-
-    Step 3 - CATEGORIZE:
-    - Analyze captions and transcripts using LLM or keyword matching
-    - Assign categories and update the posts table
-    - Update the site's categories array
-
-    Step 4 - REFERENCES:
-    - For each post, search YouTube Data API for related content
-    - Search news APIs for related articles
-    - Save to the references table
-
-    Step 5 - PUBLISH:
-    - Set site.isPublished = true
-    - Optionally trigger ISR revalidation
-    */
+    // TODO: Enqueue a background job (BullMQ, Inngest, etc.) to actually run:
+    //   scrape → transcribe → categorize → references → publish
+    // For now the pipeline job stays in "pending" until a worker picks it up.
 
     return NextResponse.json({
-      siteId,
+      siteId: site.id,
       status: "started",
       message: "Pipeline started. Your directory will be ready in a few minutes.",
     });
@@ -75,21 +71,57 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // In production: query the pipeline_jobs table for the latest status
-  // For now, return a mock "completed" after simulating progress
+  if (!db) {
+    return NextResponse.json(
+      { error: "Database not configured" },
+      { status: 503 },
+    );
+  }
+
+  // Get all pipeline jobs for this site, ordered by creation
+  const jobs = await db.select()
+    .from(pipelineJobs)
+    .where(eq(pipelineJobs.siteId, siteId))
+    .orderBy(desc(pipelineJobs.createdAt));
+
+  if (jobs.length === 0) {
+    return NextResponse.json(
+      { error: "No pipeline found for this site" },
+      { status: 404 },
+    );
+  }
+
+  const latestJob = jobs[0];
+  const stepOrder = ["scrape", "transcribe", "categorize", "references", "complete"];
+
+  // Build step statuses from all jobs
+  const stepStatuses = stepOrder.map((step) => {
+    const job = jobs.find((j) => j.step === step);
+    return {
+      step,
+      status: job?.status || "pending",
+      progress: job?.progress || 0,
+    };
+  });
+
+  // Determine overall status
+  const allCompleted = stepStatuses.every((s) => s.status === "completed");
+  const anyFailed = stepStatuses.some((s) => s.status === "failed");
+  const overallProgress = Math.round(
+    stepStatuses.reduce((sum, s) => sum + s.progress, 0) / stepStatuses.length,
+  );
 
   return NextResponse.json({
     siteId,
-    status: "completed",
-    currentStep: "complete",
-    progress: 100,
-    message: "Your directory is ready!",
-    steps: [
-      { step: "scrape", status: "completed", progress: 100 },
-      { step: "transcribe", status: "completed", progress: 100 },
-      { step: "categorize", status: "completed", progress: 100 },
-      { step: "references", status: "completed", progress: 100 },
-      { step: "complete", status: "completed", progress: 100 },
-    ],
+    status: allCompleted ? "completed" : anyFailed ? "failed" : "processing",
+    currentStep: latestJob.step,
+    progress: allCompleted ? 100 : overallProgress,
+    message: allCompleted
+      ? "Your directory is ready!"
+      : anyFailed
+        ? latestJob.error || "Something went wrong"
+        : latestJob.message || "Processing...",
+    error: anyFailed ? latestJob.error : null,
+    steps: stepStatuses,
   });
 }

@@ -231,7 +231,7 @@ export default function LandingPage() {
         </section>
 
         {/* Features */}
-        <section className="pb-24 max-w-5xl mx-auto">
+        <section className="pb-24 max-w-5xl mx-auto overflow-hidden">
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-center mb-4 px-6">
             Everything automated
           </h2>
@@ -240,11 +240,11 @@ export default function LandingPage() {
             so you can focus on creating.
           </p>
           {/* Mobile: horizontal scroll slider */}
-          <div className="sm:hidden flex gap-4 overflow-x-auto snap-x snap-mandatory px-6 pb-4 scrollbar-hide">
+          <div className="sm:hidden flex gap-4 overflow-x-auto overflow-y-hidden snap-x snap-mandatory px-6 pb-4 scrollbar-hide max-w-[100vw]">
             {FEATURES.map((f) => (
               <div
                 key={f.title}
-                className="bg-white border border-[color:var(--border)] rounded-2xl p-6 min-w-[280px] w-[280px] shrink-0 snap-center"
+                className="bg-white border border-[color:var(--border)] rounded-2xl p-6 min-w-[260px] w-[260px] shrink-0 snap-center"
               >
                 <div className="w-12 h-12 rounded-xl bg-black/5 flex items-center justify-center text-[color:var(--fg)] mb-4">
                   {f.icon}

@@ -18,12 +18,12 @@ export default function OnboardingPage() {
 function OnboardingContent() {
   const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>("handle");
-  const pollRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clean up polling on unmount
   useEffect(() => {
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
+      if (pollRef.current) clearTimeout(pollRef.current);
     };
   }, []);
   const [platform, setPlatform] = useState<"instagram" | "tiktok">("instagram");
@@ -47,10 +47,17 @@ function OnboardingContent() {
     setStep("customize");
   };
 
+  const [isBuilding, setIsBuilding] = useState(false);
+
   const handleStartBuild = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Prevent double-clicks while building
+    if (isBuilding) return;
+    setIsBuilding(true);
+
     if (pollRef.current) {
-      clearInterval(pollRef.current);
+      clearTimeout(pollRef.current);
       pollRef.current = null;
     }
     setStep("processing");
@@ -73,11 +80,17 @@ function OnboardingContent() {
 
       const data = await res.json();
 
-      // Poll for status
-      pollRef.current = setInterval(async () => {
+      // Poll with exponential backoff: 2s → 4s → 8s → 10s (capped)
+      let pollDelay = 2000;
+      const MAX_DELAY = 10000;
+      let consecutiveErrors = 0;
+      const MAX_ERRORS = 5;
+
+      const poll = async () => {
         try {
           const statusRes = await fetch(`/api/pipeline?siteId=${data.siteId}`);
           const status = await statusRes.json();
+          consecutiveErrors = 0; // Reset on success
 
           setPipelineStatus({
             step: status.currentStep || "scrape",
@@ -86,25 +99,45 @@ function OnboardingContent() {
           });
 
           if (status.status === "completed") {
-            clearInterval(pollRef.current);
             setStep("done");
+            setIsBuilding(false);
+            return; // Stop polling
           } else if (status.status === "failed") {
-            clearInterval(pollRef.current);
-            setPipelineStatus((prev) => ({
-              ...prev,
+            setPipelineStatus({
+              step: "error",
+              progress: 0,
               message: status.error || "Something went wrong",
-            }));
+            });
+            setIsBuilding(false);
+            return; // Stop polling
           }
         } catch {
-          // continue polling
+          consecutiveErrors++;
+          if (consecutiveErrors >= MAX_ERRORS) {
+            setPipelineStatus({
+              step: "error",
+              progress: 0,
+              message: "Lost connection. Please try again.",
+            });
+            setIsBuilding(false);
+            return; // Stop polling after too many failures
+          }
         }
-      }, 2000);
+
+        // Schedule next poll with backoff
+        pollDelay = Math.min(pollDelay * 1.5, MAX_DELAY);
+        pollRef.current = setTimeout(poll, pollDelay);
+      };
+
+      // Start first poll
+      pollRef.current = setTimeout(poll, pollDelay);
     } catch {
       setPipelineStatus({
         step: "error",
         progress: 0,
         message: "Failed to start. Please try again.",
       });
+      setIsBuilding(false);
     }
   };
 
@@ -277,7 +310,7 @@ function OnboardingContent() {
                     <p className="text-xs text-[color:var(--fg-muted)] mt-1">
                       @{handle.replace(/^@/, "") || "handle"} on {platform}
                     </p>
-                    <div className="mt-4 grid grid-cols-4 gap-2">
+                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {Array.from({ length: 4 }).map((_, i) => (
                         <div key={i} className="aspect-[4/5] bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg" />
                       ))}
@@ -390,6 +423,7 @@ function OnboardingContent() {
                   <button
                     type="button"
                     onClick={() => {
+                      setIsBuilding(false);
                       setPipelineStatus({ step: "scrape", progress: 0, message: "Starting..." });
                       setStep("customize");
                     }}
@@ -400,6 +434,7 @@ function OnboardingContent() {
                   <button
                     type="button"
                     onClick={() => {
+                      setIsBuilding(false);
                       setPipelineStatus({ step: "scrape", progress: 0, message: "Starting..." });
                       handleStartBuild({ preventDefault: () => {} } as React.FormEvent);
                     }}

@@ -55,28 +55,24 @@ export default function DashboardNav() {
         </div>
       </nav>
 
-      {/* Mobile tab bar */}
-      <div className="lg:hidden flex border-b border-[color:var(--border)] overflow-x-auto scrollbar-hide">
+      {/* Mobile tab bar — horizontally scrollable */}
+      <div className="lg:hidden flex border-b border-[color:var(--border)] overflow-x-auto overflow-y-hidden scrollbar-hide px-1 max-w-[100vw]">
         {TABS.map((tab) => {
           const isActive = pathname === tab.href;
           const locked = tab.requiredFeature && !can(tab.requiredFeature);
-          return isActive ? (
+          return (
             <Link
               key={tab.href}
               href={tab.href}
-              aria-current="page"
-              className="flex-1 text-center py-3 text-sm font-semibold border-b-2 border-[color:var(--fg)] whitespace-nowrap px-3 flex items-center justify-center gap-1"
+              aria-current={isActive ? "page" : undefined}
+              className={`shrink-0 text-center py-3 text-sm whitespace-nowrap px-4 flex items-center justify-center gap-1 ${
+                isActive
+                  ? "font-semibold border-b-2 border-[color:var(--fg)]"
+                  : "font-medium text-[color:var(--fg-muted)]"
+              }`}
             >
               {tab.label}
-            </Link>
-          ) : (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              className="flex-1 text-center py-3 text-sm font-medium text-[color:var(--fg-muted)] whitespace-nowrap px-3 flex items-center justify-center gap-1"
-            >
-              {tab.label}
-              {locked && (
+              {locked && !isActive && (
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-purple-400">
                   <rect width="18" height="11" x="3" y="11" rx="2" />
                   <path d="M7 11V7a5 5 0 0 1 10 0v4" />

@@ -1,38 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMockRequests, type ContentRequest } from "@/lib/requests/mock-data";
+import { db } from "@/db";
+import { contentRequests, requestVotes } from "@/db/schema";
+import { eq, and, desc, asc, sql } from "drizzle-orm";
 
-// In-memory store for demo (replaced by DB in production)
-let requests: ContentRequest[] = getMockRequests();
-
-// GET /api/requests?siteId=xxx&sort=votes|newest|status
+// GET /api/requests?siteId=xxx&sort=votes|newest|status&sessionId=xxx
 export async function GET(request: NextRequest) {
   const siteId = request.nextUrl.searchParams.get("siteId");
   const sort = request.nextUrl.searchParams.get("sort") || "votes";
   const status = request.nextUrl.searchParams.get("status");
+  const sessionId = request.nextUrl.searchParams.get("sessionId") || "";
 
   if (!siteId) {
     return NextResponse.json({ error: "Missing siteId" }, { status: 400 });
   }
 
-  let filtered = [...requests];
+  if (!db) {
+    return NextResponse.json({ requests: [] });
+  }
 
-  // Filter by status
+  let query = db.select().from(contentRequests).where(eq(contentRequests.siteId, siteId)).$dynamic();
+
   if (status && status !== "all") {
-    filtered = filtered.filter((r) => r.status === status);
+    query = query.where(and(eq(contentRequests.siteId, siteId), eq(contentRequests.status, status)));
   }
 
-  // Sort
   if (sort === "newest") {
-    filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  } else if (sort === "votes") {
-    // Pinned first, then by votes
-    filtered.sort((a, b) => {
-      if (a.isPinned !== b.isPinned) return a.isPinned ? -1 : 1;
-      return b.voteCount - a.voteCount;
-    });
+    query = query.orderBy(desc(contentRequests.createdAt));
+  } else {
+    // Default: pinned first, then by votes
+    query = query.orderBy(desc(contentRequests.isPinned), desc(contentRequests.voteCount));
   }
 
-  return NextResponse.json({ requests: filtered });
+  const rows = await query;
+
+  // Check which requests this session has voted on
+  let votedIds = new Set<string>();
+  if (sessionId) {
+    const votes = await db.select({ requestId: requestVotes.requestId })
+      .from(requestVotes)
+      .where(eq(requestVotes.sessionId, sessionId));
+    votedIds = new Set(votes.map((v) => v.requestId));
+  }
+
+  const requests = rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    description: r.description,
+    authorName: r.authorName,
+    status: r.status,
+    isPinned: r.isPinned,
+    voteCount: r.voteCount,
+    hasVoted: votedIds.has(r.id),
+    creatorNote: r.creatorNote,
+    completedPostShortcode: r.completedPostShortcode,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt?.toISOString() ?? null,
+  }));
+
+  return NextResponse.json({ requests });
 }
 
 // POST /api/requests — Submit a new content request
@@ -45,24 +70,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing siteId or title" }, { status: 400 });
     }
 
-    const newRequest: ContentRequest = {
-      id: `req-${Date.now()}`,
+    if (!db) {
+      return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+    }
+
+    const [newRequest] = await db.insert(contentRequests).values({
+      siteId,
       title: title.trim(),
       description: description?.trim() || null,
       authorName: authorName?.trim() || null,
       status: "open",
       isPinned: false,
       voteCount: 1,
-      hasVoted: true,
-      creatorNote: null,
-      completedPostShortcode: null,
-      createdAt: new Date().toISOString(),
-    };
+    }).returning();
 
-    requests = [newRequest, ...requests];
-
-    return NextResponse.json({ request: newRequest }, { status: 201 });
-  } catch {
+    return NextResponse.json({
+      request: {
+        id: newRequest.id,
+        title: newRequest.title,
+        description: newRequest.description,
+        authorName: newRequest.authorName,
+        status: newRequest.status,
+        isPinned: newRequest.isPinned,
+        voteCount: newRequest.voteCount,
+        hasVoted: true,
+        creatorNote: newRequest.creatorNote,
+        completedPostShortcode: newRequest.completedPostShortcode,
+        createdAt: newRequest.createdAt.toISOString(),
+      },
+    }, { status: 201 });
+  } catch (err) {
+    console.error("[requests] Create error:", err);
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 }
@@ -71,33 +109,79 @@ export async function POST(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { requestId, action, ...updates } = body;
+    const { requestId, action, sessionId, ...updates } = body;
 
-    const idx = requests.findIndex((r) => r.id === requestId);
-    if (idx === -1) {
+    if (!requestId) {
+      return NextResponse.json({ error: "Missing requestId" }, { status: 400 });
+    }
+
+    if (!db) {
+      return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+    }
+
+    const existing = await db.query.contentRequests.findFirst({
+      where: eq(contentRequests.id, requestId),
+    });
+    if (!existing) {
       return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
 
     if (action === "vote") {
-      if (requests[idx].hasVoted) {
+      if (!sessionId) {
+        return NextResponse.json({ error: "Missing sessionId" }, { status: 400 });
+      }
+
+      // Check if already voted
+      const existingVote = await db.query.requestVotes.findFirst({
+        where: and(eq(requestVotes.requestId, requestId), eq(requestVotes.sessionId, sessionId)),
+      });
+
+      if (existingVote) {
         // Unvote
-        requests[idx] = { ...requests[idx], voteCount: Math.max(0, requests[idx].voteCount - 1), hasVoted: false };
+        await db.delete(requestVotes).where(eq(requestVotes.id, existingVote.id));
+        await db.update(contentRequests)
+          .set({ voteCount: sql`GREATEST(0, ${contentRequests.voteCount} - 1)` })
+          .where(eq(contentRequests.id, requestId));
       } else {
-        requests[idx] = { ...requests[idx], voteCount: requests[idx].voteCount + 1, hasVoted: true };
+        // Vote
+        await db.insert(requestVotes).values({ requestId, sessionId });
+        await db.update(contentRequests)
+          .set({ voteCount: sql`${contentRequests.voteCount} + 1` })
+          .where(eq(contentRequests.id, requestId));
       }
     } else if (action === "update_status") {
-      // Creator actions
-      requests[idx] = {
-        ...requests[idx],
-        status: updates.status || requests[idx].status,
-        creatorNote: updates.creatorNote !== undefined ? updates.creatorNote : requests[idx].creatorNote,
-        isPinned: updates.isPinned !== undefined ? updates.isPinned : requests[idx].isPinned,
-        updatedAt: new Date().toISOString(),
-      };
+      await db.update(contentRequests)
+        .set({
+          status: updates.status || existing.status,
+          creatorNote: updates.creatorNote !== undefined ? updates.creatorNote : existing.creatorNote,
+          isPinned: updates.isPinned !== undefined ? updates.isPinned : existing.isPinned,
+          updatedAt: new Date(),
+        })
+        .where(eq(contentRequests.id, requestId));
     }
 
-    return NextResponse.json({ request: requests[idx] });
-  } catch {
+    // Fetch updated record
+    const updated = await db.query.contentRequests.findFirst({
+      where: eq(contentRequests.id, requestId),
+    });
+
+    return NextResponse.json({
+      request: updated ? {
+        id: updated.id,
+        title: updated.title,
+        description: updated.description,
+        authorName: updated.authorName,
+        status: updated.status,
+        isPinned: updated.isPinned,
+        voteCount: updated.voteCount,
+        hasVoted: action === "vote" ? !body.hasVoted : false,
+        creatorNote: updated.creatorNote,
+        completedPostShortcode: updated.completedPostShortcode,
+        createdAt: updated.createdAt.toISOString(),
+      } : null,
+    });
+  } catch (err) {
+    console.error("[requests] Patch error:", err);
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 }

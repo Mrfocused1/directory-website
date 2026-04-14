@@ -40,8 +40,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { plan, userId } = body;
-    // TODO: When auth is added, get userId from session instead of request body
+    const { plan } = body;
+
+    // TODO: Get userId from authenticated session (cookie/JWT) — never trust client body
+    // const session = await getSession(request);
+    // const userId = session?.userId;
+    const userId: string | null = null;
 
     const planConfig = PLAN_PRICES[plan];
     if (!planConfig) {

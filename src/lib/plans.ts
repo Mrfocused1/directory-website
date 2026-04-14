@@ -132,6 +132,7 @@ export function hasFeature(planId: PlanId, feature: FeatureKey): boolean {
 }
 
 import type { Platform } from "@/lib/types";
+export type { Platform };
 
 /** Check if the user can add another account for a specific platform */
 export function canAddPlatformAccount(

@@ -56,8 +56,8 @@ export default function BookmarkProvider({
       const res = await fetch(`/api/bookmarks?siteId=${siteId}&email=${encodeURIComponent(userEmail)}`);
       const data = await res.json();
       if (data.collections) setCollections(data.collections);
-    } catch {
-      // silently fail
+    } catch (err) {
+      console.warn("[bookmarks] Failed to fetch collections:", err);
     }
   };
 

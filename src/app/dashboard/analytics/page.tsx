@@ -53,7 +53,7 @@ export default function AnalyticsDashboard() {
       <div className="relative z-10">
         <DashboardNav />
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-20">
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-20 overflow-x-hidden">
           {/* Header + period selector */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 sm:mb-8">
             <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight">Analytics</h1>

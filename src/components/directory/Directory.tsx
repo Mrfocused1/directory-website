@@ -220,7 +220,7 @@ export default function Directory({ site, siteId, posts, initialShortcode }: Dir
 
           {/* Category pills */}
           {allCategories.length > 1 && (
-            <nav aria-label="Filter by category" className="flex justify-center mb-8 animate-fade-in">
+            <nav aria-label="Filter by category" className="flex justify-center mb-8 animate-fade-in overflow-hidden px-1">
               <div className="flex items-center gap-1 bg-[color:var(--card)] border border-[color:var(--border)] backdrop-blur-md py-1 px-1 rounded-full shadow-sm overflow-x-auto scrollbar-hide max-w-full">
                 {allCategories.map((c) => {
                   const isActive = category === c;
@@ -255,10 +255,12 @@ export default function Directory({ site, siteId, posts, initialShortcode }: Dir
             <>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 px-1 sm:px-0 animate-fade-in">
                 {pageItems.map((p, i) => (
-                  <motion.button
+                  <motion.div
                     key={p.shortcode}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => handlePostClick(p)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handlePostClick(p); } }}
                     className="text-left bg-[color:var(--card)] border border-[color:var(--border)] hover:bg-[color:var(--card-hover)] transition-all cursor-pointer overflow-hidden rounded-xl shadow-sm"
                     initial={shouldStagger ? { opacity: 0, y: 14, scale: 0.96 } : false}
                     animate={shouldStagger ? { opacity: 1, y: 0, scale: 1 } : undefined}
@@ -331,7 +333,7 @@ export default function Directory({ site, siteId, posts, initialShortcode }: Dir
                         </p>
                       )}
                     </div>
-                  </motion.button>
+                  </motion.div>
                 ))}
               </div>
 

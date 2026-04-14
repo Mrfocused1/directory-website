@@ -17,11 +17,11 @@ export default function Heatmap({ data }: { data: HeatmapCell[] }) {
   };
 
   return (
-    <div className="bg-white border border-[color:var(--border)] rounded-xl p-5">
+    <div className="bg-white border border-[color:var(--border)] rounded-xl p-3 sm:p-5">
       <h3 className="text-sm font-bold mb-1">Visitor Activity Heatmap</h3>
       <p className="text-xs text-[color:var(--fg-subtle)] mb-4">When your audience visits (hour of day vs day of week)</p>
-      <div className="overflow-x-auto">
-        <div className="min-w-[600px]">
+      <div className="overflow-x-auto -mx-1 px-1">
+        <div className="min-w-[480px]">
           {/* Hour labels */}
           <div className="flex ml-10 mb-1">
             {HOURS.filter((h) => h % 3 === 0).map((h) => (

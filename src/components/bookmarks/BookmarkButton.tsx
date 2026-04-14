@@ -14,7 +14,7 @@ export default function BookmarkButton({
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const saved = isBookmarked(shortcode);
 
-  const dims = size === "md" ? "w-10 h-10" : "w-8 h-8";
+  const dims = size === "md" ? "w-11 h-11" : "w-10 h-10";
   const iconSize = size === "md" ? 18 : 15;
 
   return (

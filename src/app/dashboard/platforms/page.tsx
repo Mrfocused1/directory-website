@@ -311,7 +311,7 @@ export default function PlatformsPage() {
           )}
 
           {/* Summary cards */}
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 mb-6">
             {connectedPlatforms.map((c) => {
               const meta = PLATFORM_META[c.platform];
               return (

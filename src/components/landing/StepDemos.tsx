@@ -350,18 +350,17 @@ export function DemoDashboard() {
           </div>
         ))}
       </div>
-      {/* Tab selector */}
-      <div className="flex gap-1 mb-1.5">
+      {/* Tab selector (decorative — auto-cycles) */}
+      <div className="flex gap-1 mb-1.5" aria-hidden>
         {tabs.map((t, i) => (
-          <button
+          <span
             key={t}
-            type="button"
             className={`text-[7px] font-bold px-1.5 py-0.5 rounded transition-all ${
               activeTab === i ? "bg-black text-white" : "bg-black/5 text-black/40"
             }`}
           >
             {t}
-          </button>
+          </span>
         ))}
       </div>
       {/* Mini chart */}

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-
-// In-memory store for demo
-const subscribers = new Map<string, { email: string; name: string | null; categories: string[]; frequency: string; siteId: string; createdAt: string }>();
+import { db } from "@/db";
+import { subscribers } from "@/db/schema";
+import { eq, and, count } from "drizzle-orm";
+import crypto from "crypto";
 
 // POST /api/subscribe — Subscribe to a directory
 export async function POST(request: NextRequest) {
@@ -13,41 +14,52 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing siteId or email" }, { status: 400 });
     }
 
-    // Basic email validation
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    // Stricter email validation — require at least 2 chars in TLD
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
       return NextResponse.json({ error: "Invalid email" }, { status: 400 });
     }
 
-    const key = `${siteId}:${email.toLowerCase().trim()}`;
+    if (!db) {
+      return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+    }
 
-    if (subscribers.has(key)) {
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Check if already subscribed
+    const existing = await db.query.subscribers.findFirst({
+      where: and(eq(subscribers.siteId, siteId), eq(subscribers.email, normalizedEmail)),
+    });
+
+    if (existing) {
       // Update preferences
-      const existing = subscribers.get(key)!;
-      subscribers.set(key, {
-        ...existing,
-        categories: categories || existing.categories,
-        frequency: frequency || existing.frequency,
-      });
+      await db.update(subscribers)
+        .set({
+          categories: categories || existing.categories,
+          frequency: frequency || existing.frequency,
+          isActive: true,
+        })
+        .where(eq(subscribers.id, existing.id));
       return NextResponse.json({ message: "Preferences updated" });
     }
 
-    subscribers.set(key, {
-      email: email.toLowerCase().trim(),
+    const unsubscribeToken = crypto.randomBytes(32).toString("hex");
+
+    await db.insert(subscribers).values({
+      siteId,
+      email: normalizedEmail,
       name: name?.trim() || null,
       categories: categories || [],
       frequency: frequency || "weekly",
-      siteId,
-      createdAt: new Date().toISOString(),
+      unsubscribeToken,
+      isVerified: false,
+      isActive: true,
     });
 
-    // TODO: In production:
-    // 1. Insert into subscribers table
-    // 2. Generate unsubscribe token
-    // 3. Send verification email
-    // 4. Only mark as verified after they click the link
+    // TODO: Send verification email with unsubscribeToken link
 
     return NextResponse.json({ message: "Subscribed successfully" }, { status: 201 });
-  } catch {
+  } catch (err) {
+    console.error("[subscribe] Error:", err);
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 }
@@ -62,16 +74,25 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
     }
 
-    // TODO: In production, verify unsubscribe token
-    // await db.update(subscribers).set({ isActive: false }).where(eq(subscribers.unsubscribeToken, token));
+    if (!db) {
+      return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+    }
 
-    if (email) {
-      const key = `${siteId}:${email.toLowerCase().trim()}`;
-      subscribers.delete(key);
+    if (token) {
+      // Unsubscribe via secure token (from email link)
+      await db.update(subscribers)
+        .set({ isActive: false })
+        .where(and(eq(subscribers.siteId, siteId), eq(subscribers.unsubscribeToken, token)));
+    } else if (email) {
+      const normalizedEmail = email.toLowerCase().trim();
+      await db.update(subscribers)
+        .set({ isActive: false })
+        .where(and(eq(subscribers.siteId, siteId), eq(subscribers.email, normalizedEmail)));
     }
 
     return NextResponse.json({ message: "Unsubscribed" });
-  } catch {
+  } catch (err) {
+    console.error("[subscribe] Unsubscribe error:", err);
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 }
@@ -83,12 +104,32 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing siteId" }, { status: 400 });
   }
 
-  // In production, query from DB
-  // For demo, return mock counts
+  if (!db) {
+    return NextResponse.json({ total: 0, active: 0, verified: 0, thisWeek: 0 });
+  }
+
+  const [totalResult] = await db.select({ count: count() })
+    .from(subscribers)
+    .where(eq(subscribers.siteId, siteId));
+
+  const [activeResult] = await db.select({ count: count() })
+    .from(subscribers)
+    .where(and(eq(subscribers.siteId, siteId), eq(subscribers.isActive, true)));
+
+  const [verifiedResult] = await db.select({ count: count() })
+    .from(subscribers)
+    .where(and(eq(subscribers.siteId, siteId), eq(subscribers.isVerified, true)));
+
+  const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const allSubs = await db.query.subscribers.findMany({
+    where: eq(subscribers.siteId, siteId),
+  });
+  const thisWeek = allSubs.filter((s) => new Date(s.createdAt) >= oneWeekAgo).length;
+
   return NextResponse.json({
-    total: 13,
-    active: 11,
-    verified: 12,
-    thisWeek: 3,
+    total: totalResult.count,
+    active: activeResult.count,
+    verified: verifiedResult.count,
+    thisWeek,
   });
 }

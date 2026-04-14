@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import {
   purchaseDomain,
   addDomainToProject,
@@ -67,15 +70,13 @@ export async function POST(request: NextRequest) {
           const userId = metadata.userId;
           const customerId = typeof session.customer === "string" ? session.customer : null;
 
-          // TODO: When DB is connected, uncomment:
-          // if (userId) {
-          //   await db.update(users)
-          //     .set({ plan, stripeCustomerId: customerId })
-          //     .where(eq(users.id, userId));
-          // }
+          if (db && userId && userId !== "anonymous") {
+            await db.update(users)
+              .set({ plan, stripeCustomerId: customerId, updatedAt: new Date() })
+              .where(eq(users.id, userId));
+          }
 
-          // For now, log the successful subscription for manual tracking
-          console.error(`[SUBSCRIPTION] User ${userId || "unknown"} upgraded to ${plan} (customer: ${customerId})`);
+          console.log(`[SUBSCRIPTION] User ${userId || "unknown"} upgraded to ${plan} (customer: ${customerId})`);
         }
 
         break;
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
         const session = event.data.object;
         const metadata = session.metadata ?? {};
         if (metadata.type === "domain_purchase") {
-          console.error(`[DOMAIN] Checkout expired for ${metadata.domain}`);
+          console.log(`[DOMAIN] Checkout expired for ${metadata.domain}`);
         }
         break;
       }
@@ -96,11 +97,12 @@ export async function POST(request: NextRequest) {
         const plan = amount ? PRICE_TO_PLAN[amount] : null;
         const customerId = typeof subscription.customer === "string" ? subscription.customer : null;
 
-        if (plan && customerId) {
-          // TODO: When DB is connected:
-          // await db.update(users).set({ plan }).where(eq(users.stripeCustomerId, customerId));
-          console.error(`[SUBSCRIPTION] Customer ${customerId} plan changed to ${plan}`);
+        if (plan && customerId && db) {
+          await db.update(users)
+            .set({ plan, updatedAt: new Date() })
+            .where(eq(users.stripeCustomerId, customerId));
         }
+        console.log(`[SUBSCRIPTION] Customer ${customerId} plan changed to ${plan}`);
         break;
       }
 
@@ -108,11 +110,12 @@ export async function POST(request: NextRequest) {
         const subscription = event.data.object;
         const customerId = typeof subscription.customer === "string" ? subscription.customer : null;
 
-        if (customerId) {
-          // TODO: When DB is connected:
-          // await db.update(users).set({ plan: "free" }).where(eq(users.stripeCustomerId, customerId));
-          console.error(`[SUBSCRIPTION] Customer ${customerId} cancelled — downgraded to free`);
+        if (customerId && db) {
+          await db.update(users)
+            .set({ plan: "free", updatedAt: new Date() })
+            .where(eq(users.stripeCustomerId, customerId));
         }
+        console.log(`[SUBSCRIPTION] Customer ${customerId} cancelled — downgraded to free`);
         break;
       }
 

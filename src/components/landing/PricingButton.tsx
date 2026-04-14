@@ -17,6 +17,7 @@ export default function PricingButton({
   highlight: boolean;
 }) {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const baseClass = `w-full h-12 rounded-xl text-sm font-semibold flex items-center justify-center transition ${
     highlight
@@ -32,8 +33,6 @@ export default function PricingButton({
       </Link>
     );
   }
-
-  const [error, setError] = useState<string | null>(null);
 
   // Paid plans — Stripe Checkout first, then onboarding
   const handleClick = async () => {

@@ -2,18 +2,20 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 
 export default function UnsubscribePage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const tenant = params.tenant as string;
+  const token = searchParams.get("token") || "";
   const [status, setStatus] = useState<"confirm" | "done">("confirm");
 
   const handleUnsubscribe = async () => {
     await fetch("/api/subscribe", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ siteId: tenant, token: "from-url-params" }),
+      body: JSON.stringify({ siteId: tenant, token }),
     });
     setStatus("done");
   };

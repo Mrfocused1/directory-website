@@ -32,10 +32,10 @@ const PLAN_PRICES: Record<string, { name: string; price: number; features: strin
  */
 export async function POST(request: NextRequest) {
   try {
-    if (!process.env.STRIPE_SECRET_KEY) {
+    if (!stripe) {
       return NextResponse.json(
-        { error: "Payment system is not configured." },
-        { status: 503 },
+        { error: "Stripe is not configured" },
+        { status: 500 },
       );
     }
 

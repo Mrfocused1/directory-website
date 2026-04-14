@@ -34,6 +34,10 @@ export default function proxy(request: NextRequest) {
 
   if (hostname.endsWith(".buildmy.directory")) {
     tenant = hostname.replace(".buildmy.directory", "");
+    // Strip www prefix if present (e.g., www.demo.buildmy.directory)
+    if (tenant.startsWith("www.")) {
+      tenant = tenant.slice(4);
+    }
   }
 
   // If not a subdomain, it might be a custom domain
@@ -44,8 +48,12 @@ export default function proxy(request: NextRequest) {
 
   // Rewrite to the tenant directory on the root domain
   if (tenant) {
-    url.hostname = "buildmy.directory";
     url.pathname = `/d/${tenant}${url.pathname}`;
+    // Rewrite to the root domain so the request doesn't loop through the proxy
+    if (hostname.endsWith('.buildmy.directory')) {
+      url.hostname = 'buildmy.directory';
+    }
+    // For local dev and Vercel previews, the hostname is already correct
     return NextResponse.rewrite(url);
   }
 

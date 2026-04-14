@@ -49,6 +49,10 @@ function OnboardingContent() {
 
   const handleStartBuild = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
     setStep("processing");
 
     try {

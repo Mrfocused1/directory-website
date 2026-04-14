@@ -37,8 +37,9 @@ export default function FeatureGate({
       if (data.url) {
         window.location.href = data.url;
       }
-    } catch {
-      // Checkout failed
+    } catch (err) {
+      console.error("Checkout failed:", err);
+      alert("Something went wrong starting checkout. Please try again.");
     }
   };
 

@@ -131,7 +131,7 @@ export function hasFeature(planId: PlanId, feature: FeatureKey): boolean {
   return PLANS[planId].features.has(feature);
 }
 
-export type Platform = "instagram" | "tiktok" | "youtube";
+import type { Platform } from "@/lib/types";
 
 /** Check if the user can add another account for a specific platform */
 export function canAddPlatformAccount(

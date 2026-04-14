@@ -178,6 +178,20 @@ export async function POST(request: NextRequest) {
 
     if (action === "move_bookmark") {
       const { postShortcode, fromCollectionId, toCollectionId } = body;
+      if (!postShortcode || !fromCollectionId || !toCollectionId) {
+        return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
+      }
+
+      // Verify both collections belong to this visitor — prevents
+      // cross-visitor bookmark manipulation by ID enumeration
+      const ownedCollections = await db.query.collections.findMany({
+        where: eq(collections.visitorId, visitor.id),
+        columns: { id: true },
+      });
+      const ownedIds = new Set(ownedCollections.map((c) => c.id));
+      if (!ownedIds.has(fromCollectionId) || !ownedIds.has(toCollectionId)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
 
       // Remove from source
       await db.delete(bookmarks).where(

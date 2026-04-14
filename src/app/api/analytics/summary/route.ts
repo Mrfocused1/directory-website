@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { pageViews, postClicks, searchEvents, categoryClicks, dailyStats, posts } from "@/db/schema";
 import { eq, and, gte, count, sql, desc, isNotNull } from "drizzle-orm";
-import { resolveSiteId } from "@/db/utils";
+import { ownedSiteId } from "@/db/utils";
+import { getApiUser } from "@/lib/supabase/api";
 
 /**
  * GET /api/analytics/summary?siteId=xxx&days=30
@@ -24,9 +25,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ hasData: false });
   }
 
-  const resolvedSiteId = await resolveSiteId(siteId);
+  const user = await getApiUser();
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
+  const resolvedSiteId = await ownedSiteId(siteId, user.id);
   if (!resolvedSiteId) {
-    return NextResponse.json({ hasData: false });
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 

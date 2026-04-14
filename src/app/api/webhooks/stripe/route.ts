@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { db } from "@/db";
-import { users } from "@/db/schema";
+import { users, stripeEvents } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import {
   purchaseDomain,
@@ -44,6 +44,21 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error("Webhook signature verification failed:", err);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+  }
+
+  // Idempotency: insert event.id BEFORE side effects. If it already exists,
+  // a unique-violation tells us we've handled it before — return 200 and skip.
+  if (db) {
+    try {
+      await db.insert(stripeEvents).values({
+        id: event.id,
+        type: event.type,
+      });
+    } catch {
+      // Already processed (unique constraint violation) — return success so Stripe stops retrying
+      console.log(`[stripe] Event ${event.id} already processed, skipping`);
+      return NextResponse.json({ received: true, deduped: true });
+    }
   }
 
   try {

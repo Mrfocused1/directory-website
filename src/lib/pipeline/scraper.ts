@@ -87,7 +87,7 @@ async function scrapeInstagram(handle: string, maxPosts: number): Promise<Scrape
       takenAt: new Date((item.timestamp as string) || Date.now()),
       mediaUrls,
       thumbUrl: (item.displayUrl as string) || (item.thumbnailUrl as string) || "",
-      numSlides: type === "carousel" ? (item.childPosts as unknown[] || []).length : 0,
+      numSlides: type === "carousel" && Array.isArray(item.childPosts) ? item.childPosts.length : 0,
       platformUrl: (item.url as string) || `https://www.instagram.com/p/${shortcode}/`,
     } satisfies ScrapedPost;
   });

@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import DashboardNav from "@/components/dashboard/DashboardNav";
+import { useSiteContext } from "@/components/dashboard/SiteContext";
 import FeatureGate from "@/components/plans/FeatureGate";
 
 type DomainResult = {
@@ -66,6 +67,9 @@ function DomainsPageContent() {
       window.history.replaceState({}, "", "/dashboard/domains");
     }
   }, [searchParams]);
+
+  const { selectedSite } = useSiteContext();
+  const siteId = selectedSite?.id;
 
   // Buy flow
   const [searchQuery, setSearchQuery] = useState("");
@@ -147,6 +151,10 @@ function DomainsPageContent() {
   };
 
   const handlePurchase = async (result: DomainResult) => {
+    if (!siteId) {
+      alert("Please select a site first.");
+      return;
+    }
     setPurchasingDomain(result.domain);
     try {
       const res = await fetch("/api/domains/checkout", {
@@ -154,7 +162,7 @@ function DomainsPageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           domain: result.domain,
-          siteId: "demo",
+          siteId,
         }),
       });
       if (res.ok) {
@@ -184,13 +192,17 @@ function DomainsPageContent() {
       setSearchError("Please enter a valid domain name (e.g. yourdomain.com)");
       return;
     }
+    if (!siteId) {
+      setSearchError("Please select a site first.");
+      return;
+    }
     setIsConnecting(true);
     setSearchError(null);
     try {
       const res = await fetch("/api/domains", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ siteId: "demo", domain: connectDomain, action: "connect" }),
+        body: JSON.stringify({ siteId, domain: connectDomain, action: "connect" }),
       });
       if (res.ok) {
         const data = await res.json();

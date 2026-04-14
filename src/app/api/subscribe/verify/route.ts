@@ -38,13 +38,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Invalid or expired verification link" }, { status: 404 });
   }
 
+  // Look up site once (used for both already-verified and newly-verified paths)
+  const site = await db.query.sites.findFirst({
+    where: eq(sites.id, siteId),
+    columns: { slug: true, displayName: true },
+  });
+  if (!site) {
+    return NextResponse.json({ error: "Site no longer exists" }, { status: 404 });
+  }
+  const slug = site.slug;
+  const siteName = site.displayName || slug;
+
   if (subscriber.isVerified) {
     // Already verified — redirect to directory
-    const site = await db.query.sites.findFirst({
-      where: eq(sites.id, siteId),
-      columns: { slug: true, displayName: true },
-    });
-    const slug = site?.slug || "demo";
     return NextResponse.redirect(new URL(`/d/${slug}`, request.url));
   }
 
@@ -52,14 +58,6 @@ export async function GET(request: NextRequest) {
   await db.update(subscribers)
     .set({ isVerified: true })
     .where(eq(subscribers.id, subscriber.id));
-
-  // Look up site for redirect and welcome email
-  const site = await db.query.sites.findFirst({
-    where: eq(sites.id, siteId),
-    columns: { slug: true, displayName: true },
-  });
-  const slug = site?.slug || "demo";
-  const siteName = site?.displayName || slug;
 
   // Send welcome email
   if (resend) {

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { contentRequests, requestVotes } from "@/db/schema";
-import { eq, and, desc, asc, sql } from "drizzle-orm";
+import { contentRequests, requestVotes, sites } from "@/db/schema";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { resolveSiteId } from "@/db/utils";
+import { getApiUser } from "@/lib/supabase/api";
 
 // GET /api/requests?siteId=xxx&sort=votes|newest|status&sessionId=xxx
 export async function GET(request: NextRequest) {
@@ -178,6 +179,19 @@ export async function PATCH(request: NextRequest) {
         didVote = true;
       }
     } else if (action === "update_status") {
+      // Creator-only action — verify the authenticated user owns the site
+      const user = await getApiUser();
+      if (!user) {
+        return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+      }
+      const site = await db.query.sites.findFirst({
+        where: eq(sites.id, existing.siteId),
+        columns: { userId: true },
+      });
+      if (!site || site.userId !== user.id) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+
       await db.update(contentRequests)
         .set({
           status: updates.status || existing.status,

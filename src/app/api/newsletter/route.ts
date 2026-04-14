@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { subscribers, digestHistory } from "@/db/schema";
-import { eq, and, desc, count } from "drizzle-orm";
-import { resolveSiteId } from "@/db/utils";
+import { eq, desc } from "drizzle-orm";
+import { ownedSiteId } from "@/db/utils";
+import { getApiUser } from "@/lib/supabase/api";
 
 /**
  * GET /api/newsletter?siteId=xxx
@@ -20,10 +21,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ hasData: false });
   }
 
+  const user = await getApiUser();
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
   try {
-    const resolvedSiteId = await resolveSiteId(siteId);
+    // Verify ownership of the site
+    const resolvedSiteId = await ownedSiteId(siteId, user.id);
     if (!resolvedSiteId) {
-      return NextResponse.json({ hasData: false });
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Fetch all subscribers for this site

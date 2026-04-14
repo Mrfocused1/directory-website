@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { sites } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 /**
  * Resolve a siteId that could be either a UUID or a slug to a UUID.
@@ -32,6 +32,27 @@ export async function resolveSiteId(siteIdOrSlug: string): Promise<string | null
     return site?.id ?? null;
   } catch (error) {
     console.error("[resolveSiteId] Query failed:", error);
+    return null;
+  }
+}
+
+/**
+ * Verify a user owns a site. Returns the resolved siteId UUID if owned,
+ * null otherwise. Use in dashboard API GETs to prevent IDOR.
+ */
+export async function ownedSiteId(siteIdOrSlug: string, userId: string): Promise<string | null> {
+  if (!db) return null;
+  const resolvedSiteId = await resolveSiteId(siteIdOrSlug);
+  if (!resolvedSiteId) return null;
+
+  try {
+    const site = await db.query.sites.findFirst({
+      where: and(eq(sites.id, resolvedSiteId), eq(sites.userId, userId)),
+      columns: { id: true },
+    });
+    return site?.id ?? null;
+  } catch (error) {
+    console.error("[ownedSiteId] Query failed:", error);
     return null;
   }
 }

@@ -443,3 +443,16 @@ export const customDomains = pgTable(
     uniqueIndex("custom_domains_domain_idx").on(table.domain),
   ],
 );
+
+// ─── Stripe Webhook Events (idempotency tracking) ────────────────────
+// Stripe can deliver the same webhook multiple times. We insert event.id
+// before processing side effects; a unique-violation means we've already
+// handled it and can return 200 immediately.
+export const stripeEvents = pgTable(
+  "stripe_events",
+  {
+    id: text("id").primaryKey(), // Stripe event ID (e.g., evt_xxx)
+    type: varchar("type", { length: 64 }).notNull(),
+    receivedAt: timestamp("received_at").defaultNow().notNull(),
+  },
+);

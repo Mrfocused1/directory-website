@@ -42,8 +42,9 @@ export default function proxy(request: NextRequest) {
     tenant = hostname;
   }
 
-  // Rewrite to the tenant directory
+  // Rewrite to the tenant directory on the root domain
   if (tenant) {
+    url.hostname = "buildmy.directory";
     url.pathname = `/d/${tenant}${url.pathname}`;
     return NextResponse.rewrite(url);
   }

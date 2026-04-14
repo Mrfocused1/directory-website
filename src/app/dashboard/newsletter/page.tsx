@@ -110,17 +110,32 @@ export default function NewsletterDashboard() {
                 Manage subscribers and digest emails
               </p>
             </div>
-            <button
-              type="button"
-              onClick={handleSendDigest}
-              disabled={sending}
-              className="h-9 px-4 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:opacity-90 transition self-start disabled:opacity-50"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
-              </svg>
-              Send Digest Now
-            </button>
+            <div className="flex items-center gap-2 self-start">
+              {siteId && (
+                <a
+                  href={`/api/newsletter/export?siteId=${encodeURIComponent(siteId)}`}
+                  download
+                  className="h-9 px-3 bg-black/5 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:bg-black/10 transition"
+                  title="Download subscribers as CSV"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                  </svg>
+                  Export CSV
+                </a>
+              )}
+              <button
+                type="button"
+                onClick={handleSendDigest}
+                disabled={sending}
+                className="h-9 px-4 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:opacity-90 transition disabled:opacity-50"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                </svg>
+                Send Digest Now
+              </button>
+            </div>
           </div>
 
           {/* Stats */}

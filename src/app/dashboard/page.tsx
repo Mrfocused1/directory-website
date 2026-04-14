@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import DashboardNav from "@/components/dashboard/DashboardNav";
+import EmptyState from "@/components/dashboard/EmptyState";
 
 type SiteData = {
   id: string;
@@ -93,18 +94,32 @@ export default function DashboardPage() {
               <p className="text-sm text-[color:var(--fg-muted)]">Loading your directories...</p>
             </div>
           ) : sites.length === 0 ? (
-            <div className="text-center py-20 bg-white border-2 border-dashed border-[color:var(--border)] rounded-2xl">
-              <h3 className="text-xl font-bold mb-2">No directories yet</h3>
-              <p className="text-[color:var(--fg-muted)] mb-6">
-                Create your first directory to get started.
-              </p>
-              <Link
-                href="/onboarding"
-                className="inline-flex h-12 px-8 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold items-center hover:opacity-90 transition"
-              >
-                Build My Directory
-              </Link>
-            </div>
+            <EmptyState
+              icon={
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <path d="M3 9h18M9 21V9" />
+                </svg>
+              }
+              title="Welcome to BuildMy.Directory"
+              description="You don't have any directories yet. Connect your first social platform and we'll build a searchable, shareable directory from your content — usually in under 5 minutes."
+              action={{ href: "/onboarding", label: "Build My First Directory" }}
+            >
+              <ul className="mt-6 text-xs text-[color:var(--fg-subtle)] space-y-1.5 max-w-xs mx-auto text-left">
+                <li className="flex items-start gap-2">
+                  <span className="text-[color:var(--fg)]">1.</span>
+                  Pick a platform and enter your handle
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[color:var(--fg)]">2.</span>
+                  We scrape, transcribe, and categorize your posts
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-[color:var(--fg)]">3.</span>
+                  Share your directory with your audience
+                </li>
+              </ul>
+            </EmptyState>
           ) : (
             <div className="space-y-4">
               {sites.map((site) => (

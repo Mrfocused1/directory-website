@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { visitorProfiles, collections, bookmarks } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { resolveSiteId } from "@/db/utils";
+import crypto from "crypto";
 
 // GET /api/bookmarks?siteId=xxx&email=xxx — Get visitor's collections and bookmarks
 export async function GET(request: NextRequest) {
@@ -210,6 +211,39 @@ export async function POST(request: NextRequest) {
       }
 
       return NextResponse.json({ moved: true });
+    }
+
+    if (action === "toggle_share") {
+      const { collectionId, share } = body as { collectionId: string; share: boolean };
+      if (!collectionId) {
+        return NextResponse.json({ error: "Missing collectionId" }, { status: 400 });
+      }
+      // Verify the collection belongs to this visitor
+      const col = await db.query.collections.findFirst({
+        where: and(eq(collections.id, collectionId), eq(collections.visitorId, visitor.id)),
+      });
+      if (!col) {
+        return NextResponse.json({ error: "Collection not found" }, { status: 404 });
+      }
+
+      const newToken = share ? (col.shareToken || crypto.randomBytes(18).toString("base64url")) : null;
+      await db.update(collections)
+        .set({ shareToken: newToken })
+        .where(eq(collections.id, collectionId));
+
+      // Prefer the slug for the share URL since it's user-facing
+      const { sites: sitesTable } = await import("@/db/schema");
+      const siteRow = await db.query.sites.findFirst({
+        where: eq(sitesTable.id, resolvedSiteId),
+        columns: { slug: true },
+      });
+      const slug = siteRow?.slug || resolvedSiteId;
+
+      return NextResponse.json({
+        collectionId,
+        shareToken: newToken,
+        shareUrl: newToken ? `/d/${slug}/c/${newToken}` : null,
+      });
     }
 
     // Default: sign in / return profile

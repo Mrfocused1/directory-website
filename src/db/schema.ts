@@ -368,11 +368,15 @@ export const collections = pgTable(
     name: varchar("name", { length: 128 }).notNull(),
     emoji: varchar("emoji", { length: 8 }).default(""),
     isDefault: boolean("is_default").notNull().default(false),
+    // Public share token — set when the owner turns sharing on.
+    // Null = private. Non-null = viewable at /d/[tenant]/c/[shareToken]
+    shareToken: varchar("share_token", { length: 48 }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
     index("collections_visitor_id_idx").on(table.visitorId),
     index("collections_site_id_idx").on(table.siteId),
+    uniqueIndex("collections_share_token_idx").on(table.shareToken),
   ],
 );
 

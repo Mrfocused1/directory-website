@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import DashboardNav from "@/components/dashboard/DashboardNav";
 import { useSiteContext } from "@/components/dashboard/SiteContext";
+import EmptyState from "@/components/dashboard/EmptyState";
 import FeatureGate from "@/components/plans/FeatureGate";
 import { STATUS_CONFIG, type ContentRequest } from "@/lib/requests/mock-data";
 import { formatDate } from "@/lib/utils";
@@ -117,6 +118,17 @@ export default function CreatorRequestsPage() {
             <div className="text-center py-20">
               <div className="w-8 h-8 border-2 border-[color:var(--fg)] border-t-transparent rounded-full animate-spin mx-auto" />
             </div>
+          ) : requests.length === 0 ? (
+            <EmptyState
+              icon={
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              }
+              title="No content requests yet"
+              description="Visitors can submit and vote on topics they'd like you to cover. Once your directory has some traffic, requests will show up here."
+              action={{ href: `/d/${siteId}/requests`, label: "Preview public request board" }}
+            />
           ) : (
             <div className="space-y-3">
               {requests.map((req) => {

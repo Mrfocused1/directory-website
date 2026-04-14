@@ -195,12 +195,41 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     await report("complete", 90, "Publishing your directory...");
     await updateJob(siteId, "complete", "running", 90, "Publishing...");
 
-    await db.update(sites)
+    await database.update(sites)
       .set({ isPublished: true, lastSyncAt: new Date() })
       .where(eq(sites.id, siteId));
 
     await updateJob(siteId, "complete", "completed", 100, "Your directory is ready!");
     await report("complete", 100, "Your directory is ready!");
+
+    // Notify the site owner by email (non-blocking)
+    try {
+      const { resend } = await import("@/lib/email/resend");
+      const { pipelineCompleteNotification } = await import("@/lib/email/templates");
+      if (resend && owner) {
+        const ownerFull = await database.query.users.findFirst({
+          where: eq(users.id, site.userId),
+          columns: { email: true },
+        });
+        const publicOrigin = process.env.NEXT_PUBLIC_SITE_URL || "https://buildmy.directory";
+        if (ownerFull?.email) {
+          const postCount = scrapedPosts.length;
+          const template = pipelineCompleteNotification({
+            siteName: site.displayName || site.slug,
+            siteUrl: `${publicOrigin}/d/${site.slug}`,
+            postCount,
+          });
+          await resend.emails.send({
+            from: "BuildMy.Directory <hello@buildmy.directory>",
+            to: ownerFull.email,
+            subject: template.subject,
+            html: template.html,
+          });
+        }
+      }
+    } catch (notifyErr) {
+      console.error("[pipeline] Owner completion notification failed:", notifyErr);
+    }
   } catch (error) {
     console.error(`[pipeline] Error in ${currentStep}:`, error);
     const message = error instanceof Error ? error.message : "Pipeline failed";

@@ -120,6 +120,65 @@ export function contactInquiryEmail(opts: {
   };
 }
 
+export function newSubscriberNotification(opts: {
+  siteName: string;
+  subscriberEmail: string;
+  subscriberName: string | null;
+  totalSubscribers: number;
+  dashboardUrl: string;
+}) {
+  return {
+    subject: `New subscriber on ${esc(opts.siteName)} — ${opts.totalSubscribers} total`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
+        <h1 style="font-size: 22px; font-weight: 800; margin-bottom: 8px;">🎉 New subscriber</h1>
+        <p style="color: #666; font-size: 15px; line-height: 1.6; margin-bottom: 20px;">
+          Someone new just confirmed their subscription to <strong>${esc(opts.siteName)}</strong>.
+        </p>
+        <div style="background: #f7f7f7; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px;">
+          <p style="margin: 0 0 6px; font-size: 13px; color: #888;">Subscriber</p>
+          <p style="margin: 0; font-size: 15px; font-weight: 600;">${esc(opts.subscriberName || opts.subscriberEmail)}</p>
+          ${opts.subscriberName ? `<p style="margin: 4px 0 0; font-size: 13px; color: #888;">${esc(opts.subscriberEmail)}</p>` : ""}
+        </div>
+        <p style="color: #666; font-size: 14px; margin-bottom: 24px;">
+          You now have <strong>${opts.totalSubscribers}</strong> total subscriber${opts.totalSubscribers === 1 ? "" : "s"}.
+        </p>
+        <a href="${escUrl(opts.dashboardUrl)}" style="display: inline-block; background: #000; color: #fff; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none;">
+          View in dashboard
+        </a>
+      </div>
+    `,
+  };
+}
+
+export function pipelineCompleteNotification(opts: {
+  siteName: string;
+  siteUrl: string;
+  postCount: number;
+}) {
+  return {
+    subject: `Your directory "${esc(opts.siteName)}" is ready`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
+        <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 8px;">Your directory is live ✨</h1>
+        <p style="color: #666; font-size: 15px; line-height: 1.6; margin-bottom: 20px;">
+          We finished scraping, transcribing, and categorizing your content.
+          <strong>${opts.postCount}</strong> post${opts.postCount === 1 ? " is" : "s are"} now searchable
+          at <strong>${esc(opts.siteName)}</strong>.
+        </p>
+        <div style="display: flex; gap: 12px; margin-bottom: 24px;">
+          <a href="${escUrl(opts.siteUrl)}" style="display: inline-block; background: #000; color: #fff; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none;">
+            Visit your directory
+          </a>
+        </div>
+        <p style="color: #999; font-size: 12px;">
+          Share the link with your audience — and come back anytime to see analytics, manage subscribers, or answer content requests.
+        </p>
+      </div>
+    `,
+  };
+}
+
 export function welcomeEmail(opts: {
   siteName: string;
   siteUrl: string;

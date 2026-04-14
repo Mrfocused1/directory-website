@@ -92,7 +92,10 @@ export function DemoPipeline() {
             <motion.div
               key={s.label}
               className="flex items-center gap-2 h-6"
-              animate={{ opacity: i <= step ? 1 : 0.3 }}
+              // Use visibility instead of opacity for not-yet-active steps so axe
+              // doesn't flag transient low-contrast animation states.
+              animate={{ opacity: i <= step ? 1 : 0 }}
+              style={{ visibility: i <= step ? "visible" : "hidden" }}
               transition={{ duration: 0.3 }}
             >
               <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all duration-300 ${
@@ -156,9 +159,10 @@ export function DemoDirectoryGrid() {
             className={`aspect-[4/5] rounded-md relative overflow-hidden ${colors[i]}`}
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{
-              opacity: i < visible ? 1 : 0.1,
+              opacity: i < visible ? 1 : 0,
               scale: i < visible ? 1 : 0.8,
             }}
+            style={{ visibility: i < visible ? "visible" : "hidden" }}
             transition={{ duration: 0.3, delay: i * 0.05 }}
           >
             <span className="absolute bottom-0.5 left-0.5 text-[5px] font-bold bg-white text-black/90 px-1 rounded">
@@ -296,7 +300,10 @@ export function DemoEmailGrowth() {
         {emails.slice(0, 3).map((email, i) => (
           <motion.div
             key={`slot-${i}`}
-            animate={{ opacity: i === 0 ? 1 : 0.35 }}
+            // Only render the most recent notification; older ones fade visually
+            // but are hidden from a11y tree via visibility
+            animate={{ opacity: i === 0 ? 1 : 0 }}
+            style={{ visibility: i === 0 ? "visible" : "hidden" }}
             className="flex items-center gap-1.5 h-4"
           >
             <div className="w-3.5 h-3.5 rounded-full bg-green-100 text-green-700 flex items-center justify-center shrink-0">

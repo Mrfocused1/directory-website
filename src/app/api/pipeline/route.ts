@@ -164,6 +164,14 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // Validate UUID format — invalid UUIDs would make Postgres throw
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(siteId)) {
+    return NextResponse.json(
+      { error: "Invalid siteId format" },
+      { status: 400 },
+    );
+  }
+
   if (!db) {
     return NextResponse.json(
       { error: "Database not configured" },
@@ -171,11 +179,19 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Get all pipeline jobs for this site, ordered by creation
-  const jobs = await db.select()
-    .from(pipelineJobs)
-    .where(eq(pipelineJobs.siteId, siteId))
-    .orderBy(desc(pipelineJobs.createdAt));
+  let jobs;
+  try {
+    jobs = await db.select()
+      .from(pipelineJobs)
+      .where(eq(pipelineJobs.siteId, siteId))
+      .orderBy(desc(pipelineJobs.createdAt));
+  } catch (error) {
+    console.error("[pipeline] GET error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch pipeline status" },
+      { status: 500 },
+    );
+  }
 
   if (jobs.length === 0) {
     return NextResponse.json(

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import DashboardNav from "@/components/dashboard/DashboardNav";
+import { useSiteContext } from "@/components/dashboard/SiteContext";
 import { usePlan } from "@/components/plans/PlanProvider";
 import type { PlatformConnection, Platform } from "@/lib/types";
 
@@ -59,18 +60,20 @@ const PLATFORM_META: Record<Platform, { name: string; color: string; bgColor: st
 const AVAILABLE_PLATFORMS: Platform[] = ["instagram", "tiktok", "youtube"];
 
 export default function PlatformsPage() {
+  const { selectedSite } = useSiteContext();
   const [connections, setConnections] = useState<PlatformConnection[]>(MOCK_CONNECTIONS);
   const [showConnect, setShowConnect] = useState(false);
   const [newPlatform, setNewPlatform] = useState<Platform>("instagram");
   const [newHandle, setNewHandle] = useState("");
   const { canAddPlatform, platformLimit, planForPlatform } = usePlan();
+  const siteId = selectedSite?.id;
 
-  // Fetch real platform connections
+  // Fetch real platform connections for the selected site
   useEffect(() => {
+    if (!siteId) return;
     async function fetchConnections() {
       try {
-        // TODO: get siteId from auth context
-        const res = await fetch("/api/platforms?siteId=demo");
+        const res = await fetch(`/api/platforms?siteId=${siteId}`);
         const data = await res.json();
         if (data.connections && data.connections.length > 0) {
           setConnections(data.connections);
@@ -80,7 +83,7 @@ export default function PlatformsPage() {
       }
     }
     fetchConnections();
-  }, []);
+  }, [siteId]);
 
   const totalPosts = connections.reduce((s, c) => s + c.postCount, 0);
   const totalFollowers = connections.reduce((s, c) => s + (c.followerCount || 0), 0);
@@ -99,13 +102,13 @@ export default function PlatformsPage() {
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newHandle.trim()) return;
+    if (!newHandle.trim() || !siteId) return;
 
     try {
       const res = await fetch("/api/platforms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ siteId: "demo", platform: newPlatform, handle: newHandle }),
+        body: JSON.stringify({ siteId, platform: newPlatform, handle: newHandle }),
       });
       if (res.ok) {
         const data = await res.json();

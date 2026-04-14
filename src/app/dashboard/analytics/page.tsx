@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import DashboardNav from "@/components/dashboard/DashboardNav";
+import { useSiteContext } from "@/components/dashboard/SiteContext";
 import FeatureGate from "@/components/plans/FeatureGate";
 import StatCard from "@/components/analytics/StatCard";
 import TopPostsTable from "@/components/analytics/TopPostsTable";
@@ -31,30 +32,28 @@ type Period = "7d" | "30d";
 type ChartMetric = "views" | "clicks" | "searches" | "shares" | "uniqueVisitors";
 
 export default function AnalyticsDashboard() {
+  const { selectedSite } = useSiteContext();
   const [period, setPeriod] = useState<Period>("30d");
   const [chartMetric, setChartMetric] = useState<ChartMetric>("views");
   const [realData, setRealData] = useState<Record<string, unknown> | null>(null);
 
   const days = period === "7d" ? 7 : 30;
+  const siteId = selectedSite?.id;
 
-  // Try to fetch real analytics data
+  // Fetch analytics for the currently selected site
   useEffect(() => {
+    if (!siteId) return;
     async function fetchAnalytics() {
       try {
-        // TODO: get siteId from auth context
-        const res = await fetch(`/api/analytics/summary?siteId=demo&days=${days}`);
+        const res = await fetch(`/api/analytics/summary?siteId=${siteId}&days=${days}`);
         const data = await res.json();
-        if (data.hasData) {
-          setRealData(data);
-        } else {
-          setRealData(null);
-        }
+        setRealData(data.hasData ? data : null);
       } catch {
         setRealData(null);
       }
     }
     fetchAnalytics();
-  }, [days]);
+  }, [days, siteId]);
 
   // Use real data when available, otherwise fall back to mock
   const summary = realData
@@ -63,8 +62,12 @@ export default function AnalyticsDashboard() {
   const dailyStats = realData?.dailyStats
     ? (realData.dailyStats as ReturnType<typeof getMockDailyStats>)
     : getMockDailyStats(days);
-  const topPosts = getMockTopPosts(); // TODO: wire to real top posts query
-  const searchTerms = getMockSearchTerms(); // TODO: wire to real search terms
+  const topPosts = realData?.topPosts
+    ? (realData.topPosts as ReturnType<typeof getMockTopPosts>)
+    : getMockTopPosts();
+  const searchTerms = realData?.topSearches
+    ? (realData.topSearches as ReturnType<typeof getMockSearchTerms>)
+    : getMockSearchTerms();
   const referrers = realData?.referrers
     ? (realData.referrers as ReturnType<typeof getMockReferrers>)
     : getMockReferrers();
@@ -77,7 +80,9 @@ export default function AnalyticsDashboard() {
   const categories = realData?.topCategories
     ? (realData.topCategories as ReturnType<typeof getMockCategoryStats>)
     : getMockCategoryStats();
-  const heatmap = getMockHeatmap(); // TODO: wire to real heatmap query
+  const heatmap = realData?.heatmap
+    ? (realData.heatmap as ReturnType<typeof getMockHeatmap>)
+    : getMockHeatmap();
 
   return (
     <div className="min-h-screen relative">

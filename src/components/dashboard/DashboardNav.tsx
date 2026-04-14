@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import PlanBadge from "@/components/plans/PlanBadge";
 import { usePlan } from "@/components/plans/PlanProvider";
+import { useSiteContext } from "@/components/dashboard/SiteContext";
 import { createClient } from "@/lib/supabase/client";
 import type { FeatureKey } from "@/lib/plans";
 
@@ -20,6 +21,7 @@ export default function DashboardNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { can } = usePlan();
+  const { sites, selectedSite, selectSite } = useSiteContext();
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -60,6 +62,20 @@ export default function DashboardNav() {
               );
             })}
           </div>
+          {sites.length > 1 && selectedSite && (
+            <select
+              value={selectedSite.id}
+              onChange={(e) => selectSite(e.target.value)}
+              className="text-xs font-medium px-2 py-1.5 rounded-lg border border-[color:var(--border)] bg-white max-w-[160px] truncate"
+              aria-label="Select active directory"
+            >
+              {sites.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.displayName || s.slug}
+                </option>
+              ))}
+            </select>
+          )}
           <PlanBadge />
           <button
             type="button"

@@ -7,6 +7,7 @@ import {
   purchaseDomain,
   addDomainToProject,
 } from "@/lib/vercel-domains";
+import { inngest } from "@/lib/inngest/client";
 
 // Plan ID mapping from Stripe price amounts (cents) to plan IDs
 const PRICE_TO_PLAN: Record<number, string> = {
@@ -60,7 +61,15 @@ export async function POST(request: NextRequest) {
             await addDomainToProject(domain);
           } catch (domainErr) {
             console.error(`Failed to register domain ${domain}:`, domainErr);
-            // TODO: Send alert email to admin, or queue for retry
+            // Queue for background retry — Inngest will retry up to 5 times with backoff
+            try {
+              await inngest.send({
+                name: "domain/register-retry",
+                data: { domain },
+              });
+            } catch (sendErr) {
+              console.error(`Failed to queue domain retry for ${domain}:`, sendErr);
+            }
           }
         }
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import DashboardNav from "@/components/dashboard/DashboardNav";
+import { useSiteContext } from "@/components/dashboard/SiteContext";
 import FeatureGate from "@/components/plans/FeatureGate";
 import { STATUS_CONFIG, type ContentRequest } from "@/lib/requests/mock-data";
 import { formatDate } from "@/lib/utils";
@@ -9,29 +10,15 @@ import { formatDate } from "@/lib/utils";
 const ALL_STATUSES = ["open", "planned", "in_progress", "completed", "declined"] as const;
 
 export default function CreatorRequestsPage() {
+  const { selectedSite } = useSiteContext();
   const [requests, setRequests] = useState<ContentRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNote, setEditNote] = useState("");
-  const [siteId, setSiteId] = useState("demo");
-
-  // Fetch user's first site to get real siteId
-  useEffect(() => {
-    async function fetchSiteId() {
-      try {
-        const res = await fetch("/api/sites");
-        const data = await res.json();
-        if (data.sites?.length > 0) {
-          setSiteId(data.sites[0].id);
-        }
-      } catch {
-        // Keep "demo" fallback
-      }
-    }
-    fetchSiteId();
-  }, []);
+  const siteId = selectedSite?.id;
 
   const fetchRequests = useCallback(async () => {
+    if (!siteId) return;
     try {
       const res = await fetch(`/api/requests?siteId=${siteId}&sort=votes`);
       const data = await res.json();

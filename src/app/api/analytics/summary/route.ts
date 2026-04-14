@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { pageViews, postClicks, searchEvents, categoryClicks, dailyStats } from "@/db/schema";
+import { pageViews, postClicks, searchEvents, categoryClicks, dailyStats, posts } from "@/db/schema";
 import { eq, and, gte, count, sql, desc, isNotNull } from "drizzle-orm";
 import { resolveSiteId } from "@/db/utils";
 
@@ -117,6 +117,29 @@ export async function GET(request: NextRequest) {
       .orderBy(desc(dailyStats.date))
       .limit(days);
 
+    // Top posts by clicks (joined to posts for title)
+    const topPosts = await db.select({
+      shortcode: postClicks.postShortcode,
+      title: posts.title,
+      clicks: count(postClicks.id),
+    })
+      .from(postClicks)
+      .leftJoin(posts, and(eq(posts.siteId, postClicks.siteId), eq(posts.shortcode, postClicks.postShortcode)))
+      .where(and(eq(postClicks.siteId, resolvedSiteId), gte(postClicks.createdAt, since)))
+      .groupBy(postClicks.postShortcode, posts.title)
+      .orderBy(desc(count(postClicks.id)))
+      .limit(10);
+
+    // Heatmap: clicks bucketed by (day-of-week, hour) — Postgres uses dow (0=Sunday)
+    const heatmap = await db.select({
+      day: sql<number>`extract(dow from ${postClicks.createdAt})::int`,
+      hour: sql<number>`extract(hour from ${postClicks.createdAt})::int`,
+      value: count(postClicks.id),
+    })
+      .from(postClicks)
+      .where(and(eq(postClicks.siteId, resolvedSiteId), gte(postClicks.createdAt, since)))
+      .groupBy(sql`extract(dow from ${postClicks.createdAt})`, sql`extract(hour from ${postClicks.createdAt})`);
+
     const totalViews = viewsResult.count;
     const totalClicks = clicksResult.count;
 
@@ -140,6 +163,17 @@ export async function GET(request: NextRequest) {
       })),
       topSearches: topSearches.map((s) => ({ query: s.query, count: s.count })),
       topCategories: topCategories.map((c) => ({ category: c.category, clicks: c.count })),
+      topPosts: topPosts.map((p) => ({
+        shortcode: p.shortcode,
+        title: p.title || p.shortcode,
+        clicks: p.clicks,
+      })),
+      heatmap: heatmap.map((h) => ({
+        // Convert Postgres dow (0=Sunday) to our convention (0=Monday)
+        day: (h.day + 6) % 7,
+        hour: h.hour,
+        value: h.value,
+      })),
       devices: deviceBreakdown.map((d) => ({ device: d.device || "unknown", count: d.count })),
       countries: countryBreakdown.map((c) => ({ country: c.country || "unknown", count: c.count })),
       referrers: referrerBreakdown.map((r) => {

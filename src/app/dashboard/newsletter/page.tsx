@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import DashboardNav from "@/components/dashboard/DashboardNav";
+import { useSiteContext } from "@/components/dashboard/SiteContext";
 import FeatureGate from "@/components/plans/FeatureGate";
 import {
   getMockSubscribers,
@@ -15,14 +16,16 @@ import { formatDate } from "@/lib/utils";
 const GrowthChart = dynamic(() => import("@/components/subscribe/GrowthChart"), { ssr: false });
 
 export default function NewsletterDashboard() {
+  const { selectedSite } = useSiteContext();
   const [realData, setRealData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
+  const siteId = selectedSite?.id;
 
   useEffect(() => {
+    if (!siteId) return;
     async function fetchData() {
       try {
-        // TODO: get siteId from auth context
-        const res = await fetch("/api/newsletter?siteId=demo");
+        const res = await fetch(`/api/newsletter?siteId=${siteId}`);
         const data = await res.json();
         if (data.hasData) {
           setRealData(data);
@@ -34,7 +37,7 @@ export default function NewsletterDashboard() {
       }
     }
     fetchData();
-  }, []);
+  }, [siteId]);
 
   const mockSubs = getMockSubscribers();
   const subscribers = realData?.subscribers
@@ -61,13 +64,16 @@ export default function NewsletterDashboard() {
 
   const handleSendDigest = async () => {
     if (sending) return;
+    if (!siteId) {
+      alert("Please select a site first.");
+      return;
+    }
     setSending(true);
     try {
-      // TODO: get siteId from auth context
       const res = await fetch("/api/newsletter/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ siteId: "demo" }),
+        body: JSON.stringify({ siteId }),
       });
       const data = await res.json();
       if (res.ok) {

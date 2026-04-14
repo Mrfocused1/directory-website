@@ -157,11 +157,8 @@ export function DemoDirectoryGrid() {
           <motion.div
             key={i}
             className={`aspect-[4/5] rounded-md relative overflow-hidden ${colors[i]}`}
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{
-              opacity: i < visible ? 1 : 0,
-              scale: i < visible ? 1 : 0.8,
-            }}
+            initial={{ scale: 0.6 }}
+            animate={{ scale: i < visible ? 1 : 0.6 }}
             style={{ visibility: i < visible ? "visible" : "hidden" }}
             transition={{ duration: 0.3, delay: i * 0.05 }}
           >

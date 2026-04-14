@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { platformConnections } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { resolveSiteId } from "@/db/utils";
 
 // GET /api/platforms?siteId=xxx — List platform connections for a site
 export async function GET(request: NextRequest) {
@@ -15,24 +16,34 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ connections: [] });
   }
 
-  const connections = await db.query.platformConnections.findMany({
-    where: eq(platformConnections.siteId, siteId),
-  });
+  try {
+    const resolvedSiteId = await resolveSiteId(siteId);
+    if (!resolvedSiteId) {
+      return NextResponse.json({ connections: [] });
+    }
 
-  return NextResponse.json({
-    connections: connections.map((c) => ({
-      id: c.id,
-      platform: c.platform,
-      handle: c.handle,
-      displayName: c.displayName,
-      avatarUrl: c.avatarUrl,
-      followerCount: c.followerCount,
-      postCount: c.postCount ?? 0,
-      isConnected: c.isConnected,
-      lastSyncAt: c.lastSyncAt?.toISOString() ?? null,
-      syncStatus: c.syncStatus,
-    })),
-  });
+    const connections = await db.query.platformConnections.findMany({
+      where: eq(platformConnections.siteId, resolvedSiteId),
+    });
+
+    return NextResponse.json({
+      connections: connections.map((c) => ({
+        id: c.id,
+        platform: c.platform,
+        handle: c.handle,
+        displayName: c.displayName,
+        avatarUrl: c.avatarUrl,
+        followerCount: c.followerCount,
+        postCount: c.postCount ?? 0,
+        isConnected: c.isConnected,
+        lastSyncAt: c.lastSyncAt?.toISOString() ?? null,
+        syncStatus: c.syncStatus,
+      })),
+    });
+  } catch (error) {
+    console.error("[platforms] GET error:", error);
+    return NextResponse.json({ connections: [] });
+  }
 }
 
 // POST /api/platforms — Connect a new platform

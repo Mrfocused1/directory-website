@@ -146,6 +146,9 @@ export async function POST(request: NextRequest) {
       if (!collectionName?.trim()) {
         return NextResponse.json({ error: "Missing collection name" }, { status: 400 });
       }
+      if (collectionName.length > 128) {
+        return NextResponse.json({ error: "Collection name too long (max 128 characters)" }, { status: 400 });
+      }
 
       const [newCol] = await db.insert(collections).values({
         visitorId: visitor.id,

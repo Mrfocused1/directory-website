@@ -10,30 +10,31 @@ export async function GET() {
     return NextResponse.json({ sites: [] });
   }
 
-  // TODO: Once auth is added, filter by userId from session:
-  // const session = await getSession();
-  // const userSites = await db.query.sites.findMany({ where: eq(sites.userId, session.userId) });
-  const allSites = await db.query.sites.findMany();
+  try {
+    const allSites = await db.query.sites.findMany();
 
-  // Get post counts for each site
-  const result = await Promise.all(
-    allSites.map(async (site) => {
-      const [postCount] = await db!.select({ count: count() })
-        .from(posts)
-        .where(eq(posts.siteId, site.id));
+    const result = await Promise.all(
+      allSites.map(async (site) => {
+        const [postCount] = await db!.select({ count: count() })
+          .from(posts)
+          .where(eq(posts.siteId, site.id));
 
-      return {
-        id: site.id,
-        slug: site.slug,
-        displayName: site.displayName,
-        handle: site.handle,
-        platform: site.platform,
-        postCount: postCount.count,
-        isPublished: site.isPublished,
-        lastSyncAt: site.lastSyncAt?.toISOString() ?? null,
-      };
-    }),
-  );
+        return {
+          id: site.id,
+          slug: site.slug,
+          displayName: site.displayName,
+          handle: site.handle,
+          platform: site.platform,
+          postCount: postCount.count,
+          isPublished: site.isPublished,
+          lastSyncAt: site.lastSyncAt?.toISOString() ?? null,
+        };
+      }),
+    );
 
-  return NextResponse.json({ sites: result });
+    return NextResponse.json({ sites: result });
+  } catch (error) {
+    console.error("[sites] GET error:", error);
+    return NextResponse.json({ sites: [] });
+  }
 }

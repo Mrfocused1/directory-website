@@ -92,6 +92,9 @@ export default function BookmarkProvider({
       return;
     }
 
+    // Save previous state for rollback
+    const previousCollections = collections;
+
     // Optimistic update
     setCollections((prev) =>
       prev.map((c) => {
@@ -107,12 +110,19 @@ export default function BookmarkProvider({
       }),
     );
 
-    await fetch("/api/bookmarks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ siteId, email, action: "bookmark", postShortcode: shortcode, collectionId }),
-    });
-  }, [email, siteId]);
+    try {
+      const res = await fetch("/api/bookmarks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId, email, action: "bookmark", postShortcode: shortcode, collectionId }),
+      });
+      if (!res.ok) {
+        setCollections(previousCollections);
+      }
+    } catch {
+      setCollections(previousCollections);
+    }
+  }, [email, siteId, collections]);
 
   const createCollection = useCallback(async (name: string, emoji?: string) => {
     if (!email) return;

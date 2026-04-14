@@ -19,6 +19,12 @@ export async function POST(request: NextRequest) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
       return NextResponse.json({ error: "Invalid email" }, { status: 400 });
     }
+    if (email.length > 320) {
+      return NextResponse.json({ error: "Email too long" }, { status: 400 });
+    }
+    if (name && name.length > 128) {
+      return NextResponse.json({ error: "Name too long (max 128 characters)" }, { status: 400 });
+    }
 
     if (!db) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
@@ -123,28 +129,33 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ total: 0, active: 0, verified: 0, thisWeek: 0 });
   }
 
-  const [totalResult] = await db.select({ count: count() })
-    .from(subscribers)
-    .where(eq(subscribers.siteId, resolvedSiteId));
+  try {
+    const [totalResult] = await db.select({ count: count() })
+      .from(subscribers)
+      .where(eq(subscribers.siteId, resolvedSiteId));
 
-  const [activeResult] = await db.select({ count: count() })
-    .from(subscribers)
-    .where(and(eq(subscribers.siteId, resolvedSiteId), eq(subscribers.isActive, true)));
+    const [activeResult] = await db.select({ count: count() })
+      .from(subscribers)
+      .where(and(eq(subscribers.siteId, resolvedSiteId), eq(subscribers.isActive, true)));
 
-  const [verifiedResult] = await db.select({ count: count() })
-    .from(subscribers)
-    .where(and(eq(subscribers.siteId, resolvedSiteId), eq(subscribers.isVerified, true)));
+    const [verifiedResult] = await db.select({ count: count() })
+      .from(subscribers)
+      .where(and(eq(subscribers.siteId, resolvedSiteId), eq(subscribers.isVerified, true)));
 
-  const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const allSubs = await db.query.subscribers.findMany({
-    where: eq(subscribers.siteId, resolvedSiteId),
-  });
-  const thisWeek = allSubs.filter((s) => new Date(s.createdAt) >= oneWeekAgo).length;
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const allSubs = await db.query.subscribers.findMany({
+      where: eq(subscribers.siteId, resolvedSiteId),
+    });
+    const thisWeek = allSubs.filter((s) => new Date(s.createdAt) >= oneWeekAgo).length;
 
-  return NextResponse.json({
-    total: totalResult.count,
-    active: activeResult.count,
-    verified: verifiedResult.count,
-    thisWeek,
-  });
+    return NextResponse.json({
+      total: totalResult.count,
+      active: activeResult.count,
+      verified: verifiedResult.count,
+      thisWeek,
+    });
+  } catch (error) {
+    console.error("[subscribe] GET error:", error);
+    return NextResponse.json({ total: 0, active: 0, verified: 0, thisWeek: 0 });
+  }
 }

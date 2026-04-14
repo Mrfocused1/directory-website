@@ -19,51 +19,54 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ requests: [] });
   }
 
-  const resolvedSiteId = await resolveSiteId(siteId);
-  if (!resolvedSiteId) {
+  try {
+    const resolvedSiteId = await resolveSiteId(siteId);
+    if (!resolvedSiteId) {
+      return NextResponse.json({ requests: [] });
+    }
+
+    let query = db.select().from(contentRequests).where(eq(contentRequests.siteId, resolvedSiteId)).$dynamic();
+
+    if (status && status !== "all") {
+      query = query.where(and(eq(contentRequests.siteId, resolvedSiteId), eq(contentRequests.status, status)));
+    }
+
+    if (sort === "newest") {
+      query = query.orderBy(desc(contentRequests.createdAt));
+    } else {
+      query = query.orderBy(desc(contentRequests.isPinned), desc(contentRequests.voteCount));
+    }
+
+    const rows = await query;
+
+    let votedIds = new Set<string>();
+    if (sessionId) {
+      const votes = await db.select({ requestId: requestVotes.requestId })
+        .from(requestVotes)
+        .where(eq(requestVotes.sessionId, sessionId));
+      votedIds = new Set(votes.map((v) => v.requestId));
+    }
+
+    const requests = rows.map((r) => ({
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      authorName: r.authorName,
+      status: r.status,
+      isPinned: r.isPinned,
+      voteCount: r.voteCount,
+      hasVoted: votedIds.has(r.id),
+      creatorNote: r.creatorNote,
+      completedPostShortcode: r.completedPostShortcode,
+      createdAt: r.createdAt.toISOString(),
+      updatedAt: r.updatedAt?.toISOString() ?? null,
+    }));
+
+    return NextResponse.json({ requests });
+  } catch (error) {
+    console.error("[requests] GET error:", error);
     return NextResponse.json({ requests: [] });
   }
-
-  let query = db.select().from(contentRequests).where(eq(contentRequests.siteId, resolvedSiteId)).$dynamic();
-
-  if (status && status !== "all") {
-    query = query.where(and(eq(contentRequests.siteId, resolvedSiteId), eq(contentRequests.status, status)));
-  }
-
-  if (sort === "newest") {
-    query = query.orderBy(desc(contentRequests.createdAt));
-  } else {
-    // Default: pinned first, then by votes
-    query = query.orderBy(desc(contentRequests.isPinned), desc(contentRequests.voteCount));
-  }
-
-  const rows = await query;
-
-  // Check which requests this session has voted on
-  let votedIds = new Set<string>();
-  if (sessionId) {
-    const votes = await db.select({ requestId: requestVotes.requestId })
-      .from(requestVotes)
-      .where(eq(requestVotes.sessionId, sessionId));
-    votedIds = new Set(votes.map((v) => v.requestId));
-  }
-
-  const requests = rows.map((r) => ({
-    id: r.id,
-    title: r.title,
-    description: r.description,
-    authorName: r.authorName,
-    status: r.status,
-    isPinned: r.isPinned,
-    voteCount: r.voteCount,
-    hasVoted: votedIds.has(r.id),
-    creatorNote: r.creatorNote,
-    completedPostShortcode: r.completedPostShortcode,
-    createdAt: r.createdAt.toISOString(),
-    updatedAt: r.updatedAt?.toISOString() ?? null,
-  }));
-
-  return NextResponse.json({ requests });
 }
 
 // POST /api/requests — Submit a new content request
@@ -74,6 +77,16 @@ export async function POST(request: NextRequest) {
 
     if (!siteId || !title?.trim()) {
       return NextResponse.json({ error: "Missing siteId or title" }, { status: 400 });
+    }
+
+    if (title.length > 500) {
+      return NextResponse.json({ error: "Title too long (max 500 characters)" }, { status: 400 });
+    }
+    if (description && description.length > 5000) {
+      return NextResponse.json({ error: "Description too long (max 5000 characters)" }, { status: 400 });
+    }
+    if (authorName && authorName.length > 128) {
+      return NextResponse.json({ error: "Name too long (max 128 characters)" }, { status: 400 });
     }
 
     if (!db) {

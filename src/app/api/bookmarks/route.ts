@@ -18,7 +18,10 @@ export async function GET(request: NextRequest) {
   }
 
   // Resolve slug to UUID if needed
-  const resolvedSiteId = await resolveSiteId(siteId) || siteId;
+  const resolvedSiteId = await resolveSiteId(siteId);
+  if (!resolvedSiteId) {
+    return NextResponse.json({ collections: [], authenticated: false });
+  }
 
   const visitor = await db.query.visitorProfiles.findFirst({
     where: and(eq(visitorProfiles.siteId, resolvedSiteId), eq(visitorProfiles.email, email)),
@@ -71,7 +74,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Resolve slug to UUID if needed
-    const resolvedSiteId = await resolveSiteId(siteId) || siteId;
+    const resolvedSiteId = await resolveSiteId(siteId);
+    if (!resolvedSiteId) {
+      return NextResponse.json({ error: "Site not found" }, { status: 404 });
+    }
 
     // Get or create visitor
     let visitor = await db.query.visitorProfiles.findFirst({
@@ -222,7 +228,10 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    const resolvedSiteId = await resolveSiteId(siteId) || siteId;
+    const resolvedSiteId = await resolveSiteId(siteId);
+    if (!resolvedSiteId) {
+      return NextResponse.json({ error: "Site not found" }, { status: 404 });
+    }
 
     // Only delete non-default collections owned by this visitor
     const visitor = await db.query.visitorProfiles.findFirst({

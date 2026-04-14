@@ -24,7 +24,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    const resolvedSiteId = await resolveSiteId(siteId) || siteId;
+    const resolvedSiteId = await resolveSiteId(siteId);
+    if (!resolvedSiteId) {
+      return NextResponse.json({ error: "Site not found" }, { status: 404 });
+    }
     const normalizedEmail = email.toLowerCase().trim();
 
     // Check if already subscribed
@@ -80,7 +83,10 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    const resolvedSiteId = await resolveSiteId(siteId) || siteId;
+    const resolvedSiteId = await resolveSiteId(siteId);
+    if (!resolvedSiteId) {
+      return NextResponse.json({ error: "Site not found" }, { status: 404 });
+    }
 
     if (token) {
       // Unsubscribe via secure token (from email link)
@@ -112,7 +118,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ total: 0, active: 0, verified: 0, thisWeek: 0 });
   }
 
-  const resolvedSiteId = await resolveSiteId(siteId) || siteId;
+  const resolvedSiteId = await resolveSiteId(siteId);
+  if (!resolvedSiteId) {
+    return NextResponse.json({ total: 0, active: 0, verified: 0, thisWeek: 0 });
+  }
 
   const [totalResult] = await db.select({ count: count() })
     .from(subscribers)

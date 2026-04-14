@@ -1,23 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 
 export default function UnsubscribePage() {
+  return (
+    <Suspense fallback={null}>
+      <UnsubscribeContent />
+    </Suspense>
+  );
+}
+
+function UnsubscribeContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const tenant = params.tenant as string;
   const token = searchParams.get("token") || "";
-  const [status, setStatus] = useState<"confirm" | "done">("confirm");
+  const [status, setStatus] = useState<"confirm" | "done" | "error">("confirm");
 
   const handleUnsubscribe = async () => {
-    await fetch("/api/subscribe", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ siteId: tenant, token }),
-    });
-    setStatus("done");
+    try {
+      const res = await fetch("/api/subscribe", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId: tenant, token }),
+      });
+      if (res.ok) {
+        setStatus("done");
+      } else {
+        setStatus("error");
+      }
+    } catch {
+      setStatus("error");
+    }
   };
 
   return (
@@ -27,7 +43,7 @@ export default function UnsubscribePage() {
 
       <div className="relative z-10 flex items-center justify-center min-h-screen px-6">
         <div className="max-w-md w-full text-center">
-          {status === "confirm" ? (
+          {status === "confirm" && (
             <>
               <div className="w-16 h-16 rounded-full bg-black/5 flex items-center justify-center mx-auto mb-6">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -55,7 +71,8 @@ export default function UnsubscribePage() {
                 </Link>
               </div>
             </>
-          ) : (
+          )}
+          {status === "done" && (
             <>
               <div className="w-16 h-16 rounded-full bg-green-100 text-green-600 flex items-center justify-center mx-auto mb-6">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -72,6 +89,27 @@ export default function UnsubscribePage() {
               >
                 Back to directory
               </Link>
+            </>
+          )}
+          {status === "error" && (
+            <>
+              <div className="w-16 h-16 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-6">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M15 9l-6 6M9 9l6 6" />
+                </svg>
+              </div>
+              <h1 className="text-2xl font-extrabold tracking-tight mb-2">Something went wrong</h1>
+              <p className="text-sm text-[color:var(--fg-muted)] mb-8">
+                We couldn&apos;t process your request. Please try again.
+              </p>
+              <button
+                type="button"
+                onClick={() => setStatus("confirm")}
+                className="inline-flex h-12 px-8 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold items-center hover:opacity-90 transition"
+              >
+                Try again
+              </button>
             </>
           )}
         </div>

@@ -22,7 +22,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ hasData: false });
   }
 
-  const resolvedSiteId = await resolveSiteId(siteId) || siteId;
+  const resolvedSiteId = await resolveSiteId(siteId);
+  if (!resolvedSiteId) {
+    return NextResponse.json({ hasData: false });
+  }
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 
   try {

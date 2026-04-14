@@ -50,7 +50,11 @@ export async function POST(request: NextRequest) {
     }
 
     const rawSid = typeof siteId === "string" ? siteId : String(siteId);
-    const sid = await resolveSiteId(rawSid) || rawSid;
+    const sid = await resolveSiteId(rawSid);
+    if (!sid) {
+      // Can't resolve site — silently drop (analytics is fire-and-forget)
+      return new NextResponse(null, { status: 204 });
+    }
     const sessId = typeof sessionId === "string" ? sessionId : null;
 
     switch (type) {

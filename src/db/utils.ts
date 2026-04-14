@@ -11,22 +11,27 @@ import { eq } from "drizzle-orm";
 export async function resolveSiteId(siteIdOrSlug: string): Promise<string | null> {
   if (!db) return null;
 
-  // Check if it looks like a UUID (36 chars with hyphens)
-  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(siteIdOrSlug);
+  try {
+    // Check if it looks like a UUID (36 chars with hyphens)
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(siteIdOrSlug);
 
-  if (isUUID) {
-    // Verify it exists
+    if (isUUID) {
+      // Verify it exists
+      const site = await db.query.sites.findFirst({
+        where: eq(sites.id, siteIdOrSlug),
+        columns: { id: true },
+      });
+      return site?.id ?? null;
+    }
+
+    // It's a slug — look up the UUID
     const site = await db.query.sites.findFirst({
-      where: eq(sites.id, siteIdOrSlug),
+      where: eq(sites.slug, siteIdOrSlug),
       columns: { id: true },
     });
     return site?.id ?? null;
+  } catch (error) {
+    console.error("[resolveSiteId] Query failed:", error);
+    return null;
   }
-
-  // It's a slug — look up the UUID
-  const site = await db.query.sites.findFirst({
-    where: eq(sites.slug, siteIdOrSlug),
-    columns: { id: true },
-  });
-  return site?.id ?? null;
 }

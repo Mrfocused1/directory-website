@@ -21,7 +21,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const resolvedSiteId = await resolveSiteId(siteId) || siteId;
+    const resolvedSiteId = await resolveSiteId(siteId);
+    if (!resolvedSiteId) {
+      return NextResponse.json({ hasData: false });
+    }
 
     // Fetch all subscribers for this site
     const allSubscribers = await db.query.subscribers.findMany({

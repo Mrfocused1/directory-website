@@ -19,7 +19,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ requests: [] });
   }
 
-  const resolvedSiteId = await resolveSiteId(siteId) || siteId;
+  const resolvedSiteId = await resolveSiteId(siteId);
+  if (!resolvedSiteId) {
+    return NextResponse.json({ requests: [] });
+  }
 
   let query = db.select().from(contentRequests).where(eq(contentRequests.siteId, resolvedSiteId)).$dynamic();
 
@@ -77,7 +80,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
-    const resolvedSiteId = await resolveSiteId(siteId) || siteId;
+    const resolvedSiteId = await resolveSiteId(siteId);
+    if (!resolvedSiteId) {
+      return NextResponse.json({ error: "Site not found" }, { status: 404 });
+    }
 
     const [newRequest] = await db.insert(contentRequests).values({
       siteId: resolvedSiteId,

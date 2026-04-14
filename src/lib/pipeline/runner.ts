@@ -13,7 +13,7 @@ import { scrapeProfile } from "./scraper";
 import { uploadThumbnail, uploadMedia } from "./storage";
 import { transcribeVideo } from "./transcriber";
 import { categorizeWithLLM, detectCategories, categorizeByKeywords } from "./categorizer";
-import { hasFeature, type PlanId } from "@/lib/plans";
+import { hasFeature, getPlan, type PlanId } from "@/lib/plans";
 
 type ProgressCallback = (step: string, progress: number, message: string) => Promise<void>;
 
@@ -34,8 +34,11 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
   });
   const validPlans = ["free", "creator", "pro", "agency"];
   const userPlan: PlanId = (validPlans.includes(owner?.plan as string) ? owner!.plan : "free") as PlanId;
+  const planConfig = getPlan(userPlan);
   const canTranscribe = hasFeature(userPlan, "transcription");
   const canAutoCategorize = hasFeature(userPlan, "auto_categorization");
+  // postLimit = 0 means unlimited; otherwise cap to plan's post limit
+  const maxPosts = planConfig.postLimit === 0 ? 200 : planConfig.postLimit;
 
   const report = onProgress || (async () => {});
   let currentStep = "scrape";
@@ -49,7 +52,7 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     const scrapedPosts = await scrapeProfile({
       platform: site.platform as "instagram" | "tiktok",
       handle: site.handle,
-      maxPosts: 50,
+      maxPosts,
     });
 
     await updateJob(siteId, "scrape", "completed", 100, `Scraped ${scrapedPosts.length} posts`);

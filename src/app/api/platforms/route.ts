@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { platformConnections, sites } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { platformConnections, sites, users } from "@/db/schema";
+import { eq, and, count } from "drizzle-orm";
 import { ownedSiteId } from "@/db/utils";
 import { getApiUser } from "@/lib/supabase/api";
+import { getPlan, type PlanId, type Platform } from "@/lib/plans";
 
 // GET /api/platforms?siteId=xxx — List platform connections for a site
 export async function GET(request: NextRequest) {
@@ -85,6 +86,33 @@ export async function POST(request: NextRequest) {
     const resolvedSiteId = await ownedSiteId(siteId, user.id);
     if (!resolvedSiteId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Enforce per-plan accountsPerPlatform limit
+    const validPlanIds = ["free", "creator", "pro", "agency"];
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+      columns: { plan: true },
+    });
+    const planId = (validPlanIds.includes(dbUser?.plan as string) ? dbUser!.plan : "free") as PlanId;
+    const planConfig = getPlan(planId);
+    const platformLimit = planConfig.accountsPerPlatform[platform as Platform];
+
+    const [{ count: existingCount }] = await db
+      .select({ count: count() })
+      .from(platformConnections)
+      .where(and(
+        eq(platformConnections.siteId, resolvedSiteId),
+        eq(platformConnections.platform, platform),
+      ));
+
+    if (existingCount >= platformLimit) {
+      return NextResponse.json(
+        platformLimit === 0
+          ? { error: `${platform} is not available on the ${planConfig.name} plan. Please upgrade.` }
+          : { error: `${platform} account limit reached (${platformLimit} max on ${planConfig.name} plan). Upgrade for more.` },
+        { status: 403 },
+      );
     }
 
     const cleanHandle = handle.replace(/^@/, "");

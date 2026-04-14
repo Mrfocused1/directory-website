@@ -159,14 +159,14 @@ async function suiteAPI(browser) {
   section("3. API endpoint contract");
 
   const tests = [
-    // [path, expected status range, requires auth]
-    ["/api/sites", [401, 401], true],
-    ["/api/pipeline?siteId=xxx", [200, 404], false], // GET takes siteId, missing -> 400/404
-    ["/api/subscribe?siteId=demo", [200, 200], false],
-    ["/api/platforms?siteId=demo", [401, 401], true],
-    ["/api/analytics/summary?siteId=demo&days=30", [401, 401], true],
-    ["/api/newsletter?siteId=demo", [401, 401], true],
-    ["/api/inngest", [200, 200], false],
+    // [path, expected status range]
+    ["/api/sites", [401, 401]],
+    ["/api/pipeline?siteId=xxx", [400, 400]],
+    ["/api/subscribe?siteId=demo", [200, 200]],
+    ["/api/platforms?siteId=demo", [401, 401]],
+    ["/api/analytics/summary?siteId=demo&days=30", [401, 401]],
+    ["/api/newsletter?siteId=demo", [401, 401]],
+    ["/api/inngest", [200, 200]],
   ];
 
   const page = await browser.newPage();
@@ -184,6 +184,19 @@ async function suiteAPI(browser) {
     }
   }
   await page.close();
+
+  // POST /api/contact with missing body → 400
+  try {
+    const bad = await fetch(`${BASE}/api/contact`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "x" }),
+    });
+    if (bad.status === 400) console.log(`  ✓ POST /api/contact (invalid) → 400`);
+    else log("HIGH", "api", `POST /api/contact (invalid) → ${bad.status}, expected 400`);
+  } catch (err) {
+    log("HIGH", "api", `POST /api/contact: ${err.message}`);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -321,7 +334,7 @@ async function main() {
   console.log(`\n🤖 BuildMy.Directory Test Agent`);
   console.log(`   Target: ${BASE}\n`);
 
-  const pages = ["/", "/login", "/onboarding", "/d/demo"];
+  const pages = ["/", "/login", "/onboarding", "/d/demo", "/privacy", "/terms"];
 
   const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
   try {

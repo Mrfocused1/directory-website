@@ -1,6 +1,8 @@
 import Link from "next/link";
 import HowItWorks from "@/components/landing/HowItWorks";
 import PricingButton from "@/components/landing/PricingButton";
+import ContactForm from "@/components/landing/ContactForm";
+import Footer from "@/components/landing/Footer";
 
 const FEATURES = [
   {
@@ -147,6 +149,18 @@ export default function LandingPage() {
           </span>
           <div className="flex items-center gap-4">
             <Link
+              href="#pricing"
+              className="hidden sm:inline text-sm font-semibold text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] transition"
+            >
+              Pricing
+            </Link>
+            <Link
+              href="#contact"
+              className="hidden sm:inline text-sm font-semibold text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] transition"
+            >
+              Contact
+            </Link>
+            <Link
               href="/dashboard"
               className="text-sm font-semibold text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] transition"
             >
@@ -231,7 +245,7 @@ export default function LandingPage() {
         </section>
 
         {/* Features */}
-        <section className="pb-24 max-w-5xl mx-auto overflow-hidden">
+        <section id="features" className="pb-24 max-w-5xl mx-auto overflow-hidden scroll-mt-16">
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-center mb-4 px-6">
             Everything automated
           </h2>
@@ -318,17 +332,11 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* Contact */}
+        <ContactForm />
+
         {/* Footer */}
-        <footer className="border-t border-[color:var(--border)] py-8 px-6">
-          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="text-sm font-bold">
-              BuildMy<span className="text-black/40">.</span>Directory
-            </span>
-            <p className="text-xs text-[color:var(--fg-subtle)]">
-              Built for creators who want their content to live beyond the feed.
-            </p>
-          </div>
-        </footer>
+        <Footer />
       </div>
     </div>
   );

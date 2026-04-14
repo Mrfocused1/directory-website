@@ -97,6 +97,29 @@ export function digestEmail(opts: {
   };
 }
 
+export function contactInquiryEmail(opts: {
+  fromName: string;
+  fromEmail: string;
+  topic: string;
+  message: string;
+}) {
+  return {
+    subject: `[${esc(opts.topic)}] Contact form: ${esc(opts.fromName)}`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
+        <h1 style="font-size: 20px; font-weight: 800; margin-bottom: 16px;">New contact form submission</h1>
+        <table style="width: 100%; font-size: 14px; border-collapse: collapse; margin-bottom: 20px;">
+          <tr><td style="padding: 6px 0; color: #666; width: 90px;">Name</td><td style="padding: 6px 0;"><strong>${esc(opts.fromName)}</strong></td></tr>
+          <tr><td style="padding: 6px 0; color: #666;">Email</td><td style="padding: 6px 0;"><a href="mailto:${esc(opts.fromEmail)}" style="color: #000;">${esc(opts.fromEmail)}</a></td></tr>
+          <tr><td style="padding: 6px 0; color: #666;">Topic</td><td style="padding: 6px 0;">${esc(opts.topic)}</td></tr>
+        </table>
+        <div style="background: #f7f7f7; border-radius: 8px; padding: 16px; white-space: pre-wrap; font-size: 14px; line-height: 1.6;">${esc(opts.message)}</div>
+        <p style="color: #999; font-size: 12px; margin-top: 24px;">Reply directly to this email to respond to the sender.</p>
+      </div>
+    `,
+  };
+}
+
 export function welcomeEmail(opts: {
   siteName: string;
   siteUrl: string;

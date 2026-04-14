@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { subscribers } from "@/db/schema";
 import { eq, and, count } from "drizzle-orm";
+import { resolveSiteId } from "@/db/utils";
 import crypto from "crypto";
 
 // POST /api/subscribe — Subscribe to a directory
@@ -23,11 +24,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
+    const resolvedSiteId = await resolveSiteId(siteId) || siteId;
     const normalizedEmail = email.toLowerCase().trim();
 
     // Check if already subscribed
     const existing = await db.query.subscribers.findFirst({
-      where: and(eq(subscribers.siteId, siteId), eq(subscribers.email, normalizedEmail)),
+      where: and(eq(subscribers.siteId, resolvedSiteId), eq(subscribers.email, normalizedEmail)),
     });
 
     if (existing) {
@@ -45,7 +47,7 @@ export async function POST(request: NextRequest) {
     const unsubscribeToken = crypto.randomBytes(32).toString("hex");
 
     await db.insert(subscribers).values({
-      siteId,
+      siteId: resolvedSiteId,
       email: normalizedEmail,
       name: name?.trim() || null,
       categories: categories || [],
@@ -78,16 +80,18 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
+    const resolvedSiteId = await resolveSiteId(siteId) || siteId;
+
     if (token) {
       // Unsubscribe via secure token (from email link)
       await db.update(subscribers)
         .set({ isActive: false })
-        .where(and(eq(subscribers.siteId, siteId), eq(subscribers.unsubscribeToken, token)));
+        .where(and(eq(subscribers.siteId, resolvedSiteId), eq(subscribers.unsubscribeToken, token)));
     } else if (email) {
       const normalizedEmail = email.toLowerCase().trim();
       await db.update(subscribers)
         .set({ isActive: false })
-        .where(and(eq(subscribers.siteId, siteId), eq(subscribers.email, normalizedEmail)));
+        .where(and(eq(subscribers.siteId, resolvedSiteId), eq(subscribers.email, normalizedEmail)));
     }
 
     return NextResponse.json({ message: "Unsubscribed" });
@@ -108,21 +112,23 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ total: 0, active: 0, verified: 0, thisWeek: 0 });
   }
 
+  const resolvedSiteId = await resolveSiteId(siteId) || siteId;
+
   const [totalResult] = await db.select({ count: count() })
     .from(subscribers)
-    .where(eq(subscribers.siteId, siteId));
+    .where(eq(subscribers.siteId, resolvedSiteId));
 
   const [activeResult] = await db.select({ count: count() })
     .from(subscribers)
-    .where(and(eq(subscribers.siteId, siteId), eq(subscribers.isActive, true)));
+    .where(and(eq(subscribers.siteId, resolvedSiteId), eq(subscribers.isActive, true)));
 
   const [verifiedResult] = await db.select({ count: count() })
     .from(subscribers)
-    .where(and(eq(subscribers.siteId, siteId), eq(subscribers.isVerified, true)));
+    .where(and(eq(subscribers.siteId, resolvedSiteId), eq(subscribers.isVerified, true)));
 
   const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const allSubs = await db.query.subscribers.findMany({
-    where: eq(subscribers.siteId, siteId),
+    where: eq(subscribers.siteId, resolvedSiteId),
   });
   const thisWeek = allSubs.filter((s) => new Date(s.createdAt) >= oneWeekAgo).length;
 

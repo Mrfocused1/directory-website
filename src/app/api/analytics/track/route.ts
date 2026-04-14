@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { pageViews, postClicks, searchEvents, categoryClicks } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
+import { resolveSiteId } from "@/db/utils";
 
 const MAX_PAYLOAD_SIZE = 10_000; // 10KB limit for analytics payloads
 
@@ -48,7 +49,8 @@ export async function POST(request: NextRequest) {
       return new NextResponse(null, { status: 204 });
     }
 
-    const sid = typeof siteId === "string" ? siteId : String(siteId);
+    const rawSid = typeof siteId === "string" ? siteId : String(siteId);
+    const sid = await resolveSiteId(rawSid) || rawSid;
     const sessId = typeof sessionId === "string" ? sessionId : null;
 
     switch (type) {

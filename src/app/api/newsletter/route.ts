@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { subscribers, digestHistory } from "@/db/schema";
 import { eq, and, desc, count } from "drizzle-orm";
+import { resolveSiteId } from "@/db/utils";
 
 /**
  * GET /api/newsletter?siteId=xxx
@@ -20,14 +21,16 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    const resolvedSiteId = await resolveSiteId(siteId) || siteId;
+
     // Fetch all subscribers for this site
     const allSubscribers = await db.query.subscribers.findMany({
-      where: eq(subscribers.siteId, siteId),
+      where: eq(subscribers.siteId, resolvedSiteId),
     });
 
     // Fetch digest history
     const digests = await db.query.digestHistory.findMany({
-      where: eq(digestHistory.siteId, siteId),
+      where: eq(digestHistory.siteId, resolvedSiteId),
       orderBy: [desc(digestHistory.sentAt)],
       limit: 10,
     });

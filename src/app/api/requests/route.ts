@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { contentRequests, requestVotes } from "@/db/schema";
 import { eq, and, desc, asc, sql } from "drizzle-orm";
+import { resolveSiteId } from "@/db/utils";
 
 // GET /api/requests?siteId=xxx&sort=votes|newest|status&sessionId=xxx
 export async function GET(request: NextRequest) {
@@ -18,10 +19,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ requests: [] });
   }
 
-  let query = db.select().from(contentRequests).where(eq(contentRequests.siteId, siteId)).$dynamic();
+  const resolvedSiteId = await resolveSiteId(siteId) || siteId;
+
+  let query = db.select().from(contentRequests).where(eq(contentRequests.siteId, resolvedSiteId)).$dynamic();
 
   if (status && status !== "all") {
-    query = query.where(and(eq(contentRequests.siteId, siteId), eq(contentRequests.status, status)));
+    query = query.where(and(eq(contentRequests.siteId, resolvedSiteId), eq(contentRequests.status, status)));
   }
 
   if (sort === "newest") {
@@ -74,8 +77,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
+    const resolvedSiteId = await resolveSiteId(siteId) || siteId;
+
     const [newRequest] = await db.insert(contentRequests).values({
-      siteId,
+      siteId: resolvedSiteId,
       title: title.trim(),
       description: description?.trim() || null,
       authorName: authorName?.trim() || null,

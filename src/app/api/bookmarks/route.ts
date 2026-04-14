@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { visitorProfiles, collections, bookmarks } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
+import { resolveSiteId } from "@/db/utils";
 
 // GET /api/bookmarks?siteId=xxx&email=xxx — Get visitor's collections and bookmarks
 export async function GET(request: NextRequest) {
@@ -16,8 +17,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ collections: [], authenticated: false });
   }
 
+  // Resolve slug to UUID if needed
+  const resolvedSiteId = await resolveSiteId(siteId) || siteId;
+
   const visitor = await db.query.visitorProfiles.findFirst({
-    where: and(eq(visitorProfiles.siteId, siteId), eq(visitorProfiles.email, email)),
+    where: and(eq(visitorProfiles.siteId, resolvedSiteId), eq(visitorProfiles.email, email)),
   });
 
   if (!visitor) {
@@ -66,14 +70,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
+    // Resolve slug to UUID if needed
+    const resolvedSiteId = await resolveSiteId(siteId) || siteId;
+
     // Get or create visitor
     let visitor = await db.query.visitorProfiles.findFirst({
-      where: and(eq(visitorProfiles.siteId, siteId), eq(visitorProfiles.email, email)),
+      where: and(eq(visitorProfiles.siteId, resolvedSiteId), eq(visitorProfiles.email, email)),
     });
 
     if (!visitor) {
       const [created] = await db.insert(visitorProfiles).values({
-        siteId,
+        siteId: resolvedSiteId,
         email,
         name: name || null,
       }).returning();
@@ -82,7 +89,7 @@ export async function POST(request: NextRequest) {
       // Create default collection
       await db.insert(collections).values({
         visitorId: visitor.id,
-        siteId,
+        siteId: resolvedSiteId,
         name: "Saved",
         emoji: "",
         isDefault: true,
@@ -136,7 +143,7 @@ export async function POST(request: NextRequest) {
 
       const [newCol] = await db.insert(collections).values({
         visitorId: visitor.id,
-        siteId,
+        siteId: resolvedSiteId,
         name: collectionName.trim(),
         emoji: emoji || "",
         isDefault: false,
@@ -215,9 +222,11 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Database not configured" }, { status: 503 });
     }
 
+    const resolvedSiteId = await resolveSiteId(siteId) || siteId;
+
     // Only delete non-default collections owned by this visitor
     const visitor = await db.query.visitorProfiles.findFirst({
-      where: and(eq(visitorProfiles.siteId, siteId), eq(visitorProfiles.email, email)),
+      where: and(eq(visitorProfiles.siteId, resolvedSiteId), eq(visitorProfiles.email, email)),
     });
     if (!visitor) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });

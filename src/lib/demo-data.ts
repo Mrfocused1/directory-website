@@ -8,6 +8,7 @@ import type { SiteConfig, SitePost, Reference, PlatformConnection, Platform } fr
  * Falls back to demo data when DB is unavailable (development).
  */
 export async function getSiteData(tenantSlug: string): Promise<{
+  siteId: string;
   site: SiteConfig;
   posts: SitePost[];
 } | null> {
@@ -19,6 +20,7 @@ export async function getSiteData(tenantSlug: string): Promise<{
 }
 
 async function getSiteDataFromDB(tenantSlug: string): Promise<{
+  siteId: string;
   site: SiteConfig;
   posts: SitePost[];
 } | null> {
@@ -29,6 +31,11 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
   if (!site) {
     // No site found in DB — fall back to demo for the "demo" slug
     if (tenantSlug === "demo") return getDemoSiteData(tenantSlug);
+    return null;
+  }
+
+  // Don't expose unpublished/draft directories
+  if (!site.isPublished && tenantSlug !== "demo") {
     return null;
   }
 
@@ -100,7 +107,7 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
     platforms,
   };
 
-  return { site: siteConfig, posts: postList };
+  return { siteId: site.id, site: siteConfig, posts: postList };
 }
 
 // ─── Demo data fallback ─────────────────────────────────────────────
@@ -139,6 +146,7 @@ const PLATFORM_SEQUENCE: Platform[] = [
 ];
 
 function getDemoSiteData(tenantSlug: string): {
+  siteId: string;
   site: SiteConfig;
   posts: SitePost[];
 } {
@@ -185,5 +193,5 @@ function getDemoSiteData(tenantSlug: string): {
     };
   });
 
-  return { site: demoSite, posts: demoPosts };
+  return { siteId: tenantSlug, site: demoSite, posts: demoPosts };
 }

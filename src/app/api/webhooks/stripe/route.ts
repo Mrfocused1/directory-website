@@ -70,10 +70,30 @@ export async function POST(request: NextRequest) {
           const userId = metadata.userId;
           const customerId = typeof session.customer === "string" ? session.customer : null;
 
-          if (db && userId && userId !== "anonymous") {
-            await db.update(users)
-              .set({ plan, stripeCustomerId: customerId, updatedAt: new Date() })
-              .where(eq(users.id, userId));
+          if (db && customerId) {
+            // First, try to match by Stripe customer ID (trusted source)
+            const existingByCustomer = await db.query.users.findFirst({
+              where: eq(users.stripeCustomerId, customerId),
+            });
+
+            if (existingByCustomer) {
+              // Customer already linked — update their plan
+              await db.update(users)
+                .set({ plan, updatedAt: new Date() })
+                .where(eq(users.id, existingByCustomer.id));
+            } else if (userId && userId !== "anonymous") {
+              // First purchase — link the customer ID to the user
+              // Verify the userId exists before trusting metadata
+              const userExists = await db.query.users.findFirst({
+                where: eq(users.id, userId),
+                columns: { id: true },
+              });
+              if (userExists) {
+                await db.update(users)
+                  .set({ plan, stripeCustomerId: customerId, updatedAt: new Date() })
+                  .where(eq(users.id, userId));
+              }
+            }
           }
 
           console.log(`[SUBSCRIPTION] User ${userId || "unknown"} upgraded to ${plan} (customer: ${customerId})`);

@@ -55,6 +55,10 @@ export const sites = pgTable(
     // Null + no remove_branding = show "Powered by BuildMy.Directory".
     whiteLabelBrand: varchar("white_label_brand", { length: 64 }),
     whiteLabelUrl: text("white_label_url"),
+    // Public-directory grid layout — admin controls density of the
+    // post grid from /dashboard/posts. Accepts 2 or 3 (mobile is
+    // always 2 to preserve readability on small screens).
+    gridColumns: integer("grid_columns").notNull().default(3),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -90,12 +94,16 @@ export const posts = pgTable(
     platformUrl: text("platform_url"), // original IG/TT url
     isVisible: boolean("is_visible").notNull().default(true),
     isFeatured: boolean("is_featured").notNull().default(false),
+    // Manual ordering set by the creator from the dashboard. Lower = first.
+    // Resolved as: isFeatured DESC, sortOrder ASC, takenAt DESC.
+    sortOrder: integer("sort_order").notNull().default(0),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
     index("posts_site_id_idx").on(table.siteId),
     uniqueIndex("posts_site_shortcode_idx").on(table.siteId, table.shortcode),
     index("posts_featured_idx").on(table.siteId, table.isFeatured),
+    index("posts_sort_idx").on(table.siteId, table.sortOrder),
   ],
 );
 

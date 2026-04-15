@@ -28,6 +28,7 @@ export async function GET() {
         lastSyncAt: sites.lastSyncAt,
         whiteLabelBrand: sites.whiteLabelBrand,
         whiteLabelUrl: sites.whiteLabelUrl,
+        gridColumns: sites.gridColumns,
         postCount: sql<number>`cast(count(${posts.id}) as int)`,
       })
       .from(sites)
@@ -47,6 +48,7 @@ export async function GET() {
       lastSyncAt: row.lastSyncAt?.toISOString() ?? null,
       whiteLabelBrand: row.whiteLabelBrand ?? null,
       whiteLabelUrl: row.whiteLabelUrl ?? null,
+      gridColumns: (row.gridColumns === 2 ? 2 : 3) as 2 | 3,
     }));
 
     return NextResponse.json({ sites: result });
@@ -203,6 +205,17 @@ export async function PATCH(request: NextRequest) {
       } else {
         updates.whiteLabelUrl = null;
       }
+    }
+
+    if ("gridColumns" in body) {
+      const v = body.gridColumns;
+      if (v !== 2 && v !== 3) {
+        return NextResponse.json(
+          { error: "gridColumns must be 2 or 3" },
+          { status: 400 },
+        );
+      }
+      updates.gridColumns = v;
     }
 
     if (Object.keys(updates).length === 0) {

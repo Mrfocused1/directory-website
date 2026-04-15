@@ -253,10 +253,16 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
             </nav>
           )}
 
-          {/* Grid */}
+          {/* Grid — admin chooses 2 or 3 columns on desktop via the
+              dashboard. Mobile stays 2-up regardless to preserve
+              readable tap targets. */}
           {filtered.length > 0 ? (
             <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3 px-1 sm:px-0 animate-fade-in">
+              <div
+                className={`grid grid-cols-2 gap-2 sm:gap-3 px-1 sm:px-0 animate-fade-in ${
+                  site.gridColumns === 2 ? "sm:grid-cols-2" : "sm:grid-cols-3"
+                }`}
+              >
                 {pageItems.map((p, i) => (
                   <motion.div
                     key={p.shortcode}
@@ -318,7 +324,10 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
                       )}
                       {p.isFeatured && (
                         <span className="absolute top-2 left-2 text-[10px] font-bold uppercase tracking-wide bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded flex items-center gap-1">
-                          <span aria-hidden>★</span> Featured
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                            <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
+                          </svg>
+                          Pinned
                         </span>
                       )}
                       <div className="absolute bottom-2 left-2 flex items-center gap-1">

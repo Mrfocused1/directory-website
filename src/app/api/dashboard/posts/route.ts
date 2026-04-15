@@ -22,9 +22,15 @@ export async function GET(request: NextRequest) {
   });
   if (!site) return NextResponse.json({ error: "Site not found" }, { status: 404 });
 
+  // Same ordering as the public directory so the dashboard list
+  // mirrors what visitors actually see.
   const rows = await db.query.posts.findMany({
     where: eq(posts.siteId, siteId),
-    orderBy: [desc(posts.takenAt)],
+    orderBy: (p, { desc, asc }) => [
+      desc(p.isFeatured),
+      asc(p.sortOrder),
+      desc(p.takenAt),
+    ],
     limit: 500,
   });
 
@@ -42,6 +48,7 @@ export async function GET(request: NextRequest) {
       takenAt: p.takenAt?.toISOString() ?? null,
       isVisible: p.isVisible,
       isFeatured: p.isFeatured,
+      sortOrder: p.sortOrder,
       createdAt: p.createdAt.toISOString(),
     })),
   });

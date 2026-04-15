@@ -68,10 +68,15 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
     syncStatus: c.syncStatus as PlatformConnection["syncStatus"],
   }));
 
-  // Fetch posts with references — featured posts bubble to the top
+  // Fetch posts with references. Order: pinned first, then by manual
+  // sortOrder if the creator has reordered, then by takenAt (newest).
   const sitePosts = await db!.query.posts.findMany({
     where: eq(posts.siteId, site.id),
-    orderBy: (posts, { desc }) => [desc(posts.isFeatured), desc(posts.takenAt)],
+    orderBy: (posts, { desc, asc }) => [
+      desc(posts.isFeatured),
+      asc(posts.sortOrder),
+      desc(posts.takenAt),
+    ],
   });
 
   const postList: SitePost[] = await Promise.all(
@@ -117,6 +122,7 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
     accentColor: site.accentColor || "#000000",
     categories: (site.categories as string[]) || [],
     platforms,
+    gridColumns: (site.gridColumns === 2 ? 2 : 3) as 2 | 3,
   };
 
   // Determine branding based on the owner's plan

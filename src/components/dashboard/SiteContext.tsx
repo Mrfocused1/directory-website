@@ -13,6 +13,7 @@ export type DashboardSite = {
   lastSyncAt: string | null;
   whiteLabelBrand?: string | null;
   whiteLabelUrl?: string | null;
+  gridColumns?: 2 | 3;
 };
 
 type SiteContextValue = {

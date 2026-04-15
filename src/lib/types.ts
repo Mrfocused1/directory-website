@@ -67,6 +67,9 @@ export type SiteConfig = {
   accentColor: string;
   categories: string[];
   platforms: PlatformConnection[]; // all connected platforms
+  // Public-directory grid density. Mobile is always 2-up; this controls
+  // the desktop layout (sm + lg breakpoints).
+  gridColumns?: 2 | 3;
 };
 
 export type PipelineStep = "scrape" | "transcribe" | "categorize" | "references" | "complete";

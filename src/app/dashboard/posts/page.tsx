@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import DashboardNav from "@/components/dashboard/DashboardNav";
 import { useSiteContext } from "@/components/dashboard/SiteContext";
 import EmptyState from "@/components/dashboard/EmptyState";
@@ -18,17 +18,28 @@ type Post = {
   takenAt: string | null;
   isVisible: boolean;
   isFeatured: boolean;
+  sortOrder?: number;
   createdAt: string;
 };
 
 export default function PostsPage() {
-  const { selectedSite } = useSiteContext();
+  const { selectedSite, refresh: refreshSites } = useSiteContext();
   const siteId = selectedSite?.id;
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Post | null>(null);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Drag-and-drop reorder. Stores the post id currently being dragged.
+  const draggingId = useRef<string | null>(null);
+  const [reordering, setReordering] = useState(false);
+  const [reorderError, setReorderError] = useState<string | null>(null);
+
+  // Layout (2 vs 3 columns). Reads from site config; PATCH on toggle.
+  const gridColumns = (selectedSite?.gridColumns as 2 | 3 | undefined) || 3;
+  const [layoutSaving, setLayoutSaving] = useState(false);
+  const [layoutError, setLayoutError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!siteId) return;
@@ -68,7 +79,103 @@ export default function PostsPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ isFeatured: next }),
     });
-    setPosts((ps) => ps.map((p) => (p.id === post.id ? { ...p, isFeatured: next } : p)));
+    // Pinned posts always sort to the top; reload to reflect new order
+    setPosts((ps) => {
+      const updated = ps.map((p) => (p.id === post.id ? { ...p, isFeatured: next } : p));
+      return [...updated].sort((a, b) => {
+        if (a.isFeatured !== b.isFeatured) return a.isFeatured ? -1 : 1;
+        return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+      });
+    });
+  }
+
+  // ── Drag-and-drop reorder ────────────────────────────────────────
+  function handleDragStart(e: React.DragEvent, id: string) {
+    draggingId.current = id;
+    e.dataTransfer.effectAllowed = "move";
+    // Some browsers require a setData call to actually start the drag
+    e.dataTransfer.setData("text/plain", id);
+  }
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }
+  async function handleDrop(e: React.DragEvent, targetId: string) {
+    e.preventDefault();
+    const sourceId = draggingId.current;
+    draggingId.current = null;
+    if (!sourceId || sourceId === targetId || !siteId) return;
+
+    const sourceIdx = posts.findIndex((p) => p.id === sourceId);
+    const targetIdx = posts.findIndex((p) => p.id === targetId);
+    if (sourceIdx < 0 || targetIdx < 0) return;
+
+    const reordered = [...posts];
+    const [moved] = reordered.splice(sourceIdx, 1);
+    reordered.splice(targetIdx, 0, moved);
+    setPosts(reordered);
+
+    setReordering(true);
+    setReorderError(null);
+    try {
+      const res = await fetch("/api/dashboard/posts/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId, ids: reordered.map((p) => p.id) }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setReorderError(data.error || "Reorder failed");
+        // Roll back optimistic move
+        setPosts(posts);
+      }
+    } catch {
+      setReorderError("Network error");
+      setPosts(posts);
+    } finally {
+      setReordering(false);
+    }
+  }
+
+  // Move helpers (click-based fallback for keyboard / non-drag users)
+  async function move(id: string, dir: -1 | 1) {
+    if (!siteId) return;
+    const idx = posts.findIndex((p) => p.id === id);
+    if (idx < 0) return;
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= posts.length) return;
+    const reordered = [...posts];
+    [reordered[idx], reordered[newIdx]] = [reordered[newIdx], reordered[idx]];
+    setPosts(reordered);
+    await fetch("/api/dashboard/posts/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ siteId, ids: reordered.map((p) => p.id) }),
+    });
+  }
+
+  // ── Layout toggle (2 vs 3 columns) ───────────────────────────────
+  async function setLayout(cols: 2 | 3) {
+    if (!siteId || cols === gridColumns || layoutSaving) return;
+    setLayoutSaving(true);
+    setLayoutError(null);
+    try {
+      const res = await fetch(`/api/sites?id=${siteId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gridColumns: cols }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setLayoutError(data.error || "Failed to save layout");
+      } else {
+        await refreshSites();
+      }
+    } catch {
+      setLayoutError("Network error");
+    } finally {
+      setLayoutSaving(false);
+    }
   }
 
   function toggleSelect(id: string) {
@@ -128,19 +235,80 @@ export default function PostsPage() {
           <div>
             <h1 className="text-2xl font-extrabold tracking-tight mb-1">Posts</h1>
             <p className="text-sm text-[color:var(--fg-muted)]">
-              Edit titles, captions, categories, hide or delete posts.
+              Pin, reorder by drag, edit titles + categories, hide or delete posts.
             </p>
           </div>
-          {posts.length > 0 && (
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search posts..."
-              className="h-10 px-3 w-64 bg-white border-2 border-[color:var(--border)] rounded-lg text-sm focus:outline-none focus:border-[color:var(--fg)] transition"
-            />
-          )}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Public-directory layout toggle (2 vs 3 columns on desktop) */}
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold text-[color:var(--fg-muted)]">
+                Layout
+              </span>
+              <div className="inline-flex border border-[color:var(--border)] rounded-lg overflow-hidden">
+                {([2, 3] as const).map((cols) => (
+                  <button
+                    key={cols}
+                    type="button"
+                    onClick={() => setLayout(cols)}
+                    disabled={layoutSaving}
+                    className={`px-2.5 h-9 text-xs font-semibold transition flex items-center gap-1 ${
+                      gridColumns === cols
+                        ? "bg-[color:var(--fg)] text-[color:var(--bg)]"
+                        : "bg-white hover:bg-black/5"
+                    } disabled:opacity-50`}
+                    aria-pressed={gridColumns === cols}
+                    title={`${cols}-column grid on the public directory`}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                      {cols === 2 ? (
+                        <>
+                          <rect x="3" y="3" width="8" height="18" rx="1" />
+                          <rect x="13" y="3" width="8" height="18" rx="1" />
+                        </>
+                      ) : (
+                        <>
+                          <rect x="2" y="3" width="6" height="18" rx="1" />
+                          <rect x="9" y="3" width="6" height="18" rx="1" />
+                          <rect x="16" y="3" width="6" height="18" rx="1" />
+                        </>
+                      )}
+                    </svg>
+                    {cols}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {posts.length > 0 && (
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search posts..."
+                className="h-10 px-3 w-64 bg-white border-2 border-[color:var(--border)] rounded-lg text-sm focus:outline-none focus:border-[color:var(--fg)] transition"
+              />
+            )}
+          </div>
         </div>
+
+        {layoutError && (
+          <div className="mb-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-1.5">
+            {layoutError}
+          </div>
+        )}
+        {reorderError && (
+          <div className="mb-3 text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-1.5">
+            {reorderError}
+          </div>
+        )}
+        {!search && !loading && posts.length > 1 && (
+          <div className="mb-3 text-[11px] text-[color:var(--fg-subtle)] flex items-center gap-1.5">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M9 3h6M9 21h6M3 9v6M21 9v6M5 5l3 3M19 5l-3 3M5 19l3-3M19 19l-3-3" />
+            </svg>
+            Drag any tile to reorder, or use the ↑↓ buttons.{" "}
+            {reordering && <span className="ml-1">Saving…</span>}
+          </div>
+        )}
 
         {selected.size > 0 && (
           <div className="sticky top-2 z-20 mb-4 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl px-4 py-3 flex items-center justify-between gap-3 flex-wrap shadow-lg">
@@ -148,8 +316,8 @@ export default function PostsPage() {
               {selected.size} selected
             </span>
             <div className="flex gap-1 flex-wrap">
-              <button type="button" onClick={() => runBulk("feature")} className="h-8 px-3 text-xs font-semibold bg-white/15 rounded hover:bg-white/25 transition">Feature</button>
-              <button type="button" onClick={() => runBulk("unfeature")} className="h-8 px-3 text-xs font-semibold bg-white/15 rounded hover:bg-white/25 transition">Unfeature</button>
+              <button type="button" onClick={() => runBulk("feature")} className="h-8 px-3 text-xs font-semibold bg-white/15 rounded hover:bg-white/25 transition">Pin</button>
+              <button type="button" onClick={() => runBulk("unfeature")} className="h-8 px-3 text-xs font-semibold bg-white/15 rounded hover:bg-white/25 transition">Unpin</button>
               <button type="button" onClick={() => runBulk("hide")} className="h-8 px-3 text-xs font-semibold bg-white/15 rounded hover:bg-white/25 transition">Hide</button>
               <button type="button" onClick={() => runBulk("show")} className="h-8 px-3 text-xs font-semibold bg-white/15 rounded hover:bg-white/25 transition">Show</button>
               <button type="button" onClick={() => runBulk("delete")} className="h-8 px-3 text-xs font-semibold bg-red-500 rounded hover:bg-red-600 transition">Delete</button>
@@ -176,12 +344,16 @@ export default function PostsPage() {
           />
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {filtered.map((p) => (
+            {filtered.map((p, idx) => (
               <div
                 key={p.id}
+                draggable={!search}
+                onDragStart={(e) => handleDragStart(e, p.id)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, p.id)}
                 className={`bg-white border rounded-xl overflow-hidden flex flex-col ${
                   selected.has(p.id) ? "border-[color:var(--fg)] ring-2 ring-[color:var(--fg)]/20" : "border-[color:var(--border)]"
-                } ${p.isVisible ? "" : "opacity-60"}`}
+                } ${p.isVisible ? "" : "opacity-60"} ${!search ? "cursor-move" : ""}`}
               >
                 <div className="aspect-[4/5] bg-black/5 relative overflow-hidden">
                   <label className="absolute top-2 right-2 z-10 w-6 h-6 bg-white rounded shadow cursor-pointer flex items-center justify-center">
@@ -203,7 +375,10 @@ export default function PostsPage() {
                   )}
                   {p.isFeatured && (
                     <div className="absolute top-2 left-2 text-[10px] font-bold uppercase bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded flex items-center gap-1">
-                      <span>★</span> Featured
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                        <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
+                      </svg>
+                      Pinned
                     </div>
                   )}
                   {!p.isVisible && (
@@ -222,7 +397,31 @@ export default function PostsPage() {
                   <p className="text-[11px] text-[color:var(--fg-subtle)] line-clamp-2 flex-1">
                     {p.caption}
                   </p>
-                  <div className="flex gap-1 mt-2">
+                  {!search && (
+                    <div className="flex gap-0.5 mt-2 mb-1">
+                      <button
+                        type="button"
+                        onClick={() => move(p.id, -1)}
+                        disabled={idx === 0}
+                        className="flex-1 h-6 text-[11px] font-semibold bg-black/5 rounded hover:bg-black/10 transition disabled:opacity-30"
+                        title="Move up"
+                        aria-label="Move post up"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => move(p.id, 1)}
+                        disabled={idx === filtered.length - 1}
+                        className="flex-1 h-6 text-[11px] font-semibold bg-black/5 rounded hover:bg-black/10 transition disabled:opacity-30"
+                        title="Move down"
+                        aria-label="Move post down"
+                      >
+                        ↓
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex gap-1 mt-1">
                     <button
                       type="button"
                       onClick={() => setEditing(p)}
@@ -238,9 +437,12 @@ export default function PostsPage() {
                           ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
                           : "bg-black/5 hover:bg-black/10"
                       }`}
-                      title={p.isFeatured ? "Remove from featured" : "Feature"}
+                      title={p.isFeatured ? "Unpin from top" : "Pin to top"}
+                      aria-label={p.isFeatured ? "Unpin post" : "Pin post"}
                     >
-                      ★
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                        <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
+                      </svg>
                     </button>
                     <button
                       type="button"

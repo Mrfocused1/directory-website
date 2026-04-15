@@ -147,16 +147,6 @@ export default function LandingPage() {
           <div className="absolute inset-0 hero-glow pointer-events-none" aria-hidden />
           <div className="relative max-w-[90rem] mx-auto px-6 sm:px-10 pt-24 pb-32 grid lg:grid-cols-[1.1fr_1fr] gap-16 items-center">
             <div>
-              <div className="flex items-center gap-3 mb-8 flex-wrap">
-                <span className="pill bg-[color:var(--bd-lilac)]/20 text-[color:var(--bd-lilac)]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--bd-lime)]" />
-                  Trusted by creators worldwide
-                </span>
-                <span className="pill bg-white/10 text-white/90">
-                  ★ 4.8 average rating
-                </span>
-              </div>
-
               <h1 className="font-display-tight text-[3.25rem] sm:text-[4.5rem] lg:text-[5.75rem] text-white mb-6">
                 Your content,
                 <br />

@@ -36,6 +36,27 @@ export async function POST(request: NextRequest) {
     .set({ status: "pending", error: null, progress: 0, message: "Retrying..." })
     .where(and(eq(pipelineJobs.siteId, siteId), eq(pipelineJobs.status, "failed")));
 
+  // Always leave behind a synchronous "queued" row so /dashboard/build
+  // has something to render the moment the user lands there. Without
+  // this, a sync-now on a site with no prior failed jobs leaves zero
+  // rows until Inngest propagates — the UI reads as a dead link.
+  const existing = await db.query.pipelineJobs.findFirst({
+    where: and(
+      eq(pipelineJobs.siteId, siteId),
+      eq(pipelineJobs.status, "pending"),
+    ),
+    columns: { id: true },
+  });
+  if (!existing) {
+    await db.insert(pipelineJobs).values({
+      siteId,
+      step: "scrape",
+      status: "pending",
+      progress: 0,
+      message: "Queued for sync",
+    });
+  }
+
   // Dispatch the pipeline again — the runner is idempotent per-step
   await ensureInngestRegistered(request.nextUrl.origin);
   await inngest.send({ name: "pipeline/run", data: { siteId } });

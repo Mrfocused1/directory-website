@@ -52,6 +52,29 @@ export async function POST(request: NextRequest) {
           isActive: true,
         })
         .where(eq(subscribers.id, existing.id));
+
+      // If the existing subscriber hasn't verified yet, re-send the verification email
+      if (!existing.isVerified && resend) {
+        const site = await db.query.sites.findFirst({
+          where: eq(sites.id, resolvedSiteId),
+          columns: { displayName: true, slug: true },
+        });
+        const siteName = site?.displayName || site?.slug || siteId;
+        const verifyUrl = `${request.nextUrl.origin}/api/subscribe/verify?token=${existing.unsubscribeToken}&siteId=${resolvedSiteId}`;
+        const template = verificationEmail({ siteName, verifyUrl });
+        try {
+          await resend.emails.send({
+            from: "BuildMy.Directory <hello@buildmy.directory>",
+            to: existing.email,
+            subject: template.subject,
+            html: template.html,
+          });
+        } catch (err) {
+          console.error("[subscribe] Resend verification failed:", err);
+        }
+        return NextResponse.json({ message: "Verification email resent. Check your inbox." });
+      }
+
       return NextResponse.json({ message: "Preferences updated" });
     }
 
@@ -100,6 +123,67 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: "Subscribed successfully" }, { status: 201 });
   } catch (err) {
     console.error("[subscribe] Error:", err);
+    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  }
+}
+
+// PATCH /api/subscribe — Update frequency/categories for a subscriber.
+// Identified by unsubscribeToken (delivered in digest emails), so no
+// additional auth is required beyond possession of the token.
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { siteId, token, frequency, categories } = body;
+
+    if (!siteId || !token) {
+      return NextResponse.json({ error: "Missing siteId or token" }, { status: 400 });
+    }
+    if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+
+    const resolvedSiteId = await resolveSiteId(siteId);
+    if (!resolvedSiteId) {
+      return NextResponse.json({ error: "Site not found" }, { status: 404 });
+    }
+
+    const existing = await db.query.subscribers.findFirst({
+      where: and(
+        eq(subscribers.siteId, resolvedSiteId),
+        eq(subscribers.unsubscribeToken, token),
+      ),
+    });
+    if (!existing) return NextResponse.json({ error: "Invalid token" }, { status: 404 });
+
+    const updates: Record<string, unknown> = {};
+    if (frequency !== undefined) {
+      if (!["daily", "weekly", "monthly"].includes(frequency)) {
+        return NextResponse.json({ error: "Invalid frequency" }, { status: 400 });
+      }
+      updates.frequency = frequency;
+    }
+    if (categories !== undefined) {
+      if (!Array.isArray(categories) || !categories.every((c) => typeof c === "string")) {
+        return NextResponse.json({ error: "categories must be an array of strings" }, { status: 400 });
+      }
+      if (categories.length > 32) {
+        return NextResponse.json({ error: "Too many categories" }, { status: 400 });
+      }
+      updates.categories = categories;
+    }
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: "No updatable fields provided" }, { status: 400 });
+    }
+
+    await db.update(subscribers).set(updates).where(eq(subscribers.id, existing.id));
+
+    return NextResponse.json({
+      subscriber: {
+        email: existing.email,
+        frequency: updates.frequency ?? existing.frequency,
+        categories: updates.categories ?? existing.categories,
+      },
+    });
+  } catch (err) {
+    console.error("[subscribe] PATCH error:", err);
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 }

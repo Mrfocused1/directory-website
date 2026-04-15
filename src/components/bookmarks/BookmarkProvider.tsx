@@ -19,6 +19,7 @@ type BookmarkContextValue = {
   createCollection: (name: string, emoji?: string) => Promise<void>;
   signIn: (email: string, name?: string) => Promise<void>;
   signOut: () => void;
+  deleteAccount: () => Promise<boolean>;
   showSignIn: boolean;
   setShowSignIn: (show: boolean) => void;
 };
@@ -81,6 +82,24 @@ export default function BookmarkProvider({
     setCollections([]);
     localStorage.removeItem(`bmd_bookmark_email_${siteId}`);
   }, [siteId]);
+
+  const deleteAccount = useCallback(async () => {
+    if (!email) return false;
+    try {
+      const res = await fetch("/api/bookmarks/profile", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId, email }),
+      });
+      if (!res.ok) return false;
+      setEmail(null);
+      setCollections([]);
+      localStorage.removeItem(`bmd_bookmark_email_${siteId}`);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [siteId, email]);
 
   const isBookmarked = useCallback((shortcode: string) => {
     return collections.some((c) => c.bookmarks.includes(shortcode));
@@ -148,6 +167,7 @@ export default function BookmarkProvider({
         createCollection,
         signIn,
         signOut,
+        deleteAccount,
         showSignIn,
         setShowSignIn,
       }}

@@ -145,6 +145,7 @@ export const scheduledDigestFunction = inngest.createFunction(
       let sentCount = 0;
       for (const sub of matching) {
         const unsubscribeUrl = `${origin}/d/${site.slug}/unsubscribe?token=${sub.unsubscribeToken}`;
+        const preferencesUrl = `${origin}/d/${site.slug}/preferences?token=${sub.unsubscribeToken}`;
         const template = digestEmail({
           siteName,
           siteUrl,
@@ -154,6 +155,7 @@ export const scheduledDigestFunction = inngest.createFunction(
             category: p.category,
           })),
           unsubscribeUrl,
+          preferencesUrl,
         });
 
         try {

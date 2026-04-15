@@ -60,6 +60,7 @@ export function digestEmail(opts: {
   siteUrl: string;
   posts: { title: string; url: string; category: string }[];
   unsubscribeUrl: string;
+  preferencesUrl?: string;
 }) {
   const postListHtml = opts.posts
     .map(
@@ -90,6 +91,7 @@ export function digestEmail(opts: {
           </a>
         </div>
         <p style="color: #999; font-size: 11px; margin-top: 32px;">
+          ${opts.preferencesUrl ? `<a href="${escUrl(opts.preferencesUrl)}" style="color: #999; margin-right: 12px;">Update preferences</a>` : ""}
           <a href="${escUrl(opts.unsubscribeUrl)}" style="color: #999;">Unsubscribe</a>
         </p>
       </div>

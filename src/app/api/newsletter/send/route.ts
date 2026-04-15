@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
 
     for (const sub of activeSubscribers) {
       const unsubscribeUrl = `${origin}/d/${site.slug}/unsubscribe?token=${sub.unsubscribeToken}`;
+      const preferencesUrl = `${origin}/d/${site.slug}/preferences?token=${sub.unsubscribeToken}`;
       const template = digestEmail({
         siteName,
         siteUrl,
@@ -108,6 +109,7 @@ export async function POST(request: NextRequest) {
           category: p.category,
         })),
         unsubscribeUrl,
+        preferencesUrl,
       });
 
       try {

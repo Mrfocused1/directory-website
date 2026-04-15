@@ -7,11 +7,23 @@ import { useBookmarks } from "./BookmarkProvider";
  * Only visible when the visitor is signed in and has bookmarks.
  */
 export default function CollectionsHeader({ tenantSlug }: { tenantSlug: string }) {
-  const { isSignedIn, collections, email, signOut } = useBookmarks();
+  const { isSignedIn, collections, email, signOut, deleteAccount } = useBookmarks();
 
   const totalBookmarks = collections.reduce((sum, c) => sum + c.bookmarks.length, 0);
 
   if (!isSignedIn || totalBookmarks === 0) return null;
+
+  const handleDelete = async () => {
+    if (
+      !confirm(
+        "Delete all your data from this directory (bookmarks, collections, profile)? This can't be undone.",
+      )
+    ) {
+      return;
+    }
+    const ok = await deleteAccount();
+    if (!ok) alert("Failed to delete. Please try again.");
+  };
 
   return (
     <div className="flex items-center justify-center gap-3 mt-3">
@@ -31,6 +43,14 @@ export default function CollectionsHeader({ tenantSlug }: { tenantSlug: string }
         title={`Signed in as ${email}`}
       >
         Sign out
+      </button>
+      <button
+        type="button"
+        onClick={handleDelete}
+        className="text-[11px] text-red-500/70 hover:text-red-700 transition"
+        title="Delete all your data"
+      >
+        Delete my data
       </button>
     </div>
   );

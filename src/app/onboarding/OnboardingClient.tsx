@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import Link from "next/link";
+import Logo from "@/components/brand/Logo";
 
 type Step = "handle" | "customize" | "processing" | "done";
 
@@ -261,8 +262,8 @@ function OnboardingContent() {
       <div className="relative z-10">
         {/* Nav */}
         <nav className="flex items-center justify-between px-6 sm:px-10 h-16 max-w-4xl mx-auto">
-          <Link href="/" className="text-lg font-extrabold tracking-tight">
-            BuildMy<span className="text-black/40">.</span>Directory
+          <Link href="/" aria-label="BuildMy.Directory home" className="flex items-center">
+            <Logo height={28} />
           </Link>
           <Link
             href="/"
@@ -605,8 +606,8 @@ function OnboardingContent() {
         {/* Footer */}
         <footer className="border-t border-[color:var(--border)] py-8 px-6">
           <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="text-sm font-bold">
-              BuildMy<span className="text-black/40">.</span>Directory
+            <span className="inline-flex">
+              <Logo height={22} />
             </span>
             <p className="text-xs text-[color:var(--fg-subtle)]">
               Built for creators who want their content to live beyond the feed.

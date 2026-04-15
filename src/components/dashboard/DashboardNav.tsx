@@ -7,6 +7,7 @@ import PlanBadge from "@/components/plans/PlanBadge";
 import { usePlan } from "@/components/plans/PlanProvider";
 import { useSiteContext } from "@/components/dashboard/SiteContext";
 import { createClient } from "@/lib/supabase/client";
+import Logo from "@/components/brand/Logo";
 import type { FeatureKey } from "@/lib/plans";
 
 const TABS: { href: string; label: string; requiredFeature?: FeatureKey }[] = [
@@ -50,8 +51,8 @@ export default function DashboardNav() {
     <>
       {/* Top nav bar */}
       <nav className="flex items-center justify-between gap-3 px-4 sm:px-6 h-16 max-w-7xl mx-auto border-b border-[color:var(--border)]">
-        <Link href="/" className="text-lg font-extrabold tracking-tight">
-          BuildMy<span className="text-black/40">.</span>Directory
+        <Link href="/" aria-label="BuildMy.Directory home" className="flex items-center">
+          <Logo height={28} />
         </Link>
         <div className="flex items-center gap-2 min-w-0">
           {/* Desktop tabs — tighter padding so the nav has room for the

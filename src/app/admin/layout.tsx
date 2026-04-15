@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin";
+import Logo from "@/components/brand/Logo";
 
 const TABS = [
   { href: "/admin", label: "Overview" },
@@ -16,9 +17,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="min-h-screen bg-[color:var(--bg)]">
       <nav className="border-b border-[color:var(--border)] bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 h-14 flex items-center justify-between gap-4">
-          <Link href="/admin" className="text-sm font-extrabold tracking-tight">
-            BuildMy<span className="text-black/40">.</span>Directory
-            <span className="ml-2 text-[10px] font-bold uppercase tracking-widest bg-black text-white px-1.5 py-0.5 rounded align-middle">
+          <Link href="/admin" aria-label="Admin home" className="flex items-center gap-2">
+            <Logo height={24} />
+            <span className="text-[10px] font-bold uppercase tracking-widest bg-black text-white px-1.5 py-0.5 rounded">
               admin
             </span>
           </Link>

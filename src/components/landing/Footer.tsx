@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Logo from "@/components/brand/Logo";
 
 const PRODUCT_LINKS = [
   { href: "/#features", label: "Features" },
@@ -27,8 +28,8 @@ export default function Footer() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 mb-10">
           {/* Brand */}
           <div className="col-span-2 sm:col-span-1">
-            <Link href="/" className="text-lg font-extrabold tracking-tight inline-block mb-2">
-              BuildMy<span className="text-black/40">.</span>Directory
+            <Link href="/" aria-label="BuildMy.Directory home" className="inline-flex mb-3">
+              <Logo height={26} />
             </Link>
             <p className="text-xs text-[color:var(--fg-muted)] leading-relaxed max-w-[220px]">
               Turn your social media content into a searchable, shareable directory — without lifting a finger.

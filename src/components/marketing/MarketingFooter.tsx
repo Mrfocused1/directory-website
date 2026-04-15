@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Logo from "@/components/brand/Logo";
 
 export default function MarketingFooter() {
   return (
@@ -6,8 +7,8 @@ export default function MarketingFooter() {
       <div className="max-w-[90rem] mx-auto px-6 sm:px-10">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 pb-16 border-b border-white/10">
           <div>
-            <Link href="/" className="font-display-tight text-xl text-white">
-              BuildMy<span className="text-white/40">.</span>Directory
+            <Link href="/" aria-label="BuildMy.Directory home" className="inline-flex">
+              <Logo height={32} variant="white" />
             </Link>
             <p className="mt-4 text-sm text-white/60 max-w-xs leading-relaxed">
               Turn your Instagram or TikTok content into a beautiful, searchable

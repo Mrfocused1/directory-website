@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import Logo from "@/components/brand/Logo";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -99,8 +100,8 @@ export default function ResetPasswordPage() {
       <div className="fixed inset-0 bg-gradient-to-br from-white/70 via-white/30 to-white/70 pointer-events-none" aria-hidden />
       <div className="relative z-10">
         <nav className="flex items-center justify-between px-6 sm:px-10 h-16 max-w-4xl mx-auto">
-          <Link href="/" className="text-lg font-extrabold tracking-tight">
-            BuildMy<span className="text-black/40">.</span>Directory
+          <Link href="/" aria-label="BuildMy.Directory home" className="flex items-center">
+            <Logo height={28} />
           </Link>
         </nav>
         <main className="max-w-sm mx-auto px-6 pt-16 pb-20">

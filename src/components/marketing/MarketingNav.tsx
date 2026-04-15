@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Logo from "@/components/brand/Logo";
 
 /**
  * Landing/legal page top nav — dark-background variant matching the
@@ -10,11 +11,8 @@ export default function MarketingNav() {
   return (
     <nav className="sticky top-0 z-40 backdrop-blur-md bg-[color:var(--bd-dark)]/70 border-b border-white/10">
       <div className="max-w-[90rem] mx-auto px-6 sm:px-10 h-16 flex items-center justify-between">
-        <Link
-          href="/"
-          className="font-display-tight text-xl text-white tracking-tight"
-        >
-          BuildMy<span className="text-white/50">.</span>Directory
+        <Link href="/" aria-label="BuildMy.Directory home" className="flex items-center">
+          <Logo height={28} variant="white" priority />
         </Link>
 
         <div className="hidden md:flex items-center gap-8 text-sm text-white/80">

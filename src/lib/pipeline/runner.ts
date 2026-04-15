@@ -59,6 +59,10 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     await report("scrape", 100, `Scraped ${scrapedPosts.length} posts`);
 
     if (scrapedPosts.length === 0) {
+      // Mark every remaining step as completed so the client's
+      // `allCompleted` check passes and polling terminates.
+      await updateJob(siteId, "transcribe", "completed", 100, "No posts to transcribe");
+      await updateJob(siteId, "categorize", "completed", 100, "No posts to categorize");
       await updateJob(siteId, "complete", "completed", 100, "No posts found — directory is empty");
       await db.update(sites).set({ isPublished: true }).where(eq(sites.id, siteId));
       return;
@@ -241,6 +245,12 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
 async function updateJob(siteId: string, step: string, status: string, progress: number, message: string) {
   if (!db) return;
 
+  // When a step fails, persist the message into the `error` column too —
+  // the GET /api/pipeline status endpoint reads from `error` to surface the
+  // reason back to the onboarding UI. Clear it again on non-failed writes so
+  // a successful retry doesn't keep showing a stale error.
+  const error = status === "failed" ? message : null;
+
   // Upsert the pipeline job for this site+step combination
   const existing = await db.query.pipelineJobs.findFirst({
     where: and(eq(pipelineJobs.siteId, siteId), eq(pipelineJobs.step, step)),
@@ -248,7 +258,13 @@ async function updateJob(siteId: string, step: string, status: string, progress:
 
   if (existing) {
     await db.update(pipelineJobs)
-      .set({ status, progress, message, completedAt: status === "completed" ? new Date() : null })
+      .set({
+        status,
+        progress,
+        message,
+        error,
+        completedAt: status === "completed" ? new Date() : null,
+      })
       .where(eq(pipelineJobs.id, existing.id));
   } else {
     await db.insert(pipelineJobs).values({
@@ -257,6 +273,7 @@ async function updateJob(siteId: string, step: string, status: string, progress:
       status,
       progress,
       message,
+      error,
       startedAt: new Date(),
     });
   }

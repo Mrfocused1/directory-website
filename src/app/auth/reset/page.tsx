@@ -17,13 +17,13 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  // Supabase delivers the recovery session via one of two transports:
-  //   1. `?code=…` query param (PKCE — current default)
-  //   2. `#access_token=…` URL hash (implicit flow — legacy)
-  // createBrowserClient auto-detects the hash but does NOT auto-exchange
-  // the code query param, so we handle it explicitly here. Without this,
-  // the page shows "This reset link is invalid or has expired." even on
-  // a valid, freshly-minted link.
+  // Supabase's admin.generateLink({type:'recovery'}) issues an implicit-
+  // flow URL that redirects here with `#access_token=...&refresh_token=...`
+  // in the hash. @supabase/ssr's createBrowserClient is PKCE-only and does
+  // NOT auto-parse the hash, so we hand-feed the tokens to setSession.
+  // A `?code=` query param (PKCE flow — if ever enabled) is handled via
+  // exchangeCodeForSession. Without this, the page read "This reset link
+  // is invalid or has expired." on perfectly valid, freshly-minted links.
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY" || session) {
@@ -32,24 +32,34 @@ export default function ResetPasswordPage() {
       setReady(true);
     });
 
-    const url = new URL(window.location.href);
-    const code = url.searchParams.get("code");
-    if (code) {
-      supabase.auth
-        .exchangeCodeForSession(code)
-        .then(({ data, error }) => {
-          if (!error && data.session) setAuthed(true);
-          // Strip ?code= so refresh doesn't re-exchange.
-          url.searchParams.delete("code");
-          window.history.replaceState({}, "", url.pathname + url.search + url.hash);
-          setReady(true);
+    (async () => {
+      const url = new URL(window.location.href);
+      const hashParams = new URLSearchParams(
+        url.hash.startsWith("#") ? url.hash.slice(1) : url.hash,
+      );
+      const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token");
+      const code = url.searchParams.get("code");
+
+      if (accessToken && refreshToken) {
+        const { data, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
         });
-    } else {
-      supabase.auth.getSession().then(({ data }) => {
+        if (!error && data.session) setAuthed(true);
+        window.history.replaceState({}, "", url.pathname + url.search);
+      } else if (code) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        if (!error && data.session) setAuthed(true);
+        url.searchParams.delete("code");
+        window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+      } else {
+        const { data } = await supabase.auth.getSession();
         if (data.session) setAuthed(true);
-        setReady(true);
-      });
-    }
+      }
+      setReady(true);
+    })();
+
     return () => sub.subscription.unsubscribe();
   }, [supabase]);
 

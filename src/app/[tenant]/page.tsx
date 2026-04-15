@@ -18,7 +18,10 @@ export async function generateMetadata({
   const url = `${SITE_URL}/${tenant}`;
 
   return {
-    title: `${data.site.displayName} | BuildMy.Directory`,
+    // Just the display name — root layout's metadata.title.template
+    // adds the " | BuildMy.Directory" suffix automatically. Returning
+    // the suffix here too produced "X | BuildMy.Directory | BuildMy.Directory".
+    title: data.site.displayName,
     description,
     alternates: {
       canonical: url,

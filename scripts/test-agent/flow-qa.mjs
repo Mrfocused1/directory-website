@@ -73,7 +73,20 @@ async function collectPageErrors(page) {
   });
   page.on("requestfailed", (r) => {
     const u = r.url();
-    if (!/favicon|_next\/static|\.map$/i.test(u)) errors.push(`net: ${r.method()} ${u} ${r.failure()?.errorText}`);
+    const errText = r.failure()?.errorText || "";
+    // Skip noise:
+    //  - favicons / static / sourcemaps
+    //  - Next.js RSC prefetches: ?_rsc= URLs are speculatively
+    //    prefetched on link hover / hydration and routinely cancelled
+    //    when the user (or test) navigates away. ERR_ABORTED on those
+    //    is expected behavior, not a real failure.
+    if (
+      /favicon|_next\/static|\.map$/i.test(u) ||
+      (errText.includes("ERR_ABORTED") && /[?&]_rsc=/.test(u))
+    ) {
+      return;
+    }
+    errors.push(`net: ${r.method()} ${u} ${errText}`);
   });
   return errors;
 }

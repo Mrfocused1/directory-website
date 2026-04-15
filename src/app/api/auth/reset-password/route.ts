@@ -34,11 +34,11 @@ export async function POST(request: NextRequest) {
   });
 
   const origin = request.nextUrl.origin;
-  // Route the recovery link through /auth/callback so the server exchanges
-  // the PKCE `?code=` for a session (setting cookies) before /auth/reset
-  // loads. Without this, /auth/reset sees no session and shows
-  // "invalid or has expired" — the reset form never renders.
-  const redirectTo = `${origin}/auth/callback?next=${encodeURIComponent("/auth/reset")}`;
+  // Redirect straight to /auth/reset — the page now exchanges the PKCE
+  // `?code=` client-side (the server `/auth/callback` handler can't do
+  // it because admin-generated recovery codes aren't tied to a
+  // code_verifier cookie).
+  const redirectTo = `${origin}/auth/reset`;
 
   const { data: linkData, error: linkErr } = await admin.auth.admin.generateLink({
     type: "recovery",

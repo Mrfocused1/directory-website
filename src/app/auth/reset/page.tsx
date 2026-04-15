@@ -17,8 +17,13 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  // Supabase places a recovery session into the URL hash on redirect.
-  // Listen for the auth state change and confirm we're in a PASSWORD_RECOVERY session.
+  // Supabase delivers the recovery session via one of two transports:
+  //   1. `?code=…` query param (PKCE — current default)
+  //   2. `#access_token=…` URL hash (implicit flow — legacy)
+  // createBrowserClient auto-detects the hash but does NOT auto-exchange
+  // the code query param, so we handle it explicitly here. Without this,
+  // the page shows "This reset link is invalid or has expired." even on
+  // a valid, freshly-minted link.
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY" || session) {
@@ -26,11 +31,25 @@ export default function ResetPasswordPage() {
       }
       setReady(true);
     });
-    // Also check immediately
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setAuthed(true);
-      setReady(true);
-    });
+
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("code");
+    if (code) {
+      supabase.auth
+        .exchangeCodeForSession(code)
+        .then(({ data, error }) => {
+          if (!error && data.session) setAuthed(true);
+          // Strip ?code= so refresh doesn't re-exchange.
+          url.searchParams.delete("code");
+          window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+          setReady(true);
+        });
+    } else {
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session) setAuthed(true);
+        setReady(true);
+      });
+    }
     return () => sub.subscription.unsubscribe();
   }, [supabase]);
 

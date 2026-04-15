@@ -2103,7 +2103,6 @@ async function main() {
     await run("pipelineRetryAfterFailure", () => test_pipelineRetryAfterFailure(browser));
     // ── pass 3 ─────────────────────────────────────────────────────
     await run("idorDashboardRoutes", () => test_idorDashboardRoutes(browser));
-    await run("rateLimitDocumented", () => test_rateLimitDocumented());
     await run("sqlInjectionFuzz", () => test_sqlInjectionFuzz());
     await run("sessionInvalidatedAfterPasswordChange", () => test_sessionInvalidatedAfterPasswordChange(browser));
     await run("userDeleteCascades", () => test_userDeleteCascades());
@@ -2125,6 +2124,10 @@ async function main() {
     await run("adminUsersSearchFilters", () => test_adminUsersSearchFilters(browser));
     await run("adminPipelineFailedCountMatchesDB", () => test_adminPipelineFailedCountMatchesDB(browser));
     await run("adminBillingMrrMatchesSum", () => test_adminBillingMrrMatchesSum(browser));
+    // rateLimitDocumented fires 20 parallel signups, each spawning a
+    // serverless function that grabs a DB connection. Running it last
+    // means the pool exhaustion it causes doesn't 500 later tests.
+    await run("rateLimitDocumented", () => test_rateLimitDocumented());
   } finally {
     await browser.close();
     await sql.end();

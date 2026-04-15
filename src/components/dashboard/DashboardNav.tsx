@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import PlanBadge from "@/components/plans/PlanBadge";
 import { usePlan } from "@/components/plans/PlanProvider";
@@ -27,6 +28,16 @@ export default function DashboardNav() {
   const router = useRouter();
   const { can } = usePlan();
   const { sites, selectedSite, selectSite } = useSiteContext();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/is-admin")
+      .then((r) => r.json())
+      .then((d) => { if (!cancelled) setIsAdmin(!!d.isAdmin); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -67,6 +78,18 @@ export default function DashboardNav() {
                 </Link>
               );
             })}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="ml-1 px-2 py-1.5 rounded-lg font-semibold bg-black text-white hover:bg-black/80 transition whitespace-nowrap flex items-center gap-1.5"
+                title="Platform-owner admin console"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+                  <path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z" />
+                </svg>
+                Admin
+              </Link>
+            )}
           </div>
           {sites.length > 1 && selectedSite && (
             <select
@@ -123,6 +146,17 @@ export default function DashboardNav() {
             </Link>
           );
         })}
+        {isAdmin && (
+          <Link
+            href="/admin"
+            className="shrink-0 text-center py-3 text-sm whitespace-nowrap px-4 flex items-center gap-1 font-semibold text-black"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+              <path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z" />
+            </svg>
+            Admin
+          </Link>
+        )}
       </div>
     </>
   );

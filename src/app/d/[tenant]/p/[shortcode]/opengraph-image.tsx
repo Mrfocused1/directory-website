@@ -9,12 +9,13 @@ export const alt = "Post preview";
 export default async function OG({
   params,
 }: {
-  params: { tenant: string; shortcode: string };
+  params: Promise<{ tenant: string; shortcode: string }>;
 }) {
-  const data = await getSiteData(params.tenant);
-  const post = data?.posts.find((p) => p.shortcode === params.shortcode);
+  const { tenant, shortcode } = await params;
+  const data = await getSiteData(tenant);
+  const post = data?.posts.find((p) => p.shortcode === shortcode);
 
-  const siteName = data?.site.displayName || params.tenant;
+  const siteName = data?.site.displayName || tenant;
   const title = post?.title || siteName;
   const caption = (post?.caption || data?.site.bio || "").slice(0, 180);
   const category = post?.category || "Post";

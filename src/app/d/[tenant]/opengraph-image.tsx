@@ -6,9 +6,14 @@ export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const alt = "Directory preview";
 
-export default async function OG({ params }: { params: { tenant: string } }) {
-  const data = await getSiteData(params.tenant);
-  const displayName = data?.site.displayName || params.tenant;
+export default async function OG({
+  params,
+}: {
+  params: Promise<{ tenant: string }>;
+}) {
+  const { tenant } = await params;
+  const data = await getSiteData(tenant);
+  const displayName = data?.site.displayName || tenant;
   const bio = data?.site.bio || "A directory of creator content";
   const postCount = data?.posts.length ?? 0;
 

@@ -121,6 +121,12 @@ async function suiteViewports(browser, pages) {
           const small = await page.evaluate(() => {
             const out = [];
             for (const el of document.querySelectorAll("a, button, input, select, [role='button']")) {
+              // Skip screen-reader-only elements (skip-to-content link pattern,
+              // visually hidden but in tab order). They are <=1px by design.
+              const style = getComputedStyle(el);
+              if (el.classList.contains("sr-only") || style.clipPath?.includes("inset(50%)") || el.className?.includes?.("sr-only")) {
+                continue;
+              }
               const r = el.getBoundingClientRect();
               if (r.width > 0 && r.height > 0 && r.width < 32 && r.height < 32) {
                 const text = el.textContent?.trim()?.slice(0, 30) || el.getAttribute("aria-label") || "";

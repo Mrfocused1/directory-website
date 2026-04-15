@@ -14,6 +14,9 @@ export type DashboardSite = {
   whiteLabelBrand?: string | null;
   whiteLabelUrl?: string | null;
   gridColumns?: 2 | 3;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  accentColor?: string;
 };
 
 type SiteContextValue = {

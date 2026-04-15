@@ -15,12 +15,36 @@ type SiteData = {
   postCount: number;
   isPublished: boolean;
   lastSyncAt: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  accentColor?: string;
 };
 
 export default function DashboardPage() {
   const [sites, setSites] = useState<SiteData[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [editingProfile, setEditingProfile] = useState<SiteData | null>(null);
+
+  const handleSync = async (site: SiteData) => {
+    if (syncingId) return;
+    setSyncingId(site.id);
+    try {
+      const res = await fetch(`/api/pipeline/retry?siteId=${site.id}`, { method: "POST" });
+      if (res.ok) {
+        // Navigate to live progress so the user actually sees the rerun.
+        window.location.href = `/dashboard/build/${site.id}`;
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Sync failed.");
+        setSyncingId(null);
+      }
+    } catch {
+      alert("Network error.");
+      setSyncingId(null);
+    }
+  };
 
   useEffect(() => {
     async function loadSites() {
@@ -183,18 +207,22 @@ export default function DashboardPage() {
                           <path d="M7 17L17 7M17 7H9M17 7v8" />
                         </svg>
                       </Link>
-                      <Link
-                        href="/dashboard/platforms"
-                        className="h-9 px-4 bg-black/5 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:bg-black/10 transition"
+                      <button
+                        type="button"
+                        onClick={() => handleSync(site)}
+                        disabled={syncingId === site.id}
+                        className="h-9 px-4 bg-black/5 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:bg-black/10 disabled:opacity-50 transition"
+                        title="Re-pull latest posts from the source platform"
                       >
-                        Sync Now
-                      </Link>
-                      <Link
-                        href="/dashboard/domains"
+                        {syncingId === site.id ? "Starting…" : "Sync now"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingProfile(site)}
                         className="h-9 px-4 bg-black/5 rounded-lg text-xs font-semibold flex items-center hover:bg-black/10 transition"
                       >
-                        Settings
-                      </Link>
+                        Profile
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleDelete(site)}
@@ -235,6 +263,177 @@ export default function DashboardPage() {
             </div>
           )}
         </main>
+      </div>
+
+      {editingProfile && (
+        <SiteProfileModal
+          site={editingProfile}
+          onClose={() => setEditingProfile(null)}
+          onSaved={(updated) => {
+            setSites((all) => all.map((s) => (s.id === updated.id ? { ...s, ...updated } : s)));
+            setEditingProfile(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Per-site profile editor ──────────────────────────────────────────
+function SiteProfileModal({
+  site,
+  onClose,
+  onSaved,
+}: {
+  site: SiteData;
+  onClose: () => void;
+  onSaved: (s: SiteData) => void;
+}) {
+  const [displayName, setDisplayName] = useState(site.displayName || site.slug);
+  const [bio, setBio] = useState(site.bio || "");
+  const [avatarUrl, setAvatarUrl] = useState(site.avatarUrl || "");
+  const [accentColor, setAccentColor] = useState(site.accentColor || "#000000");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    if (saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/sites?id=${site.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          displayName: displayName.trim(),
+          bio: bio.trim() || null,
+          avatarUrl: avatarUrl.trim() || null,
+          accentColor: accentColor.trim().toLowerCase(),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || "Save failed");
+        return;
+      }
+      onSaved({
+        ...site,
+        displayName: displayName.trim(),
+        bio: bio.trim() || null,
+        avatarUrl: avatarUrl.trim() || null,
+        accentColor: accentColor.trim().toLowerCase(),
+      });
+    } catch {
+      setError("Network error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between mb-4">
+          <h2 className="text-lg font-bold">Edit site profile</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] text-xl leading-none"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <form onSubmit={save} className="space-y-4">
+          <div>
+            <label className="text-xs font-semibold mb-1.5 block">Display name</label>
+            <input
+              type="text"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              maxLength={256}
+              required
+              className="w-full h-10 px-3 bg-white border-2 border-[color:var(--border)] rounded-lg text-sm focus:outline-none focus:border-[color:var(--fg)] transition"
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold mb-1.5 block">Bio</label>
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              rows={3}
+              maxLength={500}
+              placeholder="One or two sentences shown under your name on the public directory."
+              className="w-full px-3 py-2 bg-white border-2 border-[color:var(--border)] rounded-lg text-sm focus:outline-none focus:border-[color:var(--fg)] transition resize-none"
+            />
+            <p className="text-[10px] text-[color:var(--fg-subtle)] mt-1 text-right">
+              {bio.length}/500
+            </p>
+          </div>
+          <div>
+            <label className="text-xs font-semibold mb-1.5 block">Avatar URL</label>
+            <input
+              type="url"
+              value={avatarUrl}
+              onChange={(e) => setAvatarUrl(e.target.value)}
+              placeholder="https://example.com/avatar.jpg"
+              className="w-full h-10 px-3 bg-white border-2 border-[color:var(--border)] rounded-lg text-sm focus:outline-none focus:border-[color:var(--fg)] transition"
+            />
+            <p className="text-[10px] text-[color:var(--fg-subtle)] mt-1">
+              Square image, ≥ 200×200. Leave blank to use platform avatar.
+            </p>
+          </div>
+          <div>
+            <label className="text-xs font-semibold mb-1.5 block">Accent color</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={accentColor}
+                onChange={(e) => setAccentColor(e.target.value)}
+                className="h-10 w-14 rounded-lg border-2 border-[color:var(--border)] cursor-pointer p-1"
+                aria-label="Pick accent color"
+              />
+              <input
+                type="text"
+                value={accentColor}
+                onChange={(e) => setAccentColor(e.target.value)}
+                pattern="^#[0-9a-fA-F]{6}$"
+                maxLength={7}
+                className="flex-1 h-10 px-3 bg-white border-2 border-[color:var(--border)] rounded-lg text-sm focus:outline-none focus:border-[color:var(--fg)] transition font-mono"
+              />
+            </div>
+          </div>
+          {error && (
+            <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {error}
+            </div>
+          )}
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-10 px-4 text-xs font-semibold border border-[color:var(--border)] rounded-lg hover:bg-black/5 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !displayName.trim()}
+              className="h-10 px-4 text-xs font-semibold bg-[color:var(--fg)] text-[color:var(--bg)] rounded-lg hover:opacity-90 transition disabled:opacity-50"
+            >
+              {saving ? "Saving…" : "Save profile"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

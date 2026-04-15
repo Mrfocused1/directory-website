@@ -29,6 +29,9 @@ export async function GET() {
         whiteLabelBrand: sites.whiteLabelBrand,
         whiteLabelUrl: sites.whiteLabelUrl,
         gridColumns: sites.gridColumns,
+        bio: sites.bio,
+        avatarUrl: sites.avatarUrl,
+        accentColor: sites.accentColor,
         postCount: sql<number>`cast(count(${posts.id}) as int)`,
       })
       .from(sites)
@@ -49,6 +52,9 @@ export async function GET() {
       whiteLabelBrand: row.whiteLabelBrand ?? null,
       whiteLabelUrl: row.whiteLabelUrl ?? null,
       gridColumns: (row.gridColumns === 2 ? 2 : 3) as 2 | 3,
+      bio: row.bio ?? null,
+      avatarUrl: row.avatarUrl ?? null,
+      accentColor: row.accentColor ?? "#000000",
     }));
 
     return NextResponse.json({ sites: result });
@@ -145,6 +151,48 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: "displayName too long" }, { status: 400 });
       }
       updates.displayName = v.trim();
+    }
+
+    if ("bio" in body) {
+      const v = body.bio;
+      if (v !== null && typeof v !== "string") {
+        return NextResponse.json({ error: "bio must be a string or null" }, { status: 400 });
+      }
+      if (typeof v === "string" && v.length > 500) {
+        return NextResponse.json({ error: "bio too long (max 500 chars)" }, { status: 400 });
+      }
+      updates.bio = v?.trim() || null;
+    }
+
+    if ("avatarUrl" in body) {
+      const v = body.avatarUrl;
+      if (v !== null && typeof v !== "string") {
+        return NextResponse.json({ error: "avatarUrl must be a string or null" }, { status: 400 });
+      }
+      if (typeof v === "string" && v.trim()) {
+        try {
+          const parsed = new URL(v.trim());
+          if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+            return NextResponse.json({ error: "avatarUrl must be http(s)" }, { status: 400 });
+          }
+          updates.avatarUrl = v.trim();
+        } catch {
+          return NextResponse.json({ error: "avatarUrl must be a valid URL" }, { status: 400 });
+        }
+      } else {
+        updates.avatarUrl = null;
+      }
+    }
+
+    if ("accentColor" in body) {
+      const v = body.accentColor;
+      if (typeof v !== "string" || !/^#[0-9a-fA-F]{6}$/.test(v)) {
+        return NextResponse.json(
+          { error: "accentColor must be a 6-digit hex like #1a2b3c" },
+          { status: 400 },
+        );
+      }
+      updates.accentColor = v.toLowerCase();
     }
 
     if ("newsletterFromName" in body) {

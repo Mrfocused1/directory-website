@@ -8,7 +8,7 @@
 
 import { db } from "@/db";
 import { sites, posts, pipelineJobs, users } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { scrapeProfile } from "./scraper";
 import { uploadThumbnail, uploadMedia } from "./storage";
 import { transcribeVideo } from "./transcriber";
@@ -76,6 +76,17 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     await report("transcribe", 10, "Uploading media...");
     await updateJob(siteId, "transcribe", "running", 10, "Uploading media...");
 
+    // For sortOrder of newly-inserted posts: append after any posts the
+    // creator already manually reordered. If we left sortOrder=0 (the
+    // column default) on every new insert, fresh posts would collide
+    // with all existing reordered ones at position 0 and the order
+    // would be ambiguous. Instead we start above the current max.
+    const [maxRow] = await database
+      .select({ max: sql<number>`coalesce(max(${posts.sortOrder}), -1)` })
+      .from(posts)
+      .where(eq(posts.siteId, siteId));
+    let nextSortOrder = (maxRow?.max ?? -1) + 1;
+
     // Insert posts into DB and upload media
     for (let i = 0; i < scrapedPosts.length; i++) {
       const p = scrapedPosts[i];
@@ -89,7 +100,7 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
       // Generate a title from caption (first line, max 80 chars)
       const title = (p.caption.split("\n")[0] || "Untitled").slice(0, 80);
 
-      await db.insert(posts).values({
+      await database.insert(posts).values({
         siteId,
         shortcode: p.shortcode,
         type: p.type,
@@ -102,6 +113,7 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
         numSlides: p.numSlides,
         platformUrl: p.platformUrl,
         isVisible: true,
+        sortOrder: nextSortOrder++,
       }).onConflictDoNothing();
 
       const pct = Math.round(10 + (i / scrapedPosts.length) * 30);
@@ -241,7 +253,6 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     if (canExtractReferences) {
       await report("references", 85, "Finding references...");
       try {
-        // Re-query with just what the extractor needs
         const refPosts = await database.query.posts.findMany({
           where: eq(posts.siteId, siteId),
           columns: { id: true, caption: true, transcript: true },
@@ -258,16 +269,31 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
             void report("references", pct, `Found references for ${done}/${total}`);
           },
         );
-        // Bulk-insert; skip dupes we may have from a retry
+
+        // Group new refs by post so we can do a clean wipe-then-insert
+        // per post. The references table has no natural unique key
+        // (kind+url+videoId can all repeat), so onConflictDoNothing
+        // doesn't dedupe — without this, every re-sync doubled the
+        // refs on every post.
+        const byPost = new Map<string, typeof rows>();
         for (const r of rows) {
-          await database.insert(referencesTable).values({
-            postId: r.postId,
-            kind: r.kind,
-            title: r.title,
-            url: r.url,
-            videoId: r.videoId,
-            note: r.note,
-          }).onConflictDoNothing();
+          if (!byPost.has(r.postId)) byPost.set(r.postId, []);
+          byPost.get(r.postId)!.push(r);
+        }
+        for (const [postId, postRows] of byPost) {
+          await database.delete(referencesTable).where(eq(referencesTable.postId, postId));
+          if (postRows.length > 0) {
+            await database.insert(referencesTable).values(
+              postRows.map((r) => ({
+                postId: r.postId,
+                kind: r.kind,
+                title: r.title,
+                url: r.url,
+                videoId: r.videoId,
+                note: r.note,
+              })),
+            );
+          }
         }
       } catch (err) {
         console.error("[runner] references step failed (non-fatal):", err);

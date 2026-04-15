@@ -52,21 +52,31 @@ export default function DashboardPage() {
     setSyncingId(site.id);
     try {
       const res = await fetch(`/api/pipeline/retry?siteId=${site.id}`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        // Navigate to live progress so the user actually sees the rerun.
-        window.location.href = `/dashboard/build/${site.id}`;
-      } else {
-        const data = await res.json().catch(() => ({}));
-        if (res.status === 403 && data.reason === "plan_feature_missing") {
-          alert("Sync is a Creator-plan feature. Upgrade from Account → Plan to enable syncing.");
-        } else if (res.status === 429 && data.reason === "quota_exceeded") {
-          alert(`You've used all ${data.limit} syncs this month. Resets on the 1st of next month.`);
-        } else {
-          alert(data.error || "Sync failed.");
+        if (data.cooldown) {
+          // Within the 1-hour cooldown — no quota burned, no work done.
+          // Keep the user on the dashboard with a friendly message instead
+          // of navigating them to an empty build page.
+          alert(
+            `${data.message}\n\nTry again in about ${data.minutesUntilNext} min.`,
+          );
+          setSyncingId(null);
+          return;
         }
-        setSyncingId(null);
-        refreshSyncStatus();
+        // Fresh sync accepted — navigate to live progress.
+        window.location.href = `/dashboard/build/${site.id}`;
+        return;
       }
+      if (res.status === 403 && data.reason === "plan_feature_missing") {
+        alert("Sync is a Creator-plan feature. Upgrade from Account → Plan to enable syncing.");
+      } else if (res.status === 429 && data.reason === "quota_exceeded") {
+        alert(`You've used all ${data.limit} syncs this month. Resets on the 1st of next month.`);
+      } else {
+        alert(data.error || "Sync failed.");
+      }
+      setSyncingId(null);
+      refreshSyncStatus();
     } catch {
       alert("Network error.");
       setSyncingId(null);

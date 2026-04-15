@@ -67,10 +67,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid siteId format" }, { status: 400 });
   }
 
-  // Ownership check
+  // Ownership check — also pull lastSyncAt so we can enforce a cooldown
+  // before spending an Apify scrape call. The cooldown saves ~$0.015 per
+  // double-click and doesn't consume the user's monthly quota.
   const site = await db.query.sites.findFirst({
     where: and(eq(sites.id, siteId), eq(sites.userId, user.id)),
-    columns: { id: true },
+    columns: { id: true, lastSyncAt: true },
   });
   if (!site) return NextResponse.json({ error: "Site not found" }, { status: 404 });
 
@@ -92,6 +94,25 @@ export async function POST(request: NextRequest) {
       { status: 403 },
     );
   }
+
+  // 1-hour cooldown. If the previous sync finished less than 60 minutes
+  // ago, return "already up to date" without calling Apify or consuming
+  // a quota slot. Instagram rarely adds more than 1 post in that window
+  // and every extra scrape is a flat $0.015 against our Apify budget.
+  const COOLDOWN_MS = 60 * 60 * 1000;
+  const lastSyncMs = site.lastSyncAt ? site.lastSyncAt.getTime() : 0;
+  const elapsed = Date.now() - lastSyncMs;
+  if (lastSyncMs > 0 && elapsed < COOLDOWN_MS) {
+    const minutesUntilNext = Math.ceil((COOLDOWN_MS - elapsed) / 60_000);
+    return NextResponse.json({
+      ok: true,
+      cooldown: true,
+      message: "Already up to date — Instagram rarely changes this fast.",
+      minutesUntilNext,
+      nextAvailableAt: new Date(lastSyncMs + COOLDOWN_MS).toISOString(),
+    });
+  }
+
   const used = await countSyncsThisMonth(user.id);
   if (used >= plan.monthlySyncs) {
     return NextResponse.json(

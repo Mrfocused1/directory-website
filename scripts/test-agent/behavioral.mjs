@@ -393,6 +393,67 @@ async function test_syncNowActuallySyncs(browser) {
   }
 }
 
+// ── test 4c: syncCooldownSkipsWork ───────────────────────────────────
+// Second sync within the 1-hour cooldown window must return ok=true
+// with cooldown=true, NOT consume Apify/quota, and NOT insert a new
+// pipeline_jobs scrape row.
+async function test_syncCooldownSkipsWork(browser) {
+  const u = await createThrowawayUser("sync-cd");
+  await sql`UPDATE users SET plan = 'creator' WHERE id = ${u.id}`;
+  let siteId = null;
+  const page = await newPage(browser);
+  try {
+    const slug = `qa-synccd-${Date.now().toString(36)}`;
+    const [siteRow] = await sql`
+      INSERT INTO sites (user_id, slug, platform, handle, display_name, is_published, last_sync_at)
+      VALUES (${u.id}, ${slug}, 'instagram', 'qa', 'QA CD', true, NOW())
+      RETURNING id
+    `;
+    siteId = siteRow.id;
+
+    await signInViaForm(page, u.email, u.password, "/dashboard");
+    const { status, body } = await page.evaluate(async (sid) => {
+      const r = await fetch(`/api/pipeline/retry?siteId=${sid}`, { method: "POST" });
+      return { status: r.status, body: await r.text() };
+    }, siteId);
+    if (status !== 200) {
+      return { pass: false, reason: `expected 200 cooldown, got ${status}: ${body.slice(0, 100)}` };
+    }
+    let parsed;
+    try { parsed = JSON.parse(body); } catch { return { pass: false, reason: "body not JSON" }; }
+    if (!parsed.cooldown) {
+      return { pass: false, reason: `expected cooldown=true (got ${JSON.stringify(parsed).slice(0, 120)})` };
+    }
+    if (typeof parsed.minutesUntilNext !== "number" || parsed.minutesUntilNext <= 0) {
+      return { pass: false, reason: `minutesUntilNext missing or invalid: ${parsed.minutesUntilNext}` };
+    }
+
+    // No Inngest event was dispatched because cooldown returned early.
+    // That means no *new* pipeline_jobs row for this site.
+    const [row] = await sql`SELECT COUNT(*)::int AS c FROM pipeline_jobs WHERE site_id = ${siteId}`;
+    if (row.c !== 0) {
+      return { pass: false, reason: `cooldown shouldn't insert a job row (found ${row.c})` };
+    }
+
+    // Roll lastSyncAt back 2 hours — cooldown should lift and a real
+    // sync proceeds (we just verify status here; the full retry flow
+    // is covered elsewhere).
+    await sql`UPDATE sites SET last_sync_at = NOW() - INTERVAL '2 hours' WHERE id = ${siteId}`;
+    const { status: second } = await page.evaluate(async (sid) => {
+      const r = await fetch(`/api/pipeline/retry?siteId=${sid}`, { method: "POST" });
+      return { status: r.status };
+    }, siteId);
+    if (second !== 200) {
+      return { pass: false, reason: `after cooldown lift expected 200, got ${second}` };
+    }
+    return { pass: true };
+  } finally {
+    await page.close();
+    if (siteId) { try { await sql`DELETE FROM sites WHERE id = ${siteId}`; } catch {} }
+    await deleteThrowawayUser(u.id);
+  }
+}
+
 // ── test 4b: syncBlockedOnFreePlan ───────────────────────────────────
 async function test_syncBlockedOnFreePlan(browser) {
   const u = await createThrowawayUser("sync-free");
@@ -2202,6 +2263,7 @@ async function main() {
     await run("liveSitesHaveContent", () => test_liveSitesHaveContent());
     await run("syncNowActuallySyncs", () => test_syncNowActuallySyncs(browser));
     await run("syncBlockedOnFreePlan", () => test_syncBlockedOnFreePlan(browser));
+    await run("syncCooldownSkipsWork", () => test_syncCooldownSkipsWork(browser));
     await run("dragReorderPersists", () => test_dragReorderPersists(browser));
     await run("profileEditorPersists", () => test_profileEditorPersists(browser));
     await run("mobileLayoutTogglePersists", () => test_mobileLayoutTogglePersists(browser));

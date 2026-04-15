@@ -110,6 +110,41 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const updates: Record<string, unknown> = {};
 
+    // handle + platform + displayName can be changed on an existing site.
+    // Used by the "Change handle & retry" flow when a build failed —
+    // lets the user point the site at a different handle without having
+    // to delete and hit the free-plan site limit.
+    if ("handle" in body) {
+      const v = body.handle;
+      if (typeof v !== "string" || !v.trim()) {
+        return NextResponse.json({ error: "handle must be a non-empty string" }, { status: 400 });
+      }
+      const clean = v.trim().replace(/^@/, "");
+      if (!/^[a-zA-Z0-9_.-]+$/.test(clean) || clean.length > 128) {
+        return NextResponse.json({ error: "Invalid handle format" }, { status: 400 });
+      }
+      updates.handle = clean;
+    }
+
+    if ("platform" in body) {
+      const v = body.platform;
+      if (!["instagram", "tiktok", "youtube"].includes(v)) {
+        return NextResponse.json({ error: "Invalid platform" }, { status: 400 });
+      }
+      updates.platform = v;
+    }
+
+    if ("displayName" in body) {
+      const v = body.displayName;
+      if (typeof v !== "string" || !v.trim()) {
+        return NextResponse.json({ error: "displayName must be a non-empty string" }, { status: 400 });
+      }
+      if (v.length > 256) {
+        return NextResponse.json({ error: "displayName too long" }, { status: 400 });
+      }
+      updates.displayName = v.trim();
+    }
+
     if ("newsletterFromName" in body) {
       const v = body.newsletterFromName;
       if (v !== null && typeof v !== "string") {

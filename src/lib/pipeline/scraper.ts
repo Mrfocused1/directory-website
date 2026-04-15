@@ -53,16 +53,30 @@ async function scrapeInstagram(handle: string, maxPosts: number): Promise<Scrape
 
   let items: Record<string, unknown>[] = [];
   try {
-    const run = await apify.actor("apify/instagram-profile-scraper").call({
-      usernames: [cleanHandle],
+    // apify/instagram-scraper with resultsType=posts returns actual posts.
+    // (apify/instagram-profile-scraper only returns profile metadata like
+    // bio and follower counts — no shortcodes, captions, or media URLs —
+    // which is why we were always ending up with empty scrape results.)
+    const run = await apify.actor("apify/instagram-scraper").call({
+      directUrls: [`https://www.instagram.com/${cleanHandle}/`],
+      resultsType: "posts",
       resultsLimit: maxPosts,
       addParentData: false,
     });
     const result = await apify.dataset(run.defaultDatasetId).listItems();
     items = result.items;
   } catch (error) {
-    console.error("[scraper] Apify Instagram error:", error);
-    throw new Error(`Failed to scrape Instagram profile @${cleanHandle}. Please check the handle and try again.`);
+    // Preserve Apify's underlying reason so the user isn't left with a
+    // generic "check the handle" when the real cause is a rate limit,
+    // private profile, actor timeout, etc.
+    const detail =
+      error instanceof Error && error.message
+        ? error.message
+        : String(error);
+    console.error("[scraper] Apify Instagram error:", detail);
+    throw new Error(
+      `Instagram scrape failed for @${cleanHandle}: ${detail.slice(0, 180)}`,
+    );
   }
 
   return items.map((item: Record<string, unknown>) => {
@@ -107,8 +121,14 @@ async function scrapeTikTok(handle: string, maxPosts: number): Promise<ScrapedPo
     const result = await apify.dataset(run.defaultDatasetId).listItems();
     items = result.items;
   } catch (error) {
-    console.error("[scraper] Apify TikTok error:", error);
-    throw new Error(`Failed to scrape TikTok profile @${cleanHandle}. Please check the handle and try again.`);
+    const detail =
+      error instanceof Error && error.message
+        ? error.message
+        : String(error);
+    console.error("[scraper] Apify TikTok error:", detail);
+    throw new Error(
+      `TikTok scrape failed for @${cleanHandle}: ${detail.slice(0, 180)}`,
+    );
   }
 
   return items.map((item: Record<string, unknown>) => {

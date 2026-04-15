@@ -48,7 +48,13 @@ function OnboardingContent() {
   };
 
   const [isBuilding, setIsBuilding] = useState(false);
-  const [currentSiteId, setCurrentSiteId] = useState<string | null>(null);
+  // If the user came here from a failed build via "Change handle & retry",
+  // we get the existing site id in the URL. We then PATCH that site with
+  // the new handle instead of POSTing a new one (which would hit the free
+  // plan's 1-site limit).
+  const [currentSiteId, setCurrentSiteId] = useState<string | null>(() =>
+    searchParams.get("existing"),
+  );
 
   const retryPipeline = async () => {
     if (!currentSiteId || isBuilding) return;
@@ -123,30 +129,67 @@ function OnboardingContent() {
     setStep("processing");
 
     try {
-      const res = await fetch("/api/pipeline", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          platform,
-          handle: handle.replace(/^@/, "").trim(),
-          slug,
-          displayName,
-        }),
-      });
+      const cleanHandle = handle.replace(/^@/, "").trim();
 
-      if (!res.ok) {
-        let errMsg = "Failed to start pipeline";
-        try {
-          const errData = await res.json();
-          if (errData?.error) errMsg = errData.error;
-        } catch {
-          // Response wasn't JSON — use generic message
+      // If the user is retrying with a new handle against an existing
+      // failed site, PATCH the site + kick off a pipeline retry instead
+      // of POSTing a new site (which would hit the siteLimit).
+      let siteId: string;
+      if (currentSiteId) {
+        const patchRes = await fetch(
+          `/api/sites?id=${encodeURIComponent(currentSiteId)}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              handle: cleanHandle,
+              platform,
+              displayName,
+            }),
+          },
+        );
+        if (!patchRes.ok) {
+          const data = await patchRes.json().catch(() => ({}));
+          throw new Error(data.error || "Failed to update site.");
         }
-        throw new Error(errMsg);
+        const retryRes = await fetch(
+          `/api/pipeline/retry?siteId=${encodeURIComponent(currentSiteId)}`,
+          { method: "POST" },
+        );
+        if (!retryRes.ok) {
+          const data = await retryRes.json().catch(() => ({}));
+          throw new Error(data.error || "Failed to restart pipeline.");
+        }
+        siteId = currentSiteId;
+      } else {
+        const res = await fetch("/api/pipeline", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            platform,
+            handle: cleanHandle,
+            slug,
+            displayName,
+          }),
+        });
+
+        if (!res.ok) {
+          let errMsg = "Failed to start pipeline";
+          try {
+            const errData = await res.json();
+            if (errData?.error) errMsg = errData.error;
+          } catch {
+            // Response wasn't JSON — use generic message
+          }
+          throw new Error(errMsg);
+        }
+
+        const data = await res.json();
+        siteId = data.siteId;
+        setCurrentSiteId(data.siteId);
       }
 
-      const data = await res.json();
-      setCurrentSiteId(data.siteId);
+      const data = { siteId };
 
       // Poll with exponential backoff: 2s → 4s → 8s → 10s (capped)
       let pollDelay = 2000;

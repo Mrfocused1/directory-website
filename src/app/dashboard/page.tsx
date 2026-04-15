@@ -163,22 +163,16 @@ export default function DashboardPage() {
                         end with ml-auto so it sits flush-right on mobile too. */}
                     <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                       {!site.isPublished && (
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            const res = await fetch(`/api/pipeline/retry?siteId=${site.id}`, { method: "POST" });
-                            if (res.ok) {
-                              alert("Pipeline restarted. Refresh in a minute.");
-                            } else {
-                              const data = await res.json().catch(() => ({}));
-                              alert(data.error || "Retry failed.");
-                            }
-                          }}
-                          className="h-9 px-4 bg-yellow-100 text-yellow-800 rounded-lg text-xs font-semibold hover:bg-yellow-200 transition"
-                          title="Re-run the build pipeline for this site"
+                        // Navigate to the live progress page. The page polls
+                        // /api/pipeline?siteId and will auto-retry on load if
+                        // the site is in a failed state — no more opaque alert().
+                        <Link
+                          href={`/dashboard/build/${site.id}`}
+                          className="h-9 px-4 bg-yellow-100 text-yellow-800 rounded-lg text-xs font-semibold flex items-center hover:bg-yellow-200 transition"
+                          title="View build progress / retry"
                         >
-                          Retry build
-                        </button>
+                          See progress
+                        </Link>
                       )}
                       <Link
                         href={`/${site.slug}`}

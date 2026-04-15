@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
-import Logo from "@/components/brand/Logo";
+import MarketingNav from "@/components/marketing/MarketingNav";
+import MarketingFooter from "@/components/marketing/MarketingFooter";
 
 export default function LoginPage() {
   return (
@@ -82,105 +83,102 @@ function LoginContent() {
   };
 
   return (
-    <div className="min-h-screen relative">
-      <div className="fixed inset-0 dotted-bg pointer-events-none" aria-hidden />
-      <div className="fixed inset-0 bg-gradient-to-br from-white/70 via-white/30 to-white/70 pointer-events-none" aria-hidden />
+    <div className="marketing-theme min-h-screen flex flex-col">
+      <div className="bg-[color:var(--bd-dark)] text-white">
+        <MarketingNav />
+      </div>
 
-      <div className="relative z-10">
-        <nav className="flex items-center justify-between px-6 sm:px-10 h-16 max-w-4xl mx-auto">
-          <Link href="/" aria-label="BuildMy.Directory home" className="flex items-center">
-            <Logo height={44} />
-          </Link>
-        </nav>
-
-        <main className="max-w-sm mx-auto px-6 pt-16 pb-20">
-          <h1 className="text-3xl font-extrabold tracking-tight mb-2 text-center">
-            {mode === "login" ? "Welcome back" : "Create your account"}
+      <main className="flex-1 bg-[color:var(--bd-cream)] py-16">
+        <div className="max-w-md mx-auto px-6">
+          <h1 className="font-display-tight text-[2.5rem] sm:text-[3.25rem] text-[color:var(--bd-dark)] text-center mb-3">
+            {mode === "login" ? "Welcome back." : "Create your account."}
           </h1>
-          <p className="text-[color:var(--fg-muted)] text-center mb-8">
+          <p className="text-[color:var(--bd-grey)] text-center mb-10 leading-relaxed">
             {mode === "login"
               ? "Sign in to manage your directories."
               : "Get started building your directory."}
           </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="email" className="text-sm font-semibold mb-1.5 block">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                className="w-full h-12 px-4 bg-white border-2 border-[color:var(--border)] rounded-xl text-sm font-medium placeholder:text-[color:var(--fg-subtle)] focus:outline-none focus:border-[color:var(--fg)] transition"
-                placeholder="you@example.com"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="text-sm font-semibold mb-1.5 block">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
-                minLength={6}
-                className="w-full h-12 px-4 bg-white border-2 border-[color:var(--border)] rounded-xl text-sm font-medium placeholder:text-[color:var(--fg-subtle)] focus:outline-none focus:border-[color:var(--fg)] transition"
-                placeholder={mode === "signup" ? "Min 6 characters" : "Your password"}
-              />
-            </div>
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
-                {error}
+          <div className="bg-white rounded-[1.25rem] p-6 sm:p-8">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label htmlFor="email" className="eyebrow text-[color:var(--bd-dark)] mb-2 block">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                  className="w-full h-12 px-5 bg-white border-2 border-[color:var(--bd-dark-faded)] rounded-full text-sm font-medium text-[color:var(--bd-dark)] placeholder:text-[color:var(--bd-grey)] focus:outline-none focus:border-[color:var(--bd-dark)] transition"
+                  placeholder="you@example.com"
+                />
               </div>
-            )}
 
-            {message && (
-              <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl px-4 py-3">
-                {message}
+              <div>
+                <label htmlFor="password" className="eyebrow text-[color:var(--bd-dark)] mb-2 block">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  minLength={6}
+                  className="w-full h-12 px-5 bg-white border-2 border-[color:var(--bd-dark-faded)] rounded-full text-sm font-medium text-[color:var(--bd-dark)] placeholder:text-[color:var(--bd-grey)] focus:outline-none focus:border-[color:var(--bd-dark)] transition"
+                  placeholder={mode === "signup" ? "Min 6 characters" : "Your password"}
+                />
               </div>
-            )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full h-12 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
-            >
-              {loading
-                ? "Loading..."
-                : mode === "login"
-                  ? "Sign in"
-                  : "Create account"}
-            </button>
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
+                  {error}
+                </div>
+              )}
 
-            {mode === "login" && (
-              <div className="text-center">
-                <Link
-                  href="/forgot-password"
-                  className="text-xs font-medium text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] hover:underline"
-                >
-                  Forgot your password?
-                </Link>
-              </div>
-            )}
-          </form>
+              {message && (
+                <div className="bg-[color:var(--bd-lime)]/30 border border-[color:var(--bd-lime)] text-[color:var(--bd-dark)] text-sm rounded-xl px-4 py-3">
+                  {message}
+                </div>
+              )}
 
-          <p className="text-center text-sm text-[color:var(--fg-muted)] mt-6">
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-12 bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] rounded-full text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
+              >
+                {loading
+                  ? "Loading..."
+                  : mode === "login"
+                    ? "Sign in"
+                    : "Create account"}
+              </button>
+
+              {mode === "login" && (
+                <div className="text-center">
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs font-medium text-[color:var(--bd-grey)] hover:text-[color:var(--bd-dark)] hover:underline"
+                  >
+                    Forgot your password?
+                  </Link>
+                </div>
+              )}
+            </form>
+          </div>
+
+          <p className="text-center text-sm text-[color:var(--bd-grey)] mt-6">
             {mode === "login" ? (
               <>
                 Don&apos;t have an account?{" "}
                 <button
                   type="button"
                   onClick={() => { setMode("signup"); setError(null); setMessage(null); }}
-                  className="font-semibold text-[color:var(--fg)] hover:underline"
+                  className="font-semibold text-[color:var(--bd-dark)] hover:underline"
                 >
                   Sign up
                 </button>
@@ -191,15 +189,17 @@ function LoginContent() {
                 <button
                   type="button"
                   onClick={() => { setMode("login"); setError(null); setMessage(null); }}
-                  className="font-semibold text-[color:var(--fg)] hover:underline"
+                  className="font-semibold text-[color:var(--bd-dark)] hover:underline"
                 >
                   Sign in
                 </button>
               </>
             )}
           </p>
-        </main>
-      </div>
+        </div>
+      </main>
+
+      <MarketingFooter />
     </div>
   );
 }

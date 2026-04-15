@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Logo from "@/components/brand/Logo";
+import MarketingNav from "@/components/marketing/MarketingNav";
+import MarketingFooter from "@/components/marketing/MarketingFooter";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -36,67 +37,68 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen relative">
-      <div className="fixed inset-0 dotted-bg pointer-events-none" aria-hidden />
-      <div className="fixed inset-0 bg-gradient-to-br from-white/70 via-white/30 to-white/70 pointer-events-none" aria-hidden />
-      <div className="relative z-10">
-        <nav className="flex items-center justify-between px-6 sm:px-10 h-16 max-w-4xl mx-auto">
-          <Link href="/" aria-label="BuildMy.Directory home" className="flex items-center">
-            <Logo height={44} />
-          </Link>
-        </nav>
-        <main className="max-w-sm mx-auto px-6 pt-16 pb-20">
-          <h1 className="text-3xl font-extrabold tracking-tight mb-2 text-center">
-            Reset password
+    <div className="marketing-theme min-h-screen flex flex-col">
+      <div className="bg-[color:var(--bd-dark)] text-white">
+        <MarketingNav />
+      </div>
+
+      <main className="flex-1 bg-[color:var(--bd-cream)] py-16">
+        <div className="max-w-md mx-auto px-6">
+          <h1 className="font-display-tight text-[2.5rem] sm:text-[3.25rem] text-[color:var(--bd-dark)] text-center mb-3">
+            Reset password.
           </h1>
-          <p className="text-[color:var(--fg-muted)] text-center mb-8">
+          <p className="text-[color:var(--bd-grey)] text-center mb-10 leading-relaxed">
             Enter the email you signed up with — we&apos;ll send a reset link.
           </p>
 
-          {sent ? (
-            <div className="bg-green-50 border border-green-200 text-green-800 text-sm rounded-xl px-4 py-4 text-center">
-              If an account exists for <strong>{email}</strong>, a reset link is on its way. Check your inbox (and spam).
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="email" className="text-sm font-semibold mb-1.5 block">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  className="w-full h-12 px-4 bg-white border-2 border-[color:var(--border)] rounded-xl text-sm font-medium placeholder:text-[color:var(--fg-subtle)] focus:outline-none focus:border-[color:var(--fg)] transition"
-                  placeholder="you@example.com"
-                />
+          <div className="bg-white rounded-[1.25rem] p-6 sm:p-8">
+            {sent ? (
+              <div className="bg-[color:var(--bd-lime)]/30 border border-[color:var(--bd-lime)] text-[color:var(--bd-dark)] text-sm rounded-xl px-4 py-4 text-center">
+                If an account exists for <strong>{email}</strong>, a reset link is on its way. Check your inbox (and spam).
               </div>
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
-                  {error}
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                  <label htmlFor="email" className="eyebrow text-[color:var(--bd-dark)] mb-2 block">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoComplete="email"
+                    className="w-full h-12 px-5 bg-white border-2 border-[color:var(--bd-dark-faded)] rounded-full text-sm font-medium text-[color:var(--bd-dark)] placeholder:text-[color:var(--bd-grey)] focus:outline-none focus:border-[color:var(--bd-dark)] transition"
+                    placeholder="you@example.com"
+                  />
                 </div>
-              )}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full h-12 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
-              >
-                {loading ? "Sending..." : "Send reset link"}
-              </button>
-            </form>
-          )}
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
+                    {error}
+                  </div>
+                )}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full h-12 bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] rounded-full text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
+                >
+                  {loading ? "Sending..." : "Send reset link"}
+                </button>
+              </form>
+            )}
+          </div>
 
-          <p className="text-center text-sm text-[color:var(--fg-muted)] mt-6">
+          <p className="text-center text-sm text-[color:var(--bd-grey)] mt-6">
             Remembered it?{" "}
-            <Link href="/login" className="font-semibold text-[color:var(--fg)] hover:underline">
+            <Link href="/login" className="font-semibold text-[color:var(--bd-dark)] hover:underline">
               Sign in
             </Link>
           </p>
-        </main>
-      </div>
+        </div>
+      </main>
+
+      <MarketingFooter />
     </div>
   );
 }

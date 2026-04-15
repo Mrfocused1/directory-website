@@ -13,13 +13,35 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://buildmy.directory";
+
+const DEFAULT_TITLE =
+  "BuildMy.Directory — Turn your content into a searchable directory";
+const DEFAULT_DESCRIPTION =
+  "Automatically build a beautiful, searchable directory from your Instagram or TikTok content. Transcriptions, references, categories — all done for you.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "BuildMy.Directory — Turn your content into a searchable directory",
+    default: DEFAULT_TITLE,
     template: "%s | BuildMy.Directory",
   },
-  description:
-    "Automatically build a beautiful, searchable directory from your Instagram or TikTok content. Transcriptions, references, categories — all done for you.",
+  description: DEFAULT_DESCRIPTION,
+  openGraph: {
+    type: "website",
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    url: SITE_URL,
+    siteName: "BuildMy.Directory",
+    images: [{ url: "/opengraph-image" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    images: ["/opengraph-image"],
+  },
 };
 
 export const viewport: Viewport = {

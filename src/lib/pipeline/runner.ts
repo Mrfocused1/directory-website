@@ -113,25 +113,61 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
       await report("transcribe", 40, "Transcribing videos...");
       await updateJob(siteId, "transcribe", "running", 40, "Transcribing videos...");
 
-      const videoPosts = scrapedPosts.filter((p) => p.type === "video" && p.mediaUrls[0]);
+      // Fetch the permanent Vercel Blob URLs from the DB. The Apify
+      // mediaUrls[0] is a signed Instagram CDN URL that often returns
+      // 403 to Deepgram (Deepgram's IP isn't on Instagram's whitelist
+      // and the signed token expires fast). The uploaded Blob URL is
+      // public and stable.
+      const videoPostRows = await database.query.posts.findMany({
+        where: eq(posts.siteId, siteId),
+        columns: { id: true, shortcode: true, type: true, mediaUrl: true },
+      });
+      const videoPosts = videoPostRows.filter(
+        (p) => p.type === "video" && p.mediaUrl,
+      );
       let transcribed = 0;
+      let transcribeErrors = 0;
 
       for (const vp of videoPosts) {
-        const result = await transcribeVideo(vp.mediaUrls[0]);
-        if (result.text) {
-          await database.update(posts)
-            .set({
-              transcript: result.text,
-              transcriptSegments: result.segments,
-            })
-            .where(and(eq(posts.siteId, siteId), eq(posts.shortcode, vp.shortcode)));
-          transcribed++;
+        try {
+          const result = await transcribeVideo(vp.mediaUrl as string);
+          if (result.text) {
+            await database
+              .update(posts)
+              .set({
+                transcript: result.text,
+                transcriptSegments: result.segments,
+              })
+              .where(eq(posts.id, vp.id));
+            transcribed++;
+          } else {
+            transcribeErrors++;
+            console.warn(
+              `[runner] transcription empty for ${vp.shortcode} (Deepgram returned no text)`,
+            );
+          }
+        } catch (err) {
+          transcribeErrors++;
+          console.error(
+            `[runner] transcription failed for ${vp.shortcode}:`,
+            err instanceof Error ? err.message : err,
+          );
         }
-        const pct = Math.round(40 + (transcribed / Math.max(videoPosts.length, 1)) * 20);
-        await report("transcribe", pct, `Transcribed ${transcribed}/${videoPosts.length} videos`);
+        const pct = Math.round(
+          40 + ((transcribed + transcribeErrors) / Math.max(videoPosts.length, 1)) * 20,
+        );
+        await report(
+          "transcribe",
+          pct,
+          `Transcribed ${transcribed}/${videoPosts.length} (${transcribeErrors} failed)`,
+        );
       }
 
-      await updateJob(siteId, "transcribe", "completed", 100, `Transcribed ${transcribed} videos`);
+      const summary =
+        transcribeErrors > 0
+          ? `Transcribed ${transcribed}/${videoPosts.length} videos (${transcribeErrors} failed)`
+          : `Transcribed ${transcribed} videos`;
+      await updateJob(siteId, "transcribe", "completed", 100, summary);
     } else {
       await report("transcribe", 60, "Skipping transcription (upgrade to Creator for this feature)");
       await updateJob(siteId, "transcribe", "completed", 100, "Transcription not available on Free plan");

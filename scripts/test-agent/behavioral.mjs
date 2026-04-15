@@ -1512,38 +1512,37 @@ async function test_idorDashboardRoutes(browser) {
 
 // ── test M2: rateLimitDocumented ─────────────────────────────────────
 async function test_rateLimitDocumented() {
-  // Fire 20 signups in parallel; if all return 200/400 (user-already-exists
-  // or validation) none get 429, that's documented as "rate-limiting is
-  // missing" — passes but reports the gap so it shows up in every run.
-  const payloads = Array.from({ length: 20 }, (_, i) => ({
-    email: `qa-rl-${Date.now().toString(36)}-${i}@example.com`,
-    password: "testpassword123",
+  // Fire 20 signup requests with DELIBERATELY INVALID payloads so the
+  // validator rejects with 400 before any Supabase user is created
+  // AND before Resend is called. Previously this test used valid
+  // payloads, which meant every run sent 20 confirmation emails —
+  // enough to blow the Resend daily quota (100/day) with just 5
+  // runs. Now each request costs zero Supabase users and zero emails.
+  //
+  // We lose the "did rate-limit hold for a real signup attempt"
+  // signal but gain the "is the endpoint reachable" + "does the same
+  // origin get throttled on a burst" signals, which is what the test
+  // actually checks.
+  const payloads = Array.from({ length: 20 }, () => ({
+    email: "not-an-email",     // fails regex
+    password: "x",              // fails length check
   }));
   const results = await Promise.all(
-    payloads.map((p) =>
+    payloads.map(() =>
       fetch(`${BASE}/api/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(p),
+        body: JSON.stringify(payloads[0]),
       }).then((r) => r.status).catch(() => 0),
     ),
   );
   const throttled = results.filter((s) => s === 429).length;
-  const ok = results.filter((s) => s === 200).length;
-  // Cleanup users we accidentally created
-  try {
-    const { data } = await admin.auth.admin.listUsers({ perPage: 200 });
-    const toDelete = data.users.filter((u) => u.email && /^qa-rl-/.test(u.email));
-    for (const u of toDelete) {
-      try { await sql`DELETE FROM users WHERE id = ${u.id}`; } catch {}
-      await admin.auth.admin.deleteUser(u.id);
-    }
-  } catch {}
+  const rejected = results.filter((s) => s === 400).length;
 
   if (throttled === 0) {
     return {
       pass: true,
-      reason: `NO RATE-LIMIT on /api/auth/signup (${ok}/20 returned 200). Consider adding Upstash Ratelimit.`,
+      reason: `NO RATE-LIMIT on /api/auth/signup (${rejected}/20 returned 400). Add Upstash Ratelimit when traffic warrants it.`,
     };
   }
   return { pass: true, reason: `rate-limited: ${throttled}/20 threw 429` };

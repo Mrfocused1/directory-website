@@ -230,8 +230,8 @@ export default function LandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-[color:var(--bd-dark-faded)]">
             <Stat label="Auto-scrape" accent="#d3fd74" big="5min" sub="From signup to published directory — typical." />
-            <Stat label="Per-post cost" accent="#b0b0fe" big="<1¢" sub="Transcription + categorization on your free tier." />
-            <Stat label="Syncs / month" accent="#ffc72d" big="500" sub="Agency tier. Your content stays fresh automatically." />
+            <Stat label="Searchable" accent="#b0b0fe" big="∞" sub="Every word you say on camera becomes indexable by Google." />
+            <Stat label="Manual work" accent="#ffc72d" big="0" sub="We scrape, transcribe, categorize and ship. You keep creating." />
           </div>
         </div>
       </section>

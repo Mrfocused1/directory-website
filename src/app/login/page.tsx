@@ -17,7 +17,18 @@ export default function LoginPage() {
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+
+  // Only allow same-origin relative redirects to avoid open-redirect attacks
+  const rawNext = searchParams.get("next");
+  const nextPath = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//")
+    ? rawNext
+    : "/dashboard";
+
+  // Users redirected here from /onboarding are almost certainly new — default
+  // to signup so they don't have to click "Sign up" first.
+  const [mode, setMode] = useState<"login" | "signup">(
+    nextPath.startsWith("/onboarding") ? "signup" : "login",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,11 +47,13 @@ function LoginContent() {
 
     try {
       if (mode === "signup") {
+        const callbackUrl = new URL(`${window.location.origin}/auth/callback`);
+        if (nextPath !== "/dashboard") callbackUrl.searchParams.set("next", nextPath);
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: callbackUrl.toString(),
           },
         });
         if (error) {
@@ -56,7 +69,7 @@ function LoginContent() {
         if (error) {
           setError(error.message);
         } else {
-          router.push("/dashboard");
+          router.push(nextPath);
           router.refresh();
         }
       }

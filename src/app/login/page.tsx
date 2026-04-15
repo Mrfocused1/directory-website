@@ -47,19 +47,19 @@ function LoginContent() {
 
     try {
       if (mode === "signup") {
-        const callbackUrl = new URL(`${window.location.origin}/auth/callback`);
-        if (nextPath !== "/dashboard") callbackUrl.searchParams.set("next", nextPath);
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: callbackUrl.toString(),
-          },
+        // Custom signup: /api/auth/signup creates the user via admin API and
+        // emails the confirmation link from hello@buildmy.directory via
+        // Resend (not Supabase's default sender).
+        const res = await fetch("/api/auth/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, next: nextPath }),
         });
-        if (error) {
-          setError(error.message);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setError(data.error || "Signup failed. Please try again.");
         } else {
-          setMessage("Check your email for a confirmation link.");
+          setMessage("Check your email for a confirmation link from hello@buildmy.directory.");
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({

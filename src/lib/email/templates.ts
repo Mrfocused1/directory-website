@@ -32,6 +32,58 @@ export function sanitizeFromName(name: string): string {
     .slice(0, 64);
 }
 
+/**
+ * Confirm-your-account email sent on signup. Delivered via Resend from
+ * hello@buildmy.directory (not Supabase's default sender). The URL inside
+ * is Supabase's own confirmation link generated via admin.generateLink,
+ * so clicking it still hands back a signed session just like the native
+ * flow would.
+ */
+export function signupConfirmEmail(opts: { confirmUrl: string }) {
+  return {
+    subject: "Confirm your BuildMy.Directory account",
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
+        <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 8px;">Welcome to BuildMy.Directory</h1>
+        <p style="color: #666; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
+          Click below to confirm your email and finish creating your account.
+        </p>
+        <a href="${escUrl(opts.confirmUrl)}" style="display: inline-block; background: #000; color: #fff; padding: 12px 32px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none;">
+          Confirm my email
+        </a>
+        <p style="color: #999; font-size: 12px; margin-top: 32px;">
+          If you didn't try to create an account, you can safely ignore this email.
+        </p>
+      </div>
+    `,
+  };
+}
+
+/**
+ * Password-reset email, also delivered via Resend from
+ * hello@buildmy.directory. URL is Supabase's recovery link from
+ * admin.generateLink({ type: 'recovery' }).
+ */
+export function passwordResetEmail(opts: { resetUrl: string }) {
+  return {
+    subject: "Reset your BuildMy.Directory password",
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
+        <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 8px;">Reset your password</h1>
+        <p style="color: #666; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
+          Click below to choose a new password. The link is valid for 1 hour.
+        </p>
+        <a href="${escUrl(opts.resetUrl)}" style="display: inline-block; background: #000; color: #fff; padding: 12px 32px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none;">
+          Reset my password
+        </a>
+        <p style="color: #999; font-size: 12px; margin-top: 32px;">
+          If you didn't request a password reset, you can safely ignore this email.
+        </p>
+      </div>
+    `,
+  };
+}
+
 export function verificationEmail(opts: {
   siteName: string;
   verifyUrl: string;

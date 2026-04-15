@@ -4,6 +4,7 @@ import { pipelineJobs, sites } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
 import { inngest } from "@/lib/inngest/client";
+import { ensureInngestRegistered } from "@/lib/inngest/sync";
 
 /**
  * POST /api/pipeline/retry?siteId=xxx
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest) {
     .where(and(eq(pipelineJobs.siteId, siteId), eq(pipelineJobs.status, "failed")));
 
   // Dispatch the pipeline again — the runner is idempotent per-step
+  await ensureInngestRegistered(request.nextUrl.origin);
   await inngest.send({ name: "pipeline/run", data: { siteId } });
 
   return NextResponse.json({ ok: true, message: "Pipeline restarted." });

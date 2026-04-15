@@ -146,6 +146,12 @@ export async function POST(request: NextRequest) {
       message: "Queued for processing",
     });
 
+    // Make sure Inngest Cloud knows about our function definitions for
+    // this deployment. Idempotent + memoized — only does real work on
+    // the first POST after a fresh deploy.
+    const { ensureInngestRegistered } = await import("@/lib/inngest/sync");
+    await ensureInngestRegistered(request.nextUrl.origin);
+
     // Trigger the background pipeline via Inngest
     await inngest.send({
       name: "pipeline/run",

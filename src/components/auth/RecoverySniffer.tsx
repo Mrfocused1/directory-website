@@ -29,15 +29,28 @@ export default function RecoverySniffer() {
   const pathname = usePathname();
 
   useEffect(() => {
-    // If we're already on the reset page (Supabase honored redirect_to),
-    // the page itself handles the event. Skip the sniffer to avoid a
-    // double-route / loop.
+    // If we're already on the reset page the page itself handles the
+    // hash. Skip to avoid a double-route / loop.
     if (pathname?.startsWith("/auth/reset")) return;
 
+    // Inspect the URL hash synchronously. @supabase/ssr's browser client
+    // is PKCE-only and does NOT auto-parse implicit-flow hash tokens, so
+    // onAuthStateChange never fires PASSWORD_RECOVERY. Detect the tokens
+    // ourselves and forward to /auth/reset with the hash intact — the
+    // reset page knows how to setSession() from the hash.
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash || "";
+    if (hash.includes("type=recovery") && hash.includes("access_token=")) {
+      router.replace(`/auth/reset${hash}`);
+      return;
+    }
+
+    // Defensive: also subscribe in case a future @supabase/ssr version
+    // starts auto-parsing hashes and firing PASSWORD_RECOVERY as documented.
     const supabase = createClient();
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
-        router.replace("/auth/reset");
+        router.replace(`/auth/reset${window.location.hash || ""}`);
       }
     });
     return () => sub.subscription.unsubscribe();

@@ -186,6 +186,51 @@ async function test_titleNotDoubled(browser) {
   }
 }
 
+// ── test 2b: passwordResetSnifferHomepageFallback ────────────────────
+// Covers the real-world failure where Supabase's URL allowlist doesn't
+// include /auth/reset, so the email link lands on the bare homepage
+// with #access_token=...&type=recovery. RecoverySniffer must detect
+// the hash and forward to /auth/reset with it intact.
+async function test_passwordResetSnifferHomepageFallback(browser) {
+  const u = await createThrowawayUser("sniff");
+  const page = await newPage(browser);
+  try {
+    const { data, error } = await admin.auth.admin.generateLink({
+      type: "recovery",
+      email: u.email,
+      options: { redirectTo: BASE },
+    });
+    if (error || !data?.properties?.action_link) {
+      return { pass: false, reason: `generateLink: ${error?.message || "no link"}` };
+    }
+    await page.goto(data.properties.action_link, { waitUntil: "networkidle2", timeout: 20000 });
+    // Expect: Supabase redirects to / with hash → RecoverySniffer
+    // forwards to /auth/reset, hash is preserved, form renders.
+    const formReady = await page
+      .waitForFunction(
+        () => {
+          if (!window.location.pathname.startsWith("/auth/reset")) return false;
+          const h1 = document.querySelector("h1")?.textContent || "";
+          const labels = [...document.querySelectorAll("label")].map((l) => l.textContent || "").join(" ");
+          return /set a new password/i.test(h1) && /new password/i.test(labels);
+        },
+        { timeout: 12000, polling: 400 },
+      )
+      .then(() => true)
+      .catch(() => false);
+    if (!formReady) {
+      return {
+        pass: false,
+        reason: `after homepage fallback, form did not render (final: ${page.url().slice(0, 120)})`,
+      };
+    }
+    return { pass: true };
+  } finally {
+    await page.close();
+    await deleteThrowawayUser(u.id);
+  }
+}
+
 // ── test 2: passwordResetLandsOnReset ────────────────────────────────
 async function test_passwordResetLandsOnReset(browser) {
   const u = await createThrowawayUser("reset");
@@ -2086,6 +2131,7 @@ async function main() {
   try {
     await run("titleNotDoubled", () => test_titleNotDoubled(browser));
     await run("passwordResetLandsOnReset", () => test_passwordResetLandsOnReset(browser));
+    await run("passwordResetSnifferHomepageFallback", () => test_passwordResetSnifferHomepageFallback(browser));
     await run("liveSitesHaveContent", () => test_liveSitesHaveContent());
     await run("syncNowActuallySyncs", () => test_syncNowActuallySyncs(browser));
     await run("dragReorderPersists", () => test_dragReorderPersists(browser));

@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import Link from "next/link";
-import Logo from "@/components/brand/Logo";
+import MarketingNav from "@/components/marketing/MarketingNav";
+import MarketingFooter from "@/components/marketing/MarketingFooter";
 
 type Step = "handle" | "customize" | "processing" | "done";
 
@@ -255,28 +256,13 @@ function OnboardingContent() {
   };
 
   return (
-    <div className="min-h-screen relative">
-      <div className="fixed inset-0 dotted-bg pointer-events-none" aria-hidden />
-      <div className="fixed inset-0 bg-gradient-to-br from-white/70 via-white/30 to-white/70 pointer-events-none" aria-hidden />
+    <div className="marketing-theme min-h-screen flex flex-col">
+      <div className="bg-[color:var(--bd-dark)] text-white">
+        <MarketingNav />
+      </div>
 
-      <div className="relative z-10">
-        {/* Nav */}
-        <nav className="flex items-center justify-between px-6 sm:px-10 h-16 max-w-4xl mx-auto">
-          <Link href="/" aria-label="BuildMy.Directory home" className="flex items-center">
-            <Logo height={44} />
-          </Link>
-          <Link
-            href="/"
-            className="text-sm font-medium text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] transition flex items-center gap-1.5"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-            Back to home
-          </Link>
-        </nav>
-
-        <main className="max-w-xl mx-auto px-6 pt-10 pb-20">
+      <main className="flex-1 bg-[color:var(--bd-cream)] py-16">
+        <div className="max-w-xl mx-auto px-6">
           {/* Steps indicator */}
           <div className="flex items-center gap-2 mb-10">
             {(["handle", "customize", "processing"] as const).map((s, i) => (
@@ -284,10 +270,10 @@ function OnboardingContent() {
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition ${
                     step === s || (step === "done" && s === "processing")
-                      ? "bg-[color:var(--fg)] text-[color:var(--bg)]"
+                      ? "bg-[color:var(--bd-dark)] text-[color:var(--bd-lime)]"
                       : i < ["handle", "customize", "processing"].indexOf(step)
-                        ? "bg-green-500 text-white"
-                        : "bg-black/10 text-[color:var(--fg-muted)]"
+                        ? "bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)]"
+                        : "bg-[color:var(--bd-dark-faded)] text-[color:var(--bd-grey)]"
                   }`}
                 >
                   {i < ["handle", "customize", "processing", "done"].indexOf(step) ? (
@@ -298,7 +284,7 @@ function OnboardingContent() {
                     i + 1
                   )}
                 </div>
-                {i < 2 && <div className="w-12 h-0.5 bg-black/10 rounded-full" />}
+                {i < 2 && <div className="w-12 h-0.5 bg-[color:var(--bd-dark-faded)] rounded-full" />}
               </div>
             ))}
           </div>
@@ -306,27 +292,29 @@ function OnboardingContent() {
           {/* Step: Enter handle */}
           {step === "handle" && (
             <div className="animate-fade-in">
-              <h1 className="text-3xl font-extrabold tracking-tight mb-2">
-                Let&apos;s build your directory
+              <h1 className="font-display-tight text-[2.5rem] sm:text-[3.25rem] text-[color:var(--bd-dark)] mb-3">
+                Let&apos;s build
+                <br />
+                your directory.
               </h1>
-              <p className="text-[color:var(--fg-muted)] mb-8">
+              <p className="text-[color:var(--bd-grey)] mb-10 leading-relaxed">
                 Enter your social media handle and we&apos;ll do the rest.
               </p>
 
               <form onSubmit={handleSubmitHandle} className="space-y-6">
                 {/* Platform selector */}
                 <div>
-                  <label className="text-sm font-semibold mb-2 block">Platform</label>
-                  <div className="flex gap-2">
+                  <label className="eyebrow text-[color:var(--bd-dark)] mb-3">Platform</label>
+                  <div className="flex gap-2 mt-2">
                     {(["instagram", "tiktok"] as const).map((p) => (
                       <button
                         key={p}
                         type="button"
                         onClick={() => setPlatform(p)}
-                        className={`flex-1 h-12 rounded-xl text-sm font-semibold border-2 transition ${
+                        className={`flex-1 h-12 rounded-full text-sm font-semibold border-2 transition ${
                           platform === p
-                            ? "border-[color:var(--fg)] bg-[color:var(--fg)] text-[color:var(--bg)]"
-                            : "border-[color:var(--border)] bg-white hover:border-[color:var(--fg-muted)]"
+                            ? "border-[color:var(--bd-dark)] bg-[color:var(--bd-dark)] text-[color:var(--bd-lime)]"
+                            : "border-[color:var(--bd-dark-faded)] bg-white text-[color:var(--bd-dark)] hover:border-[color:var(--bd-dark)]"
                         }`}
                       >
                         {p === "instagram" ? "Instagram" : "TikTok"}
@@ -337,11 +325,11 @@ function OnboardingContent() {
 
                 {/* Handle input */}
                 <div>
-                  <label htmlFor="handle" className="text-sm font-semibold mb-2 block">
+                  <label htmlFor="handle" className="eyebrow text-[color:var(--bd-dark)] mb-3">
                     Your handle
                   </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--fg-subtle)] text-base font-medium">
+                  <div className="relative mt-2">
+                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[color:var(--bd-grey)] text-base font-medium">
                       @
                     </span>
                     <input
@@ -351,14 +339,14 @@ function OnboardingContent() {
                       onChange={(e) => setHandle(e.target.value)}
                       placeholder="yourhandle"
                       required
-                      className="w-full h-14 pl-9 pr-4 bg-white border-2 border-[color:var(--border)] rounded-xl text-lg font-medium placeholder:text-[color:var(--fg-subtle)] focus:outline-none focus:border-[color:var(--fg)] transition"
+                      className="w-full h-14 pl-10 pr-4 bg-white border-2 border-[color:var(--bd-dark-faded)] rounded-full text-lg font-medium placeholder:text-[color:var(--bd-grey)] focus:outline-none focus:border-[color:var(--bd-dark)] transition"
                     />
                   </div>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full h-14 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-base font-semibold hover:opacity-90 transition"
+                  className="w-full h-14 bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] rounded-full text-base font-semibold hover:opacity-90 transition"
                 >
                   Continue
                 </button>
@@ -369,20 +357,22 @@ function OnboardingContent() {
           {/* Step: Customize */}
           {step === "customize" && (
             <div className="animate-fade-in">
-              <h1 className="text-3xl font-extrabold tracking-tight mb-2">
-                Customize your directory
+              <h1 className="font-display-tight text-[2.5rem] sm:text-[3.25rem] text-[color:var(--bd-dark)] mb-3">
+                Customize
+                <br />
+                your directory.
               </h1>
-              <p className="text-[color:var(--fg-muted)] mb-8">
+              <p className="text-[color:var(--bd-grey)] mb-10 leading-relaxed">
                 Choose your URL and display name.
               </p>
 
               <form onSubmit={handleStartBuild} className="space-y-6">
                 <div>
-                  <label htmlFor="slug" className="text-sm font-semibold mb-2 block">
+                  <label htmlFor="slug" className="eyebrow text-[color:var(--bd-dark)] mb-3">
                     Your URL
                   </label>
-                  <div className="flex items-center gap-0">
-                    <span className="h-14 px-4 bg-black/5 border-2 border-r-0 border-[color:var(--border)] rounded-l-xl text-sm font-medium text-[color:var(--fg-muted)] flex items-center whitespace-nowrap">
+                  <div className="flex items-center gap-0 mt-2">
+                    <span className="h-14 px-5 bg-[color:var(--bd-cream-2)] border-2 border-r-0 border-[color:var(--bd-dark-faded)] rounded-l-full text-sm font-medium text-[color:var(--bd-grey)] flex items-center whitespace-nowrap">
                       buildmy.directory/
                     </span>
                     <input
@@ -391,13 +381,13 @@ function OnboardingContent() {
                       value={slug}
                       onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
                       required
-                      className="flex-1 h-14 px-4 bg-white border-2 border-l-0 border-[color:var(--border)] rounded-r-xl text-lg font-medium focus:outline-none focus:border-[color:var(--fg)] transition"
+                      className="flex-1 h-14 px-4 bg-white border-2 border-l-0 border-[color:var(--bd-dark-faded)] rounded-r-full text-lg font-medium text-[color:var(--bd-dark)] focus:outline-none focus:border-[color:var(--bd-dark)] transition"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label htmlFor="displayName" className="text-sm font-semibold mb-2 block">
+                  <label htmlFor="displayName" className="eyebrow text-[color:var(--bd-dark)] mb-3">
                     Display name
                   </label>
                   <input
@@ -407,25 +397,31 @@ function OnboardingContent() {
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="Your Directory"
                     required
-                    className="w-full h-14 px-4 bg-white border-2 border-[color:var(--border)] rounded-xl text-lg font-medium placeholder:text-[color:var(--fg-subtle)] focus:outline-none focus:border-[color:var(--fg)] transition"
+                    className="w-full h-14 px-5 mt-2 bg-white border-2 border-[color:var(--bd-dark-faded)] rounded-full text-lg font-medium text-[color:var(--bd-dark)] placeholder:text-[color:var(--bd-grey)] focus:outline-none focus:border-[color:var(--bd-dark)] transition"
                   />
                 </div>
 
                 {/* Preview */}
-                <div className="bg-white border-2 border-[color:var(--border)] rounded-2xl p-6">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-[color:var(--fg-subtle)] mb-3">
+                <div className="bg-white rounded-[1.25rem] p-6">
+                  <p className="eyebrow text-[color:var(--bd-dark)] mb-4">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--bd-lime)]" />
                     Preview
                   </p>
                   <div className="text-center">
-                    <h2 className="text-xl font-extrabold tracking-tight uppercase">
+                    <h2 className="font-display-tight text-2xl text-[color:var(--bd-dark)]">
                       {displayName || "Your Directory"}
                     </h2>
-                    <p className="text-xs text-[color:var(--fg-muted)] mt-1">
+                    <p className="text-xs text-[color:var(--bd-grey)] mt-1">
                       @{handle.replace(/^@/, "") || "handle"} on {platform}
                     </p>
                     <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="aspect-[4/5] bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg" />
+                      {[
+                        "var(--bd-maroon)",
+                        "var(--bd-lilac)",
+                        "var(--bd-lime)",
+                        "var(--bd-green)",
+                      ].map((bg, i) => (
+                        <div key={i} className="aspect-[4/5] rounded-lg" style={{ backgroundColor: bg }} />
                       ))}
                     </div>
                   </div>
@@ -435,13 +431,13 @@ function OnboardingContent() {
                   <button
                     type="button"
                     onClick={() => setStep("handle")}
-                    className="flex-1 h-14 border-2 border-[color:var(--border)] rounded-xl text-base font-semibold hover:bg-black/5 transition"
+                    className="flex-1 h-14 border-2 border-[color:var(--bd-dark-faded)] rounded-full text-base font-semibold text-[color:var(--bd-dark)] hover:bg-white transition"
                   >
                     Back
                   </button>
                   <button
                     type="submit"
-                    className="flex-[2] h-14 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-base font-semibold hover:opacity-90 transition"
+                    className="flex-[2] h-14 bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] rounded-full text-base font-semibold hover:opacity-90 transition"
                   >
                     Build My Directory
                   </button>
@@ -452,21 +448,23 @@ function OnboardingContent() {
 
           {/* Step: Processing */}
           {step === "processing" && (
-            <div className="animate-fade-in text-center pt-10">
-              <div className="w-16 h-16 rounded-full bg-[color:var(--fg)] text-[color:var(--bg)] flex items-center justify-center mx-auto mb-6">
+            <div className="animate-fade-in text-center pt-6">
+              <div className="w-16 h-16 rounded-full bg-[color:var(--bd-dark)] text-[color:var(--bd-lime)] flex items-center justify-center mx-auto mb-6">
                 <svg className="animate-spin" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                 </svg>
               </div>
-              <h1 className="text-3xl font-extrabold tracking-tight mb-2">
-                Building your directory
+              <h1 className="font-display-tight text-[2.5rem] sm:text-[3.25rem] text-[color:var(--bd-dark)] mb-3">
+                Building your
+                <br />
+                directory.
               </h1>
-              <p className="text-[color:var(--fg-muted)] mb-10">
+              <p className="text-[color:var(--bd-grey)] mb-10 leading-relaxed">
                 This usually takes 2-5 minutes depending on how much content you have.
               </p>
 
               {/* Pipeline steps */}
-              <div className="max-w-sm mx-auto space-y-4 text-left">
+              <div className="max-w-sm mx-auto space-y-4 text-left bg-white rounded-2xl p-6">
                 {[
                   { key: "scrape", label: "Scraping your content" },
                   { key: "transcribe", label: "Transcribing videos" },
@@ -484,10 +482,10 @@ function OnboardingContent() {
                       <div
                         className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
                           isDone
-                            ? "bg-green-500 text-white"
+                            ? "bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)]"
                             : isCurrent
-                              ? "bg-[color:var(--fg)] text-[color:var(--bg)]"
-                              : "bg-black/10"
+                              ? "bg-[color:var(--bd-dark)] text-[color:var(--bd-lime)]"
+                              : "bg-[color:var(--bd-dark-faded)]"
                         }`}
                       >
                         {isDone ? (
@@ -503,10 +501,10 @@ function OnboardingContent() {
                       <span
                         className={`text-sm font-medium ${
                           isDone
-                            ? "text-green-600"
+                            ? "text-[color:var(--bd-dark)]"
                             : isCurrent
-                              ? "text-[color:var(--fg)]"
-                              : "text-[color:var(--fg-subtle)]"
+                              ? "text-[color:var(--bd-dark)] font-semibold"
+                              : "text-[color:var(--bd-grey)]"
                         }`}
                       >
                         {s.label}
@@ -517,14 +515,14 @@ function OnboardingContent() {
               </div>
 
               {/* Progress bar */}
-              <div className="max-w-sm mx-auto mt-8">
-                <div className="h-2 bg-black/10 rounded-full overflow-hidden">
+              <div className="max-w-sm mx-auto mt-6">
+                <div className="h-2 bg-[color:var(--bd-dark-faded)] rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-[color:var(--fg)] rounded-full transition-all duration-500"
+                    className="h-full bg-[color:var(--bd-dark)] rounded-full transition-all duration-500"
                     style={{ width: `${pipelineStatus.progress}%` }}
                   />
                 </div>
-                <p className="text-xs text-[color:var(--fg-subtle)] mt-2">
+                <p className="text-xs text-[color:var(--bd-grey)] mt-2">
                   {pipelineStatus.message}
                 </p>
               </div>
@@ -539,7 +537,7 @@ function OnboardingContent() {
                       setPipelineStatus({ step: "scrape", progress: 0, message: "Starting..." });
                       setStep("customize");
                     }}
-                    className="flex-1 h-12 border-2 border-[color:var(--border)] rounded-xl text-sm font-semibold hover:bg-black/5 transition"
+                    className="flex-1 h-12 border-2 border-[color:var(--bd-dark-faded)] rounded-full text-sm font-semibold text-[color:var(--bd-dark)] hover:bg-white transition"
                   >
                     Go Back
                   </button>
@@ -547,7 +545,6 @@ function OnboardingContent() {
                     type="button"
                     onClick={() => {
                       if (currentSiteId) {
-                        // True retry — reuse the same site, just re-run the pipeline
                         void retryPipeline();
                       } else {
                         setIsBuilding(false);
@@ -555,7 +552,7 @@ function OnboardingContent() {
                         handleStartBuild({ preventDefault: () => {} } as React.FormEvent);
                       }
                     }}
-                    className="flex-1 h-12 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold hover:opacity-90 transition"
+                    className="flex-1 h-12 bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] rounded-full text-sm font-semibold hover:opacity-90 transition"
                   >
                     Try Again
                   </button>
@@ -566,21 +563,23 @@ function OnboardingContent() {
 
           {/* Step: Done */}
           {step === "done" && (
-            <div className="animate-fade-in text-center pt-10">
-              <div className="w-16 h-16 rounded-full bg-green-500 text-white flex items-center justify-center mx-auto mb-6">
+            <div className="animate-fade-in text-center pt-6">
+              <div className="w-16 h-16 rounded-full bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] flex items-center justify-center mx-auto mb-6">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20 6L9 17l-5-5" />
                 </svg>
               </div>
-              <h1 className="text-3xl font-extrabold tracking-tight mb-2">
-                Your directory is live!
+              <h1 className="font-display-tight text-[2.5rem] sm:text-[3.25rem] text-[color:var(--bd-dark)] mb-3">
+                Your directory
+                <br />
+                is live.
               </h1>
-              <p className="text-[color:var(--fg-muted)] mb-8">
+              <p className="text-[color:var(--bd-grey)] mb-8 leading-relaxed">
                 Share it with your audience.
               </p>
 
-              <div className="bg-white border-2 border-[color:var(--border)] rounded-2xl p-6 mb-6 max-w-sm mx-auto">
-                <p className="text-sm font-mono font-semibold">
+              <div className="bg-white rounded-2xl p-6 mb-6 max-w-sm mx-auto">
+                <p className="text-sm font-mono font-semibold text-[color:var(--bd-dark)]">
                   buildmy.directory/{slug}
                 </p>
               </div>
@@ -588,33 +587,23 @@ function OnboardingContent() {
               <div className="flex flex-col sm:flex-row gap-3 max-w-sm mx-auto">
                 <Link
                   href={`/${slug}`}
-                  className="flex-1 h-12 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold flex items-center justify-center hover:opacity-90 transition"
+                  className="flex-1 h-12 bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] rounded-full text-sm font-semibold flex items-center justify-center hover:opacity-90 transition"
                 >
                   View Directory
                 </Link>
                 <Link
                   href="/dashboard"
-                  className="flex-1 h-12 border-2 border-[color:var(--border)] rounded-xl text-sm font-semibold flex items-center justify-center hover:bg-black/5 transition"
+                  className="flex-1 h-12 border-2 border-[color:var(--bd-dark-faded)] rounded-full text-sm font-semibold flex items-center justify-center text-[color:var(--bd-dark)] hover:bg-white transition"
                 >
                   Go to Dashboard
                 </Link>
               </div>
             </div>
           )}
-        </main>
+        </div>
+      </main>
 
-        {/* Footer */}
-        <footer className="border-t border-[color:var(--border)] py-8 px-6">
-          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-            <span className="inline-flex">
-              <Logo height={32} />
-            </span>
-            <p className="text-xs text-[color:var(--fg-subtle)]">
-              Built for creators who want their content to live beyond the feed.
-            </p>
-          </div>
-        </footer>
-      </div>
+      <MarketingFooter />
     </div>
   );
 }

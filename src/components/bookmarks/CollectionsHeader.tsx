@@ -28,7 +28,7 @@ export default function CollectionsHeader({ tenantSlug }: { tenantSlug: string }
   return (
     <div className="flex items-center justify-center gap-3 mt-3">
       <a
-        href={`/d/${tenantSlug}/collections`}
+        href={`/${tenantSlug}/collections`}
         className="inline-flex items-center gap-1.5 text-xs font-semibold text-[color:var(--fg)] bg-black/5 hover:bg-black/10 px-3 py-1.5 rounded-full transition"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="0">

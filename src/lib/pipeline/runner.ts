@@ -216,7 +216,7 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
           const postCount = scrapedPosts.length;
           const template = pipelineCompleteNotification({
             siteName: site.displayName || site.slug,
-            siteUrl: `${publicOrigin}/d/${site.slug}`,
+            siteUrl: `${publicOrigin}/${site.slug}`,
             postCount,
           });
           await resend.emails.send({

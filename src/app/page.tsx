@@ -57,7 +57,7 @@ const FEATURES = [
       </svg>
     ),
     title: "Custom Domain",
-    desc: "Get yourname.buildmy.directory or connect your own custom domain.",
+    desc: "Get buildmy.directory/yourname or connect your own custom domain.",
   },
 ];
 
@@ -68,12 +68,11 @@ const PRICING = [
     period: "",
     features: [
       "1 directory site",
-      "Up to 50 posts",
+      "Up to 9 posts",
       "1 platform (Instagram or TikTok)",
       "AI transcription",
       "Auto-categorization",
-      "yourname.buildmy.directory subdomain",
-      "Basic analytics",
+      "buildmy.directory/yourname URL",
     ],
     cta: "Start Free",
     planId: null as string | null,
@@ -92,7 +91,7 @@ const PRICING = [
       "Email newsletter & subscribers",
       "Content request board",
       "Visitor bookmark collections",
-      "yourname.buildmy.directory subdomain",
+      "buildmy.directory/yourname URL",
     ],
     cta: "Get Started",
     planId: "creator" as string | null,
@@ -223,7 +222,7 @@ export default function LandingPage() {
               </div>
               <div className="flex-1 flex justify-center">
                 <div className="text-xs text-[color:var(--fg-subtle)] bg-black/5 px-4 py-1 rounded-md font-mono">
-                  yourname.buildmy.directory
+                  buildmy.directory/yourname
                 </div>
               </div>
             </div>

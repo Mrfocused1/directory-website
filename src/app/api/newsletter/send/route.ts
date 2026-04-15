@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     }
 
     const origin = request.nextUrl.origin;
-    const siteUrl = `${origin}/d/${site.slug}`;
+    const siteUrl = `${origin}/${site.slug}`;
     const siteName = site.displayName || site.slug;
 
     // Send to each subscriber
@@ -98,8 +98,8 @@ export async function POST(request: NextRequest) {
     const errors: string[] = [];
 
     for (const sub of activeSubscribers) {
-      const unsubscribeUrl = `${origin}/d/${site.slug}/unsubscribe?token=${sub.unsubscribeToken}`;
-      const preferencesUrl = `${origin}/d/${site.slug}/preferences?token=${sub.unsubscribeToken}`;
+      const unsubscribeUrl = `${origin}/${site.slug}/unsubscribe?token=${sub.unsubscribeToken}`;
+      const preferencesUrl = `${origin}/${site.slug}/preferences?token=${sub.unsubscribeToken}`;
       const template = digestEmail({
         siteName,
         siteUrl,

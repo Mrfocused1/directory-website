@@ -113,7 +113,7 @@ export default function CollectionsPage() {
               Save posts to collections by clicking the bookmark icon. Sign in with your email to get started.
             </p>
             <a
-              href={`/d/${tenant}`}
+              href={`/${tenant}`}
               className="inline-flex h-12 px-8 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold items-center hover:opacity-90 transition"
             >
               Browse Directory
@@ -133,7 +133,7 @@ export default function CollectionsPage() {
         <main className="container mx-auto px-4 sm:px-6 pt-8 sm:pt-10 pb-20 max-w-3xl">
           {/* Header */}
           <header className="text-center mb-8 animate-fade-in">
-            <a href={`/d/${tenant}`} className="text-xs font-semibold text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] transition">
+            <a href={`/${tenant}`} className="text-xs font-semibold text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] transition">
               &larr; Back to directory
             </a>
             <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight mt-3 mb-2">
@@ -230,7 +230,7 @@ export default function CollectionsPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <a
-                        href={`/d/${tenant}/p/${shortcode}`}
+                        href={`/${tenant}/p/${shortcode}`}
                         className="text-sm font-semibold hover:underline"
                       >
                         {shortcode}
@@ -262,7 +262,7 @@ export default function CollectionsPage() {
                   Click the bookmark icon on any post to save it here.
                 </p>
                 <a
-                  href={`/d/${tenant}`}
+                  href={`/${tenant}`}
                   className="inline-flex h-10 px-6 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-lg text-sm font-semibold items-center hover:opacity-90 transition"
                 >
                   Browse posts

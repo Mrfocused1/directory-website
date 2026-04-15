@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
-// Subdomains that should NOT be treated as tenant slugs.
-// Matches RESERVED_SLUGS in /api/pipeline plus app/marketing subdomains.
+/**
+ * Proxy for multi-tenant routing.
+ *
+ * Public URL format: buildmy.directory/<username> (path-based)
+ *
+ * Routing rules:
+ * - buildmy.directory / www.buildmy.directory (root) → marketing + dashboard
+ *   Next.js App Router resolves explicit routes (/login, /dashboard, /api, …)
+ *   before the dynamic [tenant] catch-all, so no rewrite is needed — tenant
+ *   pages live at /[tenant] directly.
+ * - *.buildmy.directory (subdomain) — legacy format. We permanently redirect
+ *   to the path form (e.g. demo.buildmy.directory → buildmy.directory/demo)
+ *   to consolidate SEO and avoid split canonicals.
+ * - Custom domains → tenant directory. We rewrite the domain to /[tenant]
+ *   internally; the tenant is resolved from customDomain in the DB.
+ */
+
+// Subdomains that should NOT be redirected — they map to app functions.
 const RESERVED_SUBDOMAINS = new Set([
   "api", "admin", "dashboard", "auth", "login", "signup", "www",
   "mail", "email", "blog", "help", "support", "docs", "status",
@@ -10,70 +26,50 @@ const RESERVED_SUBDOMAINS = new Set([
   "app", "static", "cdn", "assets", "media",
 ]);
 
-/**
- * Proxy for subdomain-based multi-tenant routing.
- *
- * Routes:
- * - buildmy.directory / www.buildmy.directory (root) → marketing / dashboard pages
- * - *.buildmy.directory (subdomain) → tenant directory
- * - Custom domains → tenant directory (via DNS + lookup)
- */
 export default async function proxy(request: NextRequest) {
   // Refresh Supabase auth session on every request
   const sessionResponse = await updateSession(request);
   const url = request.nextUrl.clone();
   const hostname = (request.headers.get("host") || "").replace(/:\d+$/, ""); // strip port
 
-  // Root domains that should show the marketing/dashboard site
+  // Root domains that should show the marketing/dashboard site as-is
   const rootDomains = [
     "localhost",
     "buildmy.directory",
     "www.buildmy.directory",
   ];
 
-  // Also treat Vercel preview/production URLs as root
   const isVercelUrl = hostname.endsWith(".vercel.app");
-
-  // Check if this is a root domain request
   const isRootDomain = isVercelUrl || rootDomains.includes(hostname);
 
   if (isRootDomain) {
     return sessionResponse;
   }
 
-  // Extract subdomain from *.buildmy.directory
-  let tenant: string | null = null;
-
+  // Legacy subdomain format → 301 redirect to path form
   if (hostname.endsWith(".buildmy.directory")) {
-    tenant = hostname.replace(".buildmy.directory", "");
-    // Strip www prefix if present (e.g., www.demo.buildmy.directory)
-    if (tenant.startsWith("www.")) {
-      tenant = tenant.slice(4);
-    }
-    // Reserved subdomains should be treated as the root domain (not rewritten to a tenant)
-    if (tenant && RESERVED_SUBDOMAINS.has(tenant.toLowerCase())) {
+    let subdomain = hostname.replace(".buildmy.directory", "");
+    if (subdomain.startsWith("www.")) subdomain = subdomain.slice(4);
+
+    // Reserved subdomains (e.g. blog.buildmy.directory) bypass tenant logic
+    if (subdomain && RESERVED_SUBDOMAINS.has(subdomain.toLowerCase())) {
       return sessionResponse;
     }
-  }
 
-  // If not a subdomain, it might be a custom domain
-  if (!tenant) {
-    // In production: look up custom domain in the database
-    tenant = hostname;
-  }
-
-  // Rewrite to the tenant directory on the root domain
-  if (tenant) {
-    url.pathname = `/d/${tenant}${url.pathname}`;
-    // Rewrite to the root domain so the request doesn't loop through the proxy
-    if (hostname.endsWith('.buildmy.directory')) {
-      url.hostname = 'buildmy.directory';
+    if (subdomain) {
+      // 301 to buildmy.directory/<subdomain><original-path>
+      const redirectUrl = new URL(
+        `https://buildmy.directory/${subdomain}${url.pathname}${url.search}`,
+      );
+      return NextResponse.redirect(redirectUrl, 301);
     }
-    // For local dev and Vercel previews, the hostname is already correct
-    return NextResponse.rewrite(url);
   }
 
-  return sessionResponse;
+  // Custom domain — rewrite to /[tenant] on the root host. The [tenant]
+  // route will resolve the custom domain to a site via the DB.
+  url.pathname = `/${hostname}${url.pathname}`;
+  url.hostname = "buildmy.directory";
+  return NextResponse.rewrite(url);
 }
 
 export const config = {

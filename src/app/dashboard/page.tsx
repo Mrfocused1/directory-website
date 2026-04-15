@@ -177,7 +177,7 @@ export default function DashboardPage() {
                         </button>
                       )}
                       <Link
-                        href={`/d/${site.slug}`}
+                        href={`/${site.slug}`}
                         className="h-9 px-4 bg-black/5 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:bg-black/10 transition"
                       >
                         Visit

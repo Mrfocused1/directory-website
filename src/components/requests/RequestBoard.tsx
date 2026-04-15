@@ -111,7 +111,7 @@ export default function RequestBoard({
         <main className="container mx-auto px-4 sm:px-6 pt-8 sm:pt-10 pb-20 max-w-3xl">
           {/* Header */}
           <header className="text-center mb-8 animate-fade-in">
-            <a href={`/d/${siteId}`} className="text-xs font-semibold text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] transition">
+            <a href={`/${siteId}`} className="text-xs font-semibold text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] transition">
               &larr; Back to {siteName}
             </a>
             <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight mt-3 mb-2">
@@ -381,7 +381,7 @@ function RequestCard({
                 )}
                 {req.completedPostShortcode && (
                   <a
-                    href={`/d/${siteId}/p/${req.completedPostShortcode}`}
+                    href={`/${siteId}/p/${req.completedPostShortcode}`}
                     className="inline-flex items-center gap-1.5 mt-2 text-xs font-semibold text-[color:var(--fg)] bg-green-100 hover:bg-green-200 px-3 py-1.5 rounded-full transition"
                   >
                     View the post

@@ -30,7 +30,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
 
     const tenantRoots: MetadataRoute.Sitemap = publishedSites.map((s) => ({
-      url: `${SITE_URL}/d/${s.slug}`,
+      url: `${SITE_URL}/${s.slug}`,
       lastModified: s.updatedAt ?? now,
       changeFrequency: "daily",
       priority: 0.8,
@@ -53,7 +53,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .limit(1000);
 
     const postUrls: MetadataRoute.Sitemap = recentPosts.map((p) => ({
-      url: `${SITE_URL}/d/${p.siteSlug}/p/${p.shortcode}`,
+      url: `${SITE_URL}/${p.siteSlug}/p/${p.shortcode}`,
       lastModified: p.takenAt ?? p.createdAt ?? now,
       changeFrequency: "monthly",
       priority: 0.6,

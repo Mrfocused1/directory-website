@@ -47,11 +47,11 @@ const PLANS: Record<PlanId, PlanConfig> = {
     id: "free",
     name: "Free",
     price: 0,
-    postLimit: 50,
+    postLimit: 9,
     siteLimit: 1,
     platformLimit: 1,
     accountsPerPlatform: { instagram: 1, tiktok: 0, youtube: 0 },
-    features: new Set(["analytics_basic"]),
+    features: new Set(), // No features beyond the core directory itself.
   },
   creator: {
     id: "creator",
@@ -176,7 +176,7 @@ export function requiredPlanFor(feature: FeatureKey): PlanConfig {
 
 /** Upgrade prompts — feature-specific messaging */
 export const UPGRADE_PROMPTS: Record<FeatureKey, { title: string; desc: string; benefit: string }> = {
-  analytics_basic: { title: "Analytics", desc: "See how visitors interact with your directory.", benefit: "Included in all plans" },
+  analytics_basic: { title: "Analytics", desc: "See how visitors interact with your directory.", benefit: "Available on Creator and up" },
   analytics_full: { title: "Full Analytics", desc: "Detailed charts, top posts, search terms, heatmaps, and more.", benefit: "See exactly what your audience wants" },
   analytics_ai_insights: { title: "AI Insights", desc: "Get AI-powered recommendations on what content to create next.", benefit: "Let AI guide your content strategy" },
   newsletter: { title: "Email Newsletter", desc: "Build a subscriber list and send automated digest emails.", benefit: "Own your audience — not the algorithm" },

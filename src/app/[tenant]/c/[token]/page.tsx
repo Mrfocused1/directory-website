@@ -63,7 +63,7 @@ export default async function SharedCollectionPage({
         <main className="container mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-20 max-w-6xl">
           <nav className="mb-6">
             <Link
-              href={`/d/${data.site.slug}`}
+              href={`/${data.site.slug}`}
               className="text-sm font-medium text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] transition inline-flex items-center gap-1.5"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -86,7 +86,7 @@ export default async function SharedCollectionPage({
             </h1>
             <p className="text-sm text-[color:var(--fg-muted)]">
               {posts.length} post{posts.length === 1 ? "" : "s"} curated from{" "}
-              <Link href={`/d/${data.site.slug}`} className="font-semibold text-[color:var(--fg)] hover:underline">
+              <Link href={`/${data.site.slug}`} className="font-semibold text-[color:var(--fg)] hover:underline">
                 {data.site.displayName}
               </Link>
             </p>
@@ -103,7 +103,7 @@ export default async function SharedCollectionPage({
               {posts.map((p) => (
                 <Link
                   key={p.shortcode}
-                  href={`/d/${data.site.slug}/p/${p.shortcode}`}
+                  href={`/${data.site.slug}/p/${p.shortcode}`}
                   className="block bg-[color:var(--card)] border border-[color:var(--border)] hover:bg-[color:var(--card-hover)] transition-all overflow-hidden rounded-xl shadow-sm"
                 >
                   <div className="relative aspect-[4/5] bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
@@ -144,7 +144,7 @@ function NotFoundState({ tenant }: { tenant: string }) {
           This shared collection may have been made private or deleted.
         </p>
         <Link
-          href={`/d/${tenant}`}
+          href={`/${tenant}`}
           className="inline-flex h-11 px-6 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold items-center hover:opacity-90 transition"
         >
           Browse the directory

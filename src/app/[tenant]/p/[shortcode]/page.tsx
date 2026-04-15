@@ -19,7 +19,7 @@ export async function generateMetadata({
   const description = post
     ? post.caption.slice(0, 160)
     : data.site.bio || "Browse this content directory";
-  const url = `${SITE_URL}/d/${tenant}/p/${shortcode}`;
+  const url = `${SITE_URL}/${tenant}/p/${shortcode}`;
 
   return {
     title: `${title} | ${data.site.displayName}`,
@@ -56,7 +56,7 @@ export default async function TenantPostPage({
         "@type": "Article",
         headline: post.title || data.site.displayName,
         description: (post.caption || "").slice(0, 300) || undefined,
-        url: `${SITE_URL}/d/${tenant}/p/${shortcode}`,
+        url: `${SITE_URL}/${tenant}/p/${shortcode}`,
         image: post.thumbUrl || undefined,
         datePublished: post.takenAt || undefined,
         author: {

@@ -140,12 +140,12 @@ export const scheduledDigestFunction = inngest.createFunction(
       const siteName = site.displayName || site.slug;
       const fromName = sanitizeFromName(site.newsletterFromName || siteName);
       const replyTo = site.newsletterReplyTo || owner?.email || undefined;
-      const siteUrl = `${origin}/d/${site.slug}`;
+      const siteUrl = `${origin}/${site.slug}`;
 
       let sentCount = 0;
       for (const sub of matching) {
-        const unsubscribeUrl = `${origin}/d/${site.slug}/unsubscribe?token=${sub.unsubscribeToken}`;
-        const preferencesUrl = `${origin}/d/${site.slug}/preferences?token=${sub.unsubscribeToken}`;
+        const unsubscribeUrl = `${origin}/${site.slug}/unsubscribe?token=${sub.unsubscribeToken}`;
+        const preferencesUrl = `${origin}/${site.slug}/preferences?token=${sub.unsubscribeToken}`;
         const template = digestEmail({
           siteName,
           siteUrl,

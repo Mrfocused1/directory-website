@@ -36,7 +36,7 @@ const STEPS = [
     num: "3",
     color: "bg-black",
     title: "Your directory goes live",
-    desc: "Instantly deployed at yourname.buildmy.directory with search, filters, pagination, and deep links. Share it in your bio.",
+    desc: "Instantly deployed at buildmy.directory/yourname with search, filters, pagination, and deep links. Share it in your bio.",
     detail: null,
     tags: null,
     Demo: DemoDirectoryGrid,

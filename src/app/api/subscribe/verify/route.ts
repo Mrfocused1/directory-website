@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 
   if (subscriber.isVerified) {
     // Already verified — redirect to directory
-    return NextResponse.redirect(new URL(`/d/${slug}`, request.url));
+    return NextResponse.redirect(new URL(`/${slug}`, request.url));
   }
 
   // Mark as verified
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     const origin = request.nextUrl.origin;
     const template = welcomeEmail({
       siteName,
-      siteUrl: `${origin}/d/${slug}`,
+      siteUrl: `${origin}/${slug}`,
     });
     try {
       const { error: sendError } = await resend.emails.send({
@@ -116,5 +116,5 @@ export async function GET(request: NextRequest) {
   }
 
   // Redirect to directory
-  return NextResponse.redirect(new URL(`/d/${slug}?verified=true`, request.url));
+  return NextResponse.redirect(new URL(`/${slug}?verified=true`, request.url));
 }

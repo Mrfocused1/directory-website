@@ -33,7 +33,7 @@ export const sites = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    slug: varchar("slug", { length: 63 }).notNull(), // subdomain: slug.buildmy.directory
+    slug: varchar("slug", { length: 63 }).notNull(), // path: buildmy.directory/<slug>
     customDomain: text("custom_domain"),
     platform: varchar("platform", { length: 16 }).notNull().default("instagram"), // instagram | tiktok
     handle: varchar("handle", { length: 128 }).notNull(), // @username

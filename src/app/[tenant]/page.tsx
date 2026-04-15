@@ -15,7 +15,7 @@ export async function generateMetadata({
   if (!data) return { title: "Not Found" };
 
   const description = data.site.bio || `Browse ${data.site.displayName}'s content directory`;
-  const url = `${SITE_URL}/d/${tenant}`;
+  const url = `${SITE_URL}/${tenant}`;
 
   return {
     title: `${data.site.displayName} | BuildMy.Directory`,
@@ -61,7 +61,7 @@ export default async function TenantDirectoryPage({
     "@context": "https://schema.org",
     "@type": "CollectionPage",
     name: data.site.displayName,
-    url: `${SITE_URL}/d/${tenant}`,
+    url: `${SITE_URL}/${tenant}`,
     description: data.site.bio || undefined,
     author: {
       "@type": "Person",
@@ -73,7 +73,7 @@ export default async function TenantDirectoryPage({
       itemListElement: data.posts.slice(0, 20).map((p, i) => ({
         "@type": "ListItem",
         position: i + 1,
-        url: `${SITE_URL}/d/${tenant}/p/${p.shortcode}`,
+        url: `${SITE_URL}/${tenant}/p/${p.shortcode}`,
         name: p.title || p.shortcode,
       })),
     },

@@ -314,7 +314,7 @@ function DomainsPageContent() {
               </div>
               <div className="flex-1">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-green-600 mb-0.5">Live now</p>
-                <p className="text-sm font-mono font-bold">yourname.buildmy.directory</p>
+                <p className="text-sm font-mono font-bold">buildmy.directory/yourname</p>
               </div>
             </div>
             {activeDomain && (

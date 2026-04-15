@@ -7,11 +7,24 @@ import { inngest } from "@/lib/inngest/client";
 import { getPlan, type PlanId } from "@/lib/plans";
 
 // Reserved slugs that conflict with app routes or are commonly squatted
+// Slugs that conflict with app routes or are commonly squatted.
+// Since tenant directories live at buildmy.directory/<slug>, any slug
+// matching a top-level app route must be blocked.
 const RESERVED_SLUGS = new Set([
-  "api", "admin", "dashboard", "auth", "login", "signup", "www",
-  "mail", "email", "blog", "help", "support", "docs", "status",
-  "billing", "settings", "account", "onboarding", "demo",
-  "d", "p", "static", "_next", "favicon",
+  // App routes (must match explicit routes in src/app/)
+  "api", "auth", "dashboard", "login", "signup", "onboarding",
+  "forgot-password", "privacy", "terms", "embed",
+  "robots.txt", "sitemap.xml", "opengraph-image",
+  // Next.js internals
+  "_next", "favicon", "favicon.ico", "static",
+  // Common squatted / admin-looking terms
+  "admin", "www", "mail", "email", "blog", "help", "support",
+  "docs", "status", "billing", "settings", "account",
+  "app", "cdn", "assets", "media",
+  // Demo used by test agent — reserve so no user takes it
+  "demo",
+  // Legacy proxy paths still honored in links
+  "d", "p",
 ]);
 
 // POST /api/pipeline — Start a new pipeline for a site

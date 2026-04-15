@@ -329,7 +329,7 @@ function OnboardingContent() {
                 Customize your directory
               </h1>
               <p className="text-[color:var(--fg-muted)] mb-8">
-                Choose your subdomain and display name.
+                Choose your URL and display name.
               </p>
 
               <form onSubmit={handleStartBuild} className="space-y-6">
@@ -338,17 +338,17 @@ function OnboardingContent() {
                     Your URL
                   </label>
                   <div className="flex items-center gap-0">
+                    <span className="h-14 px-4 bg-black/5 border-2 border-r-0 border-[color:var(--border)] rounded-l-xl text-sm font-medium text-[color:var(--fg-muted)] flex items-center whitespace-nowrap">
+                      buildmy.directory/
+                    </span>
                     <input
                       id="slug"
                       type="text"
                       value={slug}
                       onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
                       required
-                      className="flex-1 h-14 px-4 bg-white border-2 border-r-0 border-[color:var(--border)] rounded-l-xl text-lg font-medium focus:outline-none focus:border-[color:var(--fg)] transition"
+                      className="flex-1 h-14 px-4 bg-white border-2 border-l-0 border-[color:var(--border)] rounded-r-xl text-lg font-medium focus:outline-none focus:border-[color:var(--fg)] transition"
                     />
-                    <span className="h-14 px-4 bg-black/5 border-2 border-l-0 border-[color:var(--border)] rounded-r-xl text-sm font-medium text-[color:var(--fg-muted)] flex items-center whitespace-nowrap">
-                      .buildmy.directory
-                    </span>
                   </div>
                 </div>
 
@@ -537,13 +537,13 @@ function OnboardingContent() {
 
               <div className="bg-white border-2 border-[color:var(--border)] rounded-2xl p-6 mb-6 max-w-sm mx-auto">
                 <p className="text-sm font-mono font-semibold">
-                  {slug}.buildmy.directory
+                  buildmy.directory/{slug}
                 </p>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 max-w-sm mx-auto">
                 <Link
-                  href={`/d/${slug}`}
+                  href={`/${slug}`}
                   className="flex-1 h-12 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold flex items-center justify-center hover:opacity-90 transition"
                 >
                   View Directory

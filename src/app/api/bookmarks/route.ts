@@ -242,7 +242,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         collectionId,
         shareToken: newToken,
-        shareUrl: newToken ? `/d/${slug}/c/${newToken}` : null,
+        shareUrl: newToken ? `/${slug}/c/${newToken}` : null,
       });
     }
 

@@ -64,7 +64,7 @@ function UnsubscribeContent() {
                   Yes, unsubscribe me
                 </button>
                 <Link
-                  href={`/d/${tenant}`}
+                  href={`/${tenant}`}
                   className="h-12 border border-[color:var(--border)] rounded-xl text-sm font-semibold flex items-center justify-center hover:bg-black/5 transition"
                 >
                   Never mind, keep me subscribed
@@ -84,7 +84,7 @@ function UnsubscribeContent() {
                 You won&apos;t receive any more emails. We&apos;re sorry to see you go!
               </p>
               <Link
-                href={`/d/${tenant}`}
+                href={`/${tenant}`}
                 className="inline-flex h-12 px-8 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold items-center hover:opacity-90 transition"
               >
                 Back to directory

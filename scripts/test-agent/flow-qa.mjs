@@ -32,11 +32,11 @@ const PUBLIC_PAGES = [
   "/onboarding",
   "/privacy",
   "/terms",
-  "/d/demo",
-  "/d/demo/requests",
-  "/d/demo/collections",
-  "/d/demo/preferences?token=bogus",
-  "/d/demo/unsubscribe?token=bogus",
+  "/demo",
+  "/demo/requests",
+  "/demo/collections",
+  "/demo/preferences?token=bogus",
+  "/demo/unsubscribe?token=bogus",
   "/embed/demo",
 ];
 
@@ -124,8 +124,8 @@ async function suiteSitemapRSS() {
   const checks = [
     { path: "/robots.txt", want: /User-Agent|Allow|Disallow/i, type: /text\/plain/i },
     { path: "/sitemap.xml", want: /<urlset|<sitemapindex/i, type: /xml/i },
-    { path: "/d/demo/feed.xml", want: /<rss|<feed/i, type: /xml/i },
-    { path: "/d/demo/opengraph-image", want: null, type: /image\/png/i },
+    { path: "/demo/feed.xml", want: /<rss|<feed/i, type: /xml/i },
+    { path: "/demo/opengraph-image", want: null, type: /image\/png/i },
   ];
   for (const c of checks) {
     try {
@@ -288,11 +288,11 @@ async function suiteLoginFlow(browser) {
 }
 
 async function suiteDirectoryFlow(browser) {
-  section("Directory /d/demo — search + post modal + subscribe banner");
+  section("Directory /demo — search + post modal + subscribe banner");
   for (const vp of VIEWPORTS) {
     const page = await newPage(browser, vp);
     const errs = await collectPageErrors(page);
-    await page.goto(`${BASE}/d/demo`, { waitUntil: "networkidle2" });
+    await page.goto(`${BASE}/demo`, { waitUntil: "networkidle2" });
 
     // Search input exists
     const search = await page.$('input[type="search"], input[placeholder*="earch" i]');
@@ -345,7 +345,7 @@ async function suiteDirectoryFlow(browser) {
     const featured = await page.$$('span:has-text("Featured")').catch(() => []);
     // Fine if empty — demo may not have featured posts yet
 
-    for (const e of errs) log("MEDIUM", "console", `/d/demo [${vp.name}] ${e.slice(0, 120)}`);
+    for (const e of errs) log("MEDIUM", "console", `/demo [${vp.name}] ${e.slice(0, 120)}`);
     await page.close();
   }
 }
@@ -412,7 +412,7 @@ async function suiteForgotPassword(browser) {
 async function suitePreferences(browser) {
   section("Preferences page — invalid token shows error");
   const page = await newPage(browser, VIEWPORTS[0]);
-  await page.goto(`${BASE}/d/demo/preferences?token=bogus`, { waitUntil: "networkidle2" });
+  await page.goto(`${BASE}/demo/preferences?token=bogus`, { waitUntil: "networkidle2" });
   await new Promise((r) => setTimeout(r, 1500));
   const text = await page.evaluate(() => document.body.innerText);
   // Accept any clear error phrasing — API may return "Site not found" on a
@@ -428,7 +428,7 @@ async function suitePreferences(browser) {
 async function suiteUnsubscribe(browser) {
   section("Unsubscribe page — renders confirm state, button click shows result");
   const page = await newPage(browser, VIEWPORTS[0]);
-  await page.goto(`${BASE}/d/demo/unsubscribe?token=bogus`, { waitUntil: "networkidle2" });
+  await page.goto(`${BASE}/demo/unsubscribe?token=bogus`, { waitUntil: "networkidle2" });
   const btn = await page.$("button");
   if (!btn) {
     log("HIGH", "unsubscribe", "no button rendered");

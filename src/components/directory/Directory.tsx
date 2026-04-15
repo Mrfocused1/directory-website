@@ -44,7 +44,7 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
   const hasMultiplePlatforms = site.platforms && site.platforms.length > 1;
 
   // URL syncing for modal deep links
-  const basePath = `/d/${site.slug}`;
+  const basePath = `/${site.slug}`;
   useEffect(() => {
     if (selected) {
       window.history.replaceState(null, "", `${basePath}/p/${selected.shortcode}`);
@@ -149,7 +149,7 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
               </p>
             )}
             <a
-              href={`/d/${site.slug}/requests`}
+              href={`/${site.slug}/requests`}
               className="inline-flex items-center gap-1.5 mt-4 mb-2 text-xs font-semibold text-[color:var(--fg)] bg-black/5 hover:bg-black/10 px-3 py-1.5 rounded-full transition"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

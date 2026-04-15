@@ -101,7 +101,7 @@ export default function WhiteLabelSettings({ siteId, siteSlug, initialBrand, ini
         {/* Preview */}
         <div className="bg-black/[0.03] rounded-lg px-4 py-3 text-center text-xs text-[color:var(--fg-subtle)]">
           <div className="text-[10px] font-semibold uppercase tracking-wider mb-1.5 opacity-60">
-            Preview on {siteSlug}.buildmy.directory
+            Preview on buildmy.directory/{siteSlug}
           </div>
           <div>
             Powered by{" "}

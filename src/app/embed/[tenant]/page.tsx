@@ -58,7 +58,7 @@ export default async function EmbedPage({
             // reach the full directory, even on white-label Agency plans.
             customBrandName: data.branding.customBrandName || data.site.displayName,
             customBrandUrl:
-              data.branding.customBrandUrl || `${SITE_URL}/d/${tenant}`,
+              data.branding.customBrandUrl || `${SITE_URL}/${tenant}`,
             showPoweredBy: true,
           }}
         />

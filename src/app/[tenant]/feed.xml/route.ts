@@ -36,7 +36,7 @@ export async function GET(
   }
 
   const site = data.site;
-  const baseUrl = `${SITE_URL}/d/${tenant}`;
+  const baseUrl = `${SITE_URL}/${tenant}`;
   const feedUrl = `${baseUrl}/feed.xml`;
   const title = `${site.displayName} — Directory`;
   const description = site.bio || `Latest posts from ${site.displayName}`;

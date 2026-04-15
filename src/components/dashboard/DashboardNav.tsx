@@ -12,7 +12,7 @@ const TABS: { href: string; label: string; requiredFeature?: FeatureKey }[] = [
   { href: "/dashboard", label: "Sites" },
   { href: "/dashboard/posts", label: "Posts" },
   { href: "/dashboard/categories", label: "Categories" },
-  { href: "/dashboard/analytics", label: "Analytics" },
+  { href: "/dashboard/analytics", label: "Analytics", requiredFeature: "analytics_basic" },
   { href: "/dashboard/platforms", label: "Platforms" },
   { href: "/dashboard/domains", label: "Domains", requiredFeature: "custom_domain" },
   { href: "/dashboard/requests", label: "Requests", requiredFeature: "requests" },

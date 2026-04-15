@@ -35,7 +35,7 @@ export default function SharePage() {
   }
 
   const slug = selectedSite.slug;
-  const directoryUrl = `${SITE_URL}/d/${slug}`;
+  const directoryUrl = `${SITE_URL}/${slug}`;
   const rssUrl = `${directoryUrl}/feed.xml`;
   const embedUrl = `${SITE_URL}/embed/${slug}`;
   const embedSnippet = `<iframe

@@ -251,12 +251,12 @@ async function suiteFlows(browser) {
   // Flow 3: Demo directory loads with content
   const p3 = await browser.newPage();
   try {
-    await p3.goto(`${BASE}/d/demo`, { waitUntil: "networkidle2", timeout: 20000 });
+    await p3.goto(`${BASE}/demo`, { waitUntil: "networkidle2", timeout: 20000 });
     const hasContent = await p3.evaluate(() => {
       return document.querySelector("h1") !== null && document.body.textContent.length > 200;
     });
-    if (hasContent) console.log("  ✓ /d/demo renders content");
-    else log("HIGH", "flow", "/d/demo missing content");
+    if (hasContent) console.log("  ✓ /demo renders content");
+    else log("HIGH", "flow", "/demo missing content");
   } catch (err) {
     log("HIGH", "flow", `Demo directory: ${err.message}`);
   }
@@ -340,11 +340,11 @@ async function main() {
   console.log(`\n🤖 BuildMy.Directory Test Agent`);
   console.log(`   Target: ${BASE}\n`);
 
-  const pages = ["/", "/login", "/onboarding", "/d/demo", "/privacy", "/terms"];
+  const pages = ["/", "/login", "/onboarding", "/demo", "/privacy", "/terms"];
 
   const browser = await puppeteer.launch({ headless: true, args: ["--no-sandbox"] });
   try {
-    await suiteHealth(browser, [...pages, "/dashboard", "/d/demo/requests"]);
+    await suiteHealth(browser, [...pages, "/dashboard", "/demo/requests"]);
     await suiteViewports(browser, pages);
     await suiteAPI(browser);
     await suiteFlows(browser);

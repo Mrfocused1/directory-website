@@ -98,7 +98,7 @@ export default function CreatorRequestsPage() {
               </p>
             </div>
             <a
-              href={`/d/${siteId}/requests`}
+              href={`/${siteId}/requests`}
               target="_blank"
               rel="noopener noreferrer"
               className="h-9 px-4 bg-black/5 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:bg-black/10 transition self-start"
@@ -140,7 +140,7 @@ export default function CreatorRequestsPage() {
               }
               title="No content requests yet"
               description="Visitors can submit and vote on topics they'd like you to cover. Once your directory has some traffic, requests will show up here."
-              action={{ href: `/d/${siteId}/requests`, label: "Preview public request board" }}
+              action={{ href: `/${siteId}/requests`, label: "Preview public request board" }}
             />
           ) : (
             <div className="space-y-3">

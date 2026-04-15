@@ -125,7 +125,7 @@ function PreferencesContent() {
         ) : unsubscribed ? (
           <div className="bg-green-50 border border-green-200 text-green-800 text-sm rounded-xl px-4 py-4 text-center">
             You&apos;ve been unsubscribed.{" "}
-            <Link href={`/d/${tenant}`} className="font-semibold underline">
+            <Link href={`/${tenant}`} className="font-semibold underline">
               Back to directory
             </Link>
           </div>

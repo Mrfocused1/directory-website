@@ -365,6 +365,18 @@ export default async function AdminSiteDetailPage({
                   · {subs.rows.length} total · {subs.active} active · {subs.verified} verified
                 </span>
               </h3>
+              {subs.rows.length > 0 && (
+                <a
+                  href={`/api/admin/subscribers/export?siteId=${siteId}`}
+                  className="h-9 px-3 inline-flex items-center gap-1.5 text-xs font-semibold bg-black text-white rounded-lg hover:bg-black/80 transition"
+                  title="Download CSV of all subscribers"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                  </svg>
+                  Export CSV
+                </a>
+              )}
             </div>
             {subs.rows.length === 0 ? (
               <div className="text-sm text-[color:var(--fg-muted)] bg-white border border-[color:var(--border)] rounded-lg px-4 py-6 text-center">

@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { getSiteData } from "@/lib/demo-data";
 import Directory from "@/components/directory/Directory";
 
+// Same 5-minute CDN cache as the tenant root page. Pipeline completion
+// and post edits invalidate via revalidatePath in the relevant writer.
+export const revalidate = 300;
+
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://buildmy.directory";
 

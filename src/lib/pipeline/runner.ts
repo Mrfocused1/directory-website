@@ -327,6 +327,19 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
       .set({ isPublished: true, lastSyncAt: new Date() })
       .where(eq(sites.id, siteId));
 
+    // Blow away the 5-minute CDN cache on the public tenant root so
+    // visitors see the freshly-synced posts immediately instead of
+    // up to 5 minutes of stale HTML.
+    try {
+      const { revalidatePath } = await import("next/cache");
+      revalidatePath(`/${site.slug}`);
+    } catch (err) {
+      // revalidatePath throws outside a request context (e.g. when
+      // runner is called via Inngest cron from outside Next). That's
+      // fine — the cache TTL will expire on its own.
+      console.warn("[runner] revalidatePath skipped:", err instanceof Error ? err.message : err);
+    }
+
     await updateJob(siteId, "complete", "completed", 100, "Your directory is ready!");
     await report("complete", 100, "Your directory is ready!");
 

@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { posts, sites } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
+import { revalidateTenantBySiteId } from "@/lib/cache";
 
 /**
  * POST /api/dashboard/posts/bulk
@@ -31,13 +32,15 @@ export async function POST(request: NextRequest) {
   }
 
   // Ownership check: find only posts owned by this user among the given ids.
+  // Capture siteIds so we can invalidate tenant caches after mutation.
   const owned = await db
-    .select({ id: posts.id })
+    .select({ id: posts.id, siteId: posts.siteId })
     .from(posts)
     .innerJoin(sites, eq(sites.id, posts.siteId))
     .where(and(inArray(posts.id, ids), eq(sites.userId, user.id)));
 
   const ownedIds = owned.map((o) => o.id);
+  const affectedSiteIds = Array.from(new Set(owned.map((o) => o.siteId)));
   if (ownedIds.length === 0) {
     return NextResponse.json({ error: "No accessible posts" }, { status: 404 });
   }
@@ -71,6 +74,10 @@ export async function POST(request: NextRequest) {
     default:
       return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   }
+
+  // All bulk actions change what the public page shows — flush the
+  // CDN cache on every affected tenant.
+  await Promise.all(affectedSiteIds.map((id) => revalidateTenantBySiteId(id)));
 
   return NextResponse.json({ affected: ownedIds.length });
 }

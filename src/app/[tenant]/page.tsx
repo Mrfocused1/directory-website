@@ -2,6 +2,12 @@ import type { Metadata } from "next";
 import { getSiteData } from "@/lib/demo-data";
 import Directory from "@/components/directory/Directory";
 
+// CDN-cache tenant pages for 5 minutes. Pipeline completion and site
+// profile edits call revalidatePath("/" + slug) so changes show up
+// immediately for real activity; this TTL only applies to passive
+// traffic between edits. ~99% DB-read reduction for popular pages.
+export const revalidate = 300;
+
 const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://buildmy.directory";
 

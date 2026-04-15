@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { posts, sites } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
+import { revalidateTenantBySiteId } from "@/lib/cache";
 
 /**
  * POST /api/dashboard/posts/reorder
@@ -59,6 +60,8 @@ export async function POST(request: NextRequest) {
       database.update(posts).set({ sortOrder: idx }).where(eq(posts.id, id)),
     ),
   );
+
+  await revalidateTenantBySiteId(siteId);
 
   return NextResponse.json({ updated: ids.length });
 }

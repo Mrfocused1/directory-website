@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { sites, posts } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
@@ -277,6 +278,7 @@ export async function PATCH(request: NextRequest) {
       .where(and(eq(sites.id, siteId), eq(sites.userId, user.id)))
       .returning({
         id: sites.id,
+        slug: sites.slug,
         newsletterFromName: sites.newsletterFromName,
         newsletterReplyTo: sites.newsletterReplyTo,
       });
@@ -284,6 +286,10 @@ export async function PATCH(request: NextRequest) {
     if (!updated) {
       return NextResponse.json({ error: "Site not found or not owned by you" }, { status: 404 });
     }
+
+    // Flush the CDN cache for the public tenant page so profile edits
+    // (display name, bio, accent color, layout) are visible immediately.
+    revalidatePath(`/${updated.slug}`);
 
     return NextResponse.json({ site: updated });
   } catch (error) {

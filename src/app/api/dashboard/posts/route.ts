@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { posts, sites } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
+import { revalidateTenantBySiteId } from "@/lib/cache";
 
 /**
  * GET /api/dashboard/posts?siteId=xxx
@@ -132,6 +133,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const [updated] = await db.update(posts).set(updates).where(eq(posts.id, id)).returning();
+  if (updated) await revalidateTenantBySiteId(updated.siteId);
   return NextResponse.json({ post: updated });
 }
 
@@ -160,5 +162,6 @@ export async function DELETE(request: NextRequest) {
   if (!site) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   await db.delete(posts).where(eq(posts.id, id));
+  await revalidateTenantBySiteId(existing.siteId);
   return NextResponse.json({ deleted: true });
 }

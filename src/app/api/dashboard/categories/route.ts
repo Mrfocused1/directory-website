@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { posts, sites } from "@/db/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
+import { revalidateTenantBySiteId } from "@/lib/cache";
 
 async function ensureSiteOwnership(siteId: string, userId: string) {
   if (!db) return null;
@@ -84,6 +85,8 @@ export async function PATCH(request: NextRequest) {
     .set({ category: toTrim })
     .where(and(eq(posts.siteId, siteId), eq(posts.category, fromTrim)))
     .returning({ id: posts.id });
+
+  if (result.length > 0) await revalidateTenantBySiteId(siteId);
 
   return NextResponse.json({ updated: result.length, from: fromTrim, to: toTrim });
 }

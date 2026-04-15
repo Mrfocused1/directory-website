@@ -9,6 +9,8 @@ import CountUp from "./CountUp";
 import BackToTop from "./BackToTop";
 import PlatformIcon from "./PlatformIcon";
 import AnalyticsProvider from "./AnalyticsProvider";
+import DirectoryBranding from "./DirectoryBranding";
+import type { SiteBranding } from "@/lib/demo-data";
 import SubscribeBanner from "@/components/subscribe/SubscribeBanner";
 import FloatingSubscribe from "@/components/subscribe/FloatingSubscribe";
 import BookmarkProvider from "@/components/bookmarks/BookmarkProvider";
@@ -24,9 +26,10 @@ type DirectoryProps = {
   siteId?: string; // DB site ID for analytics
   posts: SitePost[];
   initialShortcode?: string;
+  branding?: SiteBranding;
 };
 
-export default function Directory({ site, siteId, posts, initialShortcode }: DirectoryProps) {
+export default function Directory({ site, siteId, posts, initialShortcode, branding }: DirectoryProps) {
   const analyticsId = siteId || site.slug;
   const allCategories = ["All", ...site.categories];
 
@@ -411,6 +414,9 @@ export default function Directory({ site, siteId, posts, initialShortcode }: Dir
               categories={site.categories}
             />
           </div>
+
+          {/* Powered-by footer (respects remove_branding / white_label) */}
+          {branding && <DirectoryBranding branding={branding} />}
         </main>
       </div>
 

@@ -46,5 +46,5 @@ export default async function TenantDirectoryPage({
     );
   }
 
-  return <Directory site={data.site} posts={data.posts} siteId={data.siteId} />;
+  return <Directory site={data.site} posts={data.posts} siteId={data.siteId} branding={data.branding} />;
 }

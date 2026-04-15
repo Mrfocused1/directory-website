@@ -1,7 +1,16 @@
 import { db } from "@/db";
-import { sites, posts, references, platformConnections } from "@/db/schema";
+import { sites, posts, references, platformConnections, users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import type { SiteConfig, SitePost, Reference, PlatformConnection, Platform } from "@/lib/types";
+import { hasFeature, type PlanId } from "@/lib/plans";
+
+export type SiteBranding = {
+  // Set when white-label is active (Agency plan)
+  customBrandName: string | null;
+  customBrandUrl: string | null;
+  // Whether the "Powered by BuildMy.Directory" badge should be shown
+  showPoweredBy: boolean;
+};
 
 /**
  * Fetches site data from the database for tenant pages.
@@ -11,6 +20,7 @@ export async function getSiteData(tenantSlug: string): Promise<{
   siteId: string;
   site: SiteConfig;
   posts: SitePost[];
+  branding: SiteBranding;
 } | null> {
   if (db) {
     return getSiteDataFromDB(tenantSlug);
@@ -23,6 +33,7 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
   siteId: string;
   site: SiteConfig;
   posts: SitePost[];
+  branding: SiteBranding;
 } | null> {
   const site = await db!.query.sites.findFirst({
     where: eq(sites.slug, tenantSlug),
@@ -107,7 +118,25 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
     platforms,
   };
 
-  return { siteId: site.id, site: siteConfig, posts: postList };
+  // Determine branding based on the owner's plan
+  const owner = await db!.query.users.findFirst({
+    where: eq(users.id, site.userId),
+    columns: { plan: true },
+  });
+  const validPlans = ["free", "creator", "pro", "agency"];
+  const planId = (validPlans.includes(owner?.plan as string) ? owner!.plan : "free") as PlanId;
+  const canRemoveBranding = hasFeature(planId, "remove_branding");
+  const canWhiteLabel = hasFeature(planId, "white_label");
+
+  const branding: SiteBranding = {
+    // White-label only takes effect when the plan allows it
+    customBrandName: canWhiteLabel ? site.whiteLabelBrand : null,
+    customBrandUrl: canWhiteLabel ? site.whiteLabelUrl : null,
+    // Powered-by badge hidden when plan allows branding removal
+    showPoweredBy: !canRemoveBranding,
+  };
+
+  return { siteId: site.id, site: siteConfig, posts: postList, branding };
 }
 
 // ─── Demo data fallback ─────────────────────────────────────────────
@@ -149,6 +178,7 @@ function getDemoSiteData(tenantSlug: string): {
   siteId: string;
   site: SiteConfig;
   posts: SitePost[];
+  branding: SiteBranding;
 } {
   const name = tenantSlug.charAt(0).toUpperCase() + tenantSlug.slice(1);
 
@@ -193,5 +223,10 @@ function getDemoSiteData(tenantSlug: string): {
     };
   });
 
-  return { siteId: tenantSlug, site: demoSite, posts: demoPosts };
+  return {
+    siteId: tenantSlug,
+    site: demoSite,
+    posts: demoPosts,
+    branding: { customBrandName: null, customBrandUrl: null, showPoweredBy: true },
+  };
 }

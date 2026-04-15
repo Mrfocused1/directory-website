@@ -26,6 +26,8 @@ export async function GET() {
         platform: sites.platform,
         isPublished: sites.isPublished,
         lastSyncAt: sites.lastSyncAt,
+        whiteLabelBrand: sites.whiteLabelBrand,
+        whiteLabelUrl: sites.whiteLabelUrl,
         postCount: sql<number>`cast(count(${posts.id}) as int)`,
       })
       .from(sites)
@@ -43,6 +45,8 @@ export async function GET() {
       postCount: row.postCount ?? 0,
       isPublished: row.isPublished,
       lastSyncAt: row.lastSyncAt?.toISOString() ?? null,
+      whiteLabelBrand: row.whiteLabelBrand ?? null,
+      whiteLabelUrl: row.whiteLabelUrl ?? null,
     }));
 
     return NextResponse.json({ sites: result });
@@ -132,6 +136,37 @@ export async function PATCH(request: NextRequest) {
         updates.newsletterReplyTo = v.trim();
       } else {
         updates.newsletterReplyTo = null;
+      }
+    }
+
+    if ("whiteLabelBrand" in body) {
+      const v = body.whiteLabelBrand;
+      if (v !== null && typeof v !== "string") {
+        return NextResponse.json({ error: "whiteLabelBrand must be a string or null" }, { status: 400 });
+      }
+      if (typeof v === "string" && v.length > 64) {
+        return NextResponse.json({ error: "whiteLabelBrand too long (max 64 characters)" }, { status: 400 });
+      }
+      updates.whiteLabelBrand = v?.trim() || null;
+    }
+
+    if ("whiteLabelUrl" in body) {
+      const v = body.whiteLabelUrl;
+      if (v !== null && typeof v !== "string") {
+        return NextResponse.json({ error: "whiteLabelUrl must be a string or null" }, { status: 400 });
+      }
+      if (typeof v === "string" && v.trim()) {
+        try {
+          const parsed = new URL(v.trim());
+          if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+            return NextResponse.json({ error: "whiteLabelUrl must be http(s)" }, { status: 400 });
+          }
+          updates.whiteLabelUrl = v.trim();
+        } catch {
+          return NextResponse.json({ error: "whiteLabelUrl must be a valid URL" }, { status: 400 });
+        }
+      } else {
+        updates.whiteLabelUrl = null;
       }
     }
 

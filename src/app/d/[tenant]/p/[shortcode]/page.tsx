@@ -44,5 +44,5 @@ export default async function TenantPostPage({
     );
   }
 
-  return <Directory site={data.site} posts={data.posts} siteId={data.siteId} initialShortcode={shortcode} />;
+  return <Directory site={data.site} posts={data.posts} siteId={data.siteId} initialShortcode={shortcode} branding={data.branding} />;
 }

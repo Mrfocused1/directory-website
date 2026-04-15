@@ -11,6 +11,8 @@ export type DashboardSite = {
   postCount: number;
   isPublished: boolean;
   lastSyncAt: string | null;
+  whiteLabelBrand?: string | null;
+  whiteLabelUrl?: string | null;
 };
 
 type SiteContextValue = {

@@ -49,6 +49,12 @@ export const sites = pgTable(
     // auth email respectively.
     newsletterFromName: varchar("newsletter_from_name", { length: 64 }),
     newsletterReplyTo: varchar("newsletter_reply_to", { length: 320 }),
+    // White-label brand shown in the directory footer instead of
+    // "Powered by BuildMy.Directory". Requires white_label feature (Agency).
+    // Null + plan has remove_branding = hide the badge entirely.
+    // Null + no remove_branding = show "Powered by BuildMy.Directory".
+    whiteLabelBrand: varchar("white_label_brand", { length: 64 }),
+    whiteLabelUrl: text("white_label_url"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -450,6 +456,29 @@ export const customDomains = pgTable(
   (table) => [
     index("custom_domains_site_id_idx").on(table.siteId),
     uniqueIndex("custom_domains_domain_idx").on(table.domain),
+  ],
+);
+
+// ─── API Keys (Agency plan — programmatic access) ────────────────────
+// Users on plans with `api_access` can generate keys to access their data
+// via /api/v1/* endpoints. Keys are hashed at rest; we store a 8-char
+// prefix for display (so users can identify which key is which).
+export const apiKeys = pgTable(
+  "api_keys",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    label: varchar("label", { length: 64 }).notNull(),
+    keyPrefix: varchar("key_prefix", { length: 16 }).notNull(),
+    keyHash: text("key_hash").notNull(), // sha256 hex of the full key
+    lastUsedAt: timestamp("last_used_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("api_keys_user_id_idx").on(table.userId),
+    uniqueIndex("api_keys_hash_idx").on(table.keyHash),
   ],
 );
 

@@ -102,7 +102,17 @@ Respond with ONLY the category name, nothing else.`;
 
 /**
  * Detect categories from a set of post captions using Claude.
- * Useful for suggesting categories to new users during onboarding.
+ *
+ * The prompt now forces the model to identify the creator's niche
+ * first, then propose category names that are *specific to that niche*
+ * (e.g. for a UK accountant: "Tax Strategy", "Property Investment",
+ * "Business Building" — not generic "Updates", "General", "Featured").
+ *
+ * Constraints communicated to the model:
+ *  - Categories are 1-3 words max
+ *  - Cover ALL the posts in the sample, not just the most common topic
+ *  - Niche-specific, not generic content-type labels
+ *  - Each post should be likely to fit exactly one category
  */
 export async function detectCategories(captions: string[]): Promise<string[]> {
   if (!process.env.ANTHROPIC_API_KEY || captions.length === 0) {
@@ -110,7 +120,10 @@ export async function detectCategories(captions: string[]): Promise<string[]> {
   }
 
   try {
-    const sample = captions.slice(0, 20).map((c, i) => `${i + 1}. ${c.slice(0, 200)}`).join("\n");
+    const sample = captions
+      .slice(0, 30)
+      .map((c, i) => `${i + 1}. ${c.slice(0, 250)}`)
+      .join("\n\n");
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -121,25 +134,59 @@ export async function detectCategories(captions: string[]): Promise<string[]> {
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 200,
-        messages: [{
-          role: "user",
-          content: `Analyze these social media post captions and suggest 3-6 content categories that best describe the themes. Respond with a JSON array of category names only, like ["Category1", "Category2"].\n\n${sample}`,
-        }],
+        max_tokens: 400,
+        messages: [
+          {
+            role: "user",
+            content: `You are organizing a creator's content into a searchable directory.
+
+Below are ${captions.length > 30 ? "30 sample" : ""} captions from one creator's social media posts. Your job:
+
+STEP 1 — In one sentence to yourself, identify the creator's specific niche (e.g. "UK personal-finance / accounting" or "Latin American street food" or "Gen-Z mental health coaching"). Look at the topics, the vocabulary, the entities mentioned.
+
+STEP 2 — Produce 4–7 category names that:
+  • Are SPECIFIC to that niche (not generic — never use "General", "Updates", "Featured", "Other", "Tips", "Content")
+  • Are 1–3 words each (e.g. "Tax Strategy", "Property Investment", "Wealth Mindset")
+  • Together cover ALL the posts in the sample, not just the most common topic
+  • Each post should fit clearly into exactly ONE category
+  • Match the creator's actual vocabulary where possible
+
+STEP 3 — Output ONLY a JSON array, no preamble, no explanation. Like: ["Tax Strategy", "Property Investment", "Business Building", "Wealth Mindset"]
+
+Captions:
+${sample}`,
+          },
+        ],
       }),
     });
 
-    if (!response.ok) return ["General"];
+    if (!response.ok) {
+      console.warn("[categorizer] detectCategories HTTP", response.status);
+      return ["General"];
+    }
 
     const data = await response.json();
-    const text = data.content?.[0]?.text?.trim() || "[]";
-
-    // Extract JSON array from response
-    const match = text.match(/\[[\s\S]*\]/);
+    const text = (data.content?.[0]?.text || "").trim();
+    const match = text.match(/\[[\s\S]*?\]/);
     if (match) {
-      const categories = JSON.parse(match[0]);
-      if (Array.isArray(categories) && categories.length > 0) {
-        return categories.filter((c: unknown) => typeof c === "string").slice(0, 8);
+      try {
+        const categories = JSON.parse(match[0]);
+        if (Array.isArray(categories) && categories.length > 0) {
+          // Reject any generic fallback strings the model may have slipped in
+          const REJECT = new Set([
+            "general", "updates", "featured", "other", "misc",
+            "miscellaneous", "tips", "content", "uncategorized", "posts",
+          ]);
+          const cleaned = categories
+            .filter((c: unknown): c is string => typeof c === "string")
+            .map((c) => c.trim())
+            .filter((c) => c.length > 0 && c.length <= 32)
+            .filter((c) => !REJECT.has(c.toLowerCase()))
+            .slice(0, 8);
+          if (cleaned.length > 0) return cleaned;
+        }
+      } catch {
+        // Fall through to default
       }
     }
 

@@ -51,7 +51,9 @@ const PLANS: Record<PlanId, PlanConfig> = {
     siteLimit: 1,
     platformLimit: 1,
     accountsPerPlatform: { instagram: 1, tiktok: 0, youtube: 0 },
-    features: new Set(), // No features beyond the core directory itself.
+    // Free includes auto-categorization (Claude) since the pricing
+    // card promises it and the per-post cost is ~$0.0003.
+    features: new Set(["auto_categorization"]),
   },
   creator: {
     id: "creator",
@@ -70,6 +72,7 @@ const PLANS: Record<PlanId, PlanConfig> = {
       "platforms_multi",
       "references",
       "transcription",
+      "auto_categorization",
       "custom_domain",
     ]),
   },

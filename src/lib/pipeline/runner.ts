@@ -61,6 +61,27 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     await updateJob(siteId, "scrape", "completed", 100, `Scraped ${scrapedPosts.length} posts`);
     await report("scrape", 100, `Scraped ${scrapedPosts.length} posts`);
 
+    // ── INCREMENTAL SYNC ────────────────────────────────────────────
+    // On a re-run (sync), most posts already exist in the DB. Filter
+    // down to only the shortcodes we haven't seen before so we don't
+    // pay Groq/Apify/Claude for work we've already done.
+    const existingRows = await database
+      .select({ shortcode: posts.shortcode })
+      .from(posts)
+      .where(eq(posts.siteId, siteId));
+    const existingShortcodes = new Set(existingRows.map((r) => r.shortcode));
+    const newPosts = scrapedPosts.filter((p) => !existingShortcodes.has(p.shortcode));
+    const isSync = existingShortcodes.size > 0;
+    if (isSync) {
+      await updateJob(
+        siteId,
+        "scrape",
+        "completed",
+        100,
+        `Scraped ${scrapedPosts.length} posts · ${newPosts.length} new`,
+      );
+    }
+
     if (scrapedPosts.length === 0) {
       // Mark every remaining step as completed so the client's
       // `allCompleted` check passes and polling terminates.
@@ -87,9 +108,16 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
       .where(eq(posts.siteId, siteId));
     let nextSortOrder = (maxRow?.max ?? -1) + 1;
 
-    // Insert posts into DB and upload media
-    for (let i = 0; i < scrapedPosts.length; i++) {
-      const p = scrapedPosts[i];
+    // Insert posts into DB and upload media — only NEW shortcodes.
+    // Existing posts already have stable Blob URLs, so re-uploading
+    // would burn bandwidth + $ for no gain. onConflictDoNothing() on
+    // the insert is the final safety net.
+    const postsToUpload = isSync ? newPosts : scrapedPosts;
+    if (postsToUpload.length === 0) {
+      await report("transcribe", 40, "No new posts to upload");
+    }
+    for (let i = 0; i < postsToUpload.length; i++) {
+      const p = postsToUpload[i];
 
       // Upload thumbnail and primary media
       const thumbUrl = await uploadThumbnail(site.slug, p.shortcode, p.thumbUrl);
@@ -116,8 +144,8 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
         sortOrder: nextSortOrder++,
       }).onConflictDoNothing();
 
-      const pct = Math.round(10 + (i / scrapedPosts.length) * 30);
-      await report("transcribe", pct, `Uploaded ${i + 1}/${scrapedPosts.length}...`);
+      const pct = Math.round(10 + (i / postsToUpload.length) * 30);
+      await report("transcribe", pct, `Uploaded ${i + 1}/${postsToUpload.length}...`);
     }
 
     // ── Step 3: TRANSCRIBE (Creator+ plans only) ────────────────────
@@ -132,10 +160,17 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
       // public and stable.
       const videoPostRows = await database.query.posts.findMany({
         where: eq(posts.siteId, siteId),
-        columns: { id: true, shortcode: true, type: true, mediaUrl: true },
+        columns: { id: true, shortcode: true, type: true, mediaUrl: true, transcript: true },
       });
+      // On sync: skip any video that already has a non-trivial transcript.
+      // Initial build: transcribe everything (transcript is null). Saves
+      // ~$0.003/video on Groq + wall-clock time when the user re-syncs
+      // and most content is unchanged.
       const videoPosts = videoPostRows.filter(
-        (p) => p.type === "video" && p.mediaUrl,
+        (p) =>
+          p.type === "video" &&
+          p.mediaUrl &&
+          (!p.transcript || p.transcript.length < 50),
       );
       let transcribed = 0;
       let transcribeErrors = 0;
@@ -190,24 +225,38 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     await report("categorize", 60, "Categorizing posts...");
     await updateJob(siteId, "categorize", "running", 60, "Categorizing posts...");
 
-    // Detect categories — Pro+ uses Claude AI; Free/Creator get a default set
+    // Detect categories — Pro+ uses Claude AI; Free/Creator get a default set.
+    // On sync: if the site already has detected categories, reuse them
+    // instead of re-inferring (saves one Claude call and keeps the
+    // creator's existing tabs stable). We still categorize any posts
+    // that are "Uncategorized" into the existing buckets.
+    const existingCategories =
+      isSync && Array.isArray(site.categories) && site.categories.length > 0
+        ? (site.categories as string[])
+        : null;
     const allCaptions = scrapedPosts.map((p) => p.caption).filter(Boolean);
-    let detectedCategories = canAutoCategorize
-      ? await detectCategories(allCaptions)
-      : ["General", "Updates", "Featured"];
+    let detectedCategories =
+      existingCategories ??
+      (canAutoCategorize ? await detectCategories(allCaptions) : ["General", "Updates", "Featured"]);
     // Always include "Uncategorized" so keyword/LLM fallbacks don't produce orphan categories
     if (!detectedCategories.includes("Uncategorized")) {
       detectedCategories = [...detectedCategories, "Uncategorized"];
     }
 
     // Update site with categories
-    await database.update(sites)
-      .set({ categories: detectedCategories })
-      .where(eq(sites.id, siteId));
+    if (!existingCategories) {
+      await database.update(sites)
+        .set({ categories: detectedCategories })
+        .where(eq(sites.id, siteId));
+    }
 
-    // Limit to 1000 posts per pipeline run to avoid OOM
+    // On sync: only categorize posts that are still "Uncategorized" —
+    // typically just the newly-inserted ones. On initial build the
+    // DB-stored category defaults to "Uncategorized" for every post.
     const dbPosts = await database.query.posts.findMany({
-      where: eq(posts.siteId, siteId),
+      where: isSync
+        ? and(eq(posts.siteId, siteId), eq(posts.category, "Uncategorized"))
+        : eq(posts.siteId, siteId),
       limit: 1000,
     });
     // Batch size = 25 posts per Claude call. Haiku comfortably handles
@@ -271,22 +320,32 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     if (canExtractReferences) {
       await report("references", 85, "Finding references...");
       try {
+        // On sync: only run references for NEW posts. Existing posts
+        // were already processed; re-running would waste Claude calls
+        // AND (because refs are wipe-then-insert below) temporarily
+        // blank out refs on posts that are only being re-evaluated.
+        const newShortcodes = new Set(newPosts.map((p) => p.shortcode));
         const refPosts = await database.query.posts.findMany({
           where: eq(posts.siteId, siteId),
-          columns: { id: true, caption: true, transcript: true },
+          columns: { id: true, caption: true, transcript: true, shortcode: true },
           limit: 1000,
         });
-        const rows = await extractReferencesForPosts(
-          refPosts.map((p) => ({
-            postId: p.id,
-            caption: p.caption || "",
-            transcript: p.transcript,
-          })),
-          (done, total) => {
-            const pct = Math.round(85 + (done / Math.max(total, 1)) * 4);
-            void report("references", pct, `Found references for ${done}/${total}`);
-          },
-        );
+        const refTargets = isSync
+          ? refPosts.filter((p) => newShortcodes.has(p.shortcode))
+          : refPosts;
+        const rows = refTargets.length === 0
+          ? []
+          : await extractReferencesForPosts(
+              refTargets.map((p) => ({
+                postId: p.id,
+                caption: p.caption || "",
+                transcript: p.transcript,
+              })),
+              (done, total) => {
+                const pct = Math.round(85 + (done / Math.max(total, 1)) * 4);
+                void report("references", pct, `Found references for ${done}/${total}`);
+              },
+            );
 
         // Group new refs by post so we can do a clean wipe-then-insert
         // per post. The references table has no natural unique key

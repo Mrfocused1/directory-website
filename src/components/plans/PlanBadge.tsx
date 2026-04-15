@@ -13,7 +13,7 @@ export default function PlanBadge() {
   const { planId, planName } = usePlan();
 
   return (
-    <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider px-2 py-0.5 sm:py-1 rounded ${PLAN_COLORS[planId] || PLAN_COLORS.free}`}>
+    <span className={`shrink-0 whitespace-nowrap text-[10px] sm:text-xs font-bold uppercase tracking-wider px-2 py-0.5 sm:py-1 rounded ${PLAN_COLORS[planId] || PLAN_COLORS.free}`}>
       {planName} Plan
     </span>
   );

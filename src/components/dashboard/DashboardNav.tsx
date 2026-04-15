@@ -38,13 +38,14 @@ export default function DashboardNav() {
   return (
     <>
       {/* Top nav bar */}
-      <nav className="flex items-center justify-between px-4 sm:px-10 h-16 max-w-6xl mx-auto border-b border-[color:var(--border)]">
+      <nav className="flex items-center justify-between gap-3 px-4 sm:px-6 h-16 max-w-7xl mx-auto border-b border-[color:var(--border)]">
         <Link href="/" className="text-lg font-extrabold tracking-tight">
           BuildMy<span className="text-black/40">.</span>Directory
         </Link>
-        <div className="flex items-center gap-3">
-          {/* Desktop tabs */}
-          <div className="hidden lg:flex items-center gap-1 text-sm">
+        <div className="flex items-center gap-2 min-w-0">
+          {/* Desktop tabs — tighter padding so the nav has room for the
+              plan badge and sign-out on the right without wrapping. */}
+          <div className="hidden lg:flex items-center gap-0.5 text-sm">
             {TABS.map((tab) => {
               const isActive = pathname === tab.href;
               const locked = tab.requiredFeature && !can(tab.requiredFeature);
@@ -52,13 +53,13 @@ export default function DashboardNav() {
                 <Link
                   key={tab.href}
                   href={tab.href}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition flex items-center gap-1 ${
+                  className={`px-2 py-1.5 rounded-lg font-medium transition flex items-center gap-1 whitespace-nowrap ${
                     isActive ? "font-semibold bg-black/5" : "text-[color:var(--fg-muted)] hover:bg-black/5"
                   }`}
                 >
                   {tab.label}
                   {locked && (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-purple-400">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-purple-400" aria-hidden>
                       <rect width="18" height="11" x="3" y="11" rx="2" />
                       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                     </svg>
@@ -71,7 +72,7 @@ export default function DashboardNav() {
             <select
               value={selectedSite.id}
               onChange={(e) => selectSite(e.target.value)}
-              className="text-xs font-medium px-2 py-1.5 rounded-lg border border-[color:var(--border)] bg-white max-w-[160px] truncate"
+              className="text-xs font-medium px-2 py-1.5 rounded-lg border border-[color:var(--border)] bg-white max-w-[160px] truncate shrink-0"
               aria-label="Select active directory"
             >
               {sites.map((s) => (
@@ -85,9 +86,13 @@ export default function DashboardNav() {
           <button
             type="button"
             onClick={handleSignOut}
-            className="text-xs font-medium text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] transition"
+            className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[color:var(--fg-muted)] hover:bg-black/5 hover:text-[color:var(--fg)] transition"
+            aria-label="Sign out"
+            title="Sign out"
           >
-            Sign out
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+            </svg>
           </button>
         </div>
       </nav>

@@ -146,13 +146,21 @@ async function run() {
         await page.goto(`${BASE}/dashboard`, { waitUntil: "networkidle2" });
         await new Promise((r) => setTimeout(r, 1500));
         const state = await page.evaluate(() => {
-          const btn = [...document.querySelectorAll("button")].find((b) => /^sync now/i.test((b.textContent || "").trim()));
-          return btn ? { text: btn.textContent?.trim(), disabled: btn.disabled, title: btn.title } : null;
+          const btn = [...document.querySelectorAll("button")].find(
+            (b) => /sync now|no syncs left|quota/i.test((b.textContent || "").trim()),
+          );
+          return btn ? { text: btn.textContent?.trim(), disabled: btn.disabled } : null;
         });
-        // Bug if remaining=0 button shows "Sync now · 0/30" (reads as available). Acceptable only if disabled+clear text.
         const text = state?.text || "";
-        const weirdText = /Sync now · 0\//i.test(text) && !/quota|used|reached/i.test(text);
-        record("A5 dashboard:quota-0-button-label", !weirdText, `text="${text}" disabled=${state?.disabled}`);
+        // With remaining=0 the button MUST (a) be disabled and (b) NOT
+        // say "Sync now · 0/N" which reads as available.
+        const weirdText = /Sync now · 0\//i.test(text);
+        const notDisabled = state && state.disabled === false;
+        record(
+          "A5 dashboard:quota-0-button-label",
+          !weirdText && !notDisabled && !!state,
+          `text="${text}" disabled=${state?.disabled}`,
+        );
       } finally { await page.close(); await sql`DELETE FROM sites WHERE id = ${s.id}`.catch(() => {}); await rmUser(u.id); }
     }
 
@@ -215,7 +223,8 @@ async function run() {
     }
 
     // ── A9: sync counter correctness with multiple sites ────────────
-    // User with 2 sites. 1 initial-build scrape row per site = 2 rows total. Quota should read "1 used" after subtracting 1.
+    // User with 2 sites, 1 scrape row per site = 2 rows total. Post-fix
+    // every scrape row counts (no "-1"), so quota reads "2 used".
     {
       const u = await mkUser("a9", "agency");
       const [s1] = await sql`INSERT INTO sites (user_id, slug, platform, handle, display_name, is_published) VALUES (${u.id}, ${`qa-a9a-${Date.now().toString(36)}`}, 'instagram', 'qa', 'A9a', true) RETURNING id`;
@@ -228,8 +237,7 @@ async function run() {
       try {
         await signIn(page, u.email, u.password);
         const data = await page.evaluate(async () => (await fetch("/api/pipeline/sync-status")).json());
-        // 2 scrape rows - 1 subtracted = 1 "used". With multiple sites, undercounting by 1 is by design.
-        record("A9 multi-site:quota-counting", data.used === 1, `used=${data.used} limit=${data.limit}`);
+        record("A9 multi-site:quota-counting", data.used === 2, `used=${data.used} limit=${data.limit}`);
       } finally { await page.close(); await sql`DELETE FROM sites WHERE id = ${s1.id}`.catch(() => {}); await sql`DELETE FROM sites WHERE id = ${s2.id}`.catch(() => {}); await rmUser(u.id); }
     }
 

@@ -69,14 +69,14 @@ const PRICING = [
     tagline: "Try it out.",
     features: [
       "1 directory site",
-      "Up to 9 posts",
+      "Up to 9 posts (one-shot build)",
       "1 Instagram or TikTok account",
-      "AI transcription (Deepgram)",
+      "AI transcription",
       "Auto-categorization (Claude)",
       "Search, filters, post modal",
-      "Featured posts & bulk actions",
       "RSS feed + embed widget",
       "buildmy.directory/yourname URL",
+      "No ongoing sync — upgrade for that",
     ],
     cta: "Start Free",
     planId: null as string | null,
@@ -89,6 +89,7 @@ const PRICING = [
     tagline: "Everything in Free, plus…",
     features: [
       "Up to 100 posts",
+      "30 syncs per month (~1/day)",
       "Instagram + TikTok + YouTube",
       "Custom domain (buy or connect)",
       "DNS + SSL auto-provisioning",
@@ -110,6 +111,7 @@ const PRICING = [
     tagline: "Everything in Creator, plus…",
     features: [
       "Up to 500 posts",
+      "100 syncs per month (~3/day)",
       "Full SEO: sitemap, JSON-LD, canonicals",
       "Dynamic Open Graph preview images",
       "Search-term & audience insights",
@@ -127,6 +129,7 @@ const PRICING = [
     tagline: "Everything in Pro, plus…",
     features: [
       "Unlimited posts",
+      "500 syncs per month across all sites",
       "Up to 10 directory sites",
       "5 accounts per platform (multi-creator)",
       "Full white-label footer branding",

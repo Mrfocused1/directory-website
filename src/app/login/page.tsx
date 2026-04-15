@@ -146,6 +146,17 @@ function LoginContent() {
                   ? "Sign in"
                   : "Create account"}
             </button>
+
+            {mode === "login" && (
+              <div className="text-center">
+                <Link
+                  href="/forgot-password"
+                  className="text-xs font-medium text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] hover:underline"
+                >
+                  Forgot your password?
+                </Link>
+              </div>
+            )}
           </form>
 
           <p className="text-center text-sm text-[color:var(--fg-muted)] mt-6">

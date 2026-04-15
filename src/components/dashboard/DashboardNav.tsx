@@ -10,12 +10,14 @@ import type { FeatureKey } from "@/lib/plans";
 
 const TABS: { href: string; label: string; requiredFeature?: FeatureKey }[] = [
   { href: "/dashboard", label: "Sites" },
+  { href: "/dashboard/posts", label: "Posts" },
   { href: "/dashboard/analytics", label: "Analytics" },
   { href: "/dashboard/platforms", label: "Platforms" },
   { href: "/dashboard/domains", label: "Domains", requiredFeature: "custom_domain" },
   { href: "/dashboard/requests", label: "Requests", requiredFeature: "requests" },
   { href: "/dashboard/newsletter", label: "Newsletter", requiredFeature: "newsletter" },
   { href: "/dashboard/api", label: "API", requiredFeature: "api_access" },
+  { href: "/dashboard/account", label: "Account" },
 ];
 
 export default function DashboardNav() {

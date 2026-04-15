@@ -192,11 +192,29 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
 
+      // Validate completedPostShortcode if provided — trim, max 64, basic shape
+      let completedPostShortcode = existing.completedPostShortcode;
+      if (updates.completedPostShortcode !== undefined) {
+        const v = updates.completedPostShortcode;
+        if (v === null || v === "") {
+          completedPostShortcode = null;
+        } else if (typeof v === "string") {
+          const trimmed = v.trim();
+          if (trimmed.length > 64) {
+            return NextResponse.json({ error: "completedPostShortcode too long" }, { status: 400 });
+          }
+          completedPostShortcode = trimmed || null;
+        } else {
+          return NextResponse.json({ error: "completedPostShortcode must be a string" }, { status: 400 });
+        }
+      }
+
       await db.update(contentRequests)
         .set({
           status: updates.status || existing.status,
           creatorNote: updates.creatorNote !== undefined ? updates.creatorNote : existing.creatorNote,
           isPinned: updates.isPinned !== undefined ? updates.isPinned : existing.isPinned,
+          completedPostShortcode,
           updatedAt: new Date(),
         })
         .where(eq(contentRequests.id, requestId));

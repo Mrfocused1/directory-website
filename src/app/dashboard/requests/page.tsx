@@ -16,6 +16,8 @@ export default function CreatorRequestsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNote, setEditNote] = useState("");
+  const [linkingId, setLinkingId] = useState<string | null>(null);
+  const [linkShortcode, setLinkShortcode] = useState("");
   const siteId = selectedSite?.id;
 
   const fetchRequests = useCallback(async () => {
@@ -61,6 +63,17 @@ export default function CreatorRequestsPage() {
     updateRequest(requestId, { creatorNote: editNote });
     setEditingId(null);
     setEditNote("");
+  };
+
+  const handleSaveLink = (requestId: string) => {
+    const shortcode = linkShortcode.trim();
+    updateRequest(requestId, {
+      completedPostShortcode: shortcode || null,
+      // Auto-mark as completed when a shortcode is linked
+      ...(shortcode ? { status: "completed" } : {}),
+    });
+    setLinkingId(null);
+    setLinkShortcode("");
   };
 
   const openCount = requests.filter((r) => r.status === "open").length;
@@ -240,7 +253,53 @@ export default function CreatorRequestsPage() {
                           >
                             {req.creatorNote ? "Edit Response" : "Respond"}
                           </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLinkingId(req.id);
+                              setLinkShortcode(req.completedPostShortcode || "");
+                            }}
+                            className="h-8 px-3 text-xs font-semibold bg-black/5 rounded-lg hover:bg-black/10 transition"
+                          >
+                            {req.completedPostShortcode ? "Edit link" : "Link post"}
+                          </button>
                         </div>
+
+                        {/* Completed-post link editor */}
+                        {linkingId === req.id && (
+                          <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                            <input
+                              type="text"
+                              value={linkShortcode}
+                              onChange={(e) => setLinkShortcode(e.target.value)}
+                              placeholder="Post shortcode (e.g. CxyZ123)"
+                              className="flex-1 h-8 px-3 bg-white border border-[color:var(--border)] rounded-lg text-xs focus:outline-none focus:border-[color:var(--fg)] transition"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => { setLinkingId(null); setLinkShortcode(""); }}
+                                className="h-8 px-3 text-xs font-semibold border border-[color:var(--border)] rounded-lg hover:bg-black/5 transition"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSaveLink(req.id)}
+                                className="h-8 px-3 text-xs font-semibold bg-[color:var(--fg)] text-[color:var(--bg)] rounded-lg hover:opacity-90 transition"
+                              >
+                                {linkShortcode.trim() ? "Save & mark complete" : "Unlink"}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {req.completedPostShortcode && linkingId !== req.id && (
+                          <p className="mt-2 text-[11px] text-[color:var(--fg-subtle)]">
+                            Linked to post <code className="font-mono bg-black/5 px-1 py-0.5 rounded">{req.completedPostShortcode}</code>
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>

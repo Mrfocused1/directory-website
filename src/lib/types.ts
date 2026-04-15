@@ -7,7 +7,12 @@ export type PostType = "video" | "image" | "carousel";
 export type YouTubeRef = {
   kind: "youtube";
   title: string;
-  videoId: string;
+  // One of videoId or url must be present.
+  // - videoId → embed an inline player
+  // - url     → render as a link chip (used for channel pages or
+  //             search-result URLs when we don't have a specific video)
+  videoId?: string | null;
+  url?: string | null;
   note?: string;
 };
 

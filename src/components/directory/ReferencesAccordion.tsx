@@ -24,14 +24,18 @@ export default function ReferencesAccordion({
   }
 
   const articles = references.filter(isArticle);
-  const videos = references.filter((r) => !isArticle(r)) as Extract<Reference, { kind: "youtube" }>[];
+  const allVideos = references.filter((r) => !isArticle(r)) as Extract<Reference, { kind: "youtube" }>[];
+  // Split YouTube refs by whether we have an embeddable videoId or
+  // just a link (channel page / search results URL).
+  const embeddableVideos = allVideos.filter((v) => v.videoId);
+  const linkOnlyVideos = allVideos.filter((v) => !v.videoId && v.url);
 
   return (
     <div className="space-y-5">
-      {articles.length > 0 && (
+      {(articles.length > 0 || linkOnlyVideos.length > 0) && (
         <div>
           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[color:var(--fg-subtle)] mb-2">
-            Sources cited in caption
+            Sources &amp; references
           </h3>
           <ul className="flex flex-wrap gap-2">
             {articles.map((ref, i) => (
@@ -49,26 +53,48 @@ export default function ReferencesAccordion({
                 </a>
               </li>
             ))}
+            {linkOnlyVideos.map((ref, i) => (
+              <li key={`yl-${i}`}>
+                <a
+                  href={ref.url || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[color:var(--fg)] bg-[color:var(--card)] border border-[color:var(--border)] rounded-full px-3 py-1.5 hover:bg-[color:var(--fg)] hover:text-[color:var(--bg)] transition"
+                  title={ref.note || "Open on YouTube"}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-red-600" aria-hidden>
+                    <path d="M21.58 7.19a2.51 2.51 0 0 0-1.77-1.77C18.25 5 12 5 12 5s-6.25 0-7.81.42a2.51 2.51 0 0 0-1.77 1.77A26.3 26.3 0 0 0 2 12a26.3 26.3 0 0 0 .42 4.81 2.51 2.51 0 0 0 1.77 1.77C5.75 19 12 19 12 19s6.25 0 7.81-.42a2.51 2.51 0 0 0 1.77-1.77A26.3 26.3 0 0 0 22 12a26.3 26.3 0 0 0-.42-4.81zM10 15V9l5.2 3-5.2 3z" />
+                  </svg>
+                  {ref.title}
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+                    <path d="M7 17L17 7M17 7H9M17 7v8" />
+                  </svg>
+                </a>
+              </li>
+            ))}
           </ul>
         </div>
       )}
 
-      {videos.length > 0 && (
+      {embeddableVideos.length > 0 && (
         <div>
           <h3 className="text-[11px] font-semibold uppercase tracking-wider text-[color:var(--fg-subtle)] mb-2">
             YouTube coverage of this topic
           </h3>
           <ul className="divide-y divide-[color:var(--border)] rounded-lg border border-[color:var(--border)] overflow-hidden bg-[color:var(--card)]">
-            {videos.map((ref) => {
-              const isOpen = openId === ref.videoId;
+            {embeddableVideos.map((ref) => {
+              // embeddableVideos was filtered for ref.videoId truthy, so
+              // the non-null assertion is safe here.
+              const vid = ref.videoId as string;
+              const isOpen = openId === vid;
               return (
-                <li key={ref.videoId}>
+                <li key={vid}>
                   <button
                     type="button"
-                    onClick={() => setOpenId(isOpen ? null : ref.videoId)}
+                    onClick={() => setOpenId(isOpen ? null : vid)}
                     className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-[color:var(--fg)]/5 transition"
                     aria-expanded={isOpen}
-                    aria-controls={`ref-panel-${ref.videoId}`}
+                    aria-controls={`ref-panel-${vid}`}
                   >
                     <span className="mt-0.5 text-red-600 shrink-0">
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -88,7 +114,7 @@ export default function ReferencesAccordion({
                   <AnimatePresence initial={false}>
                     {isOpen && (
                       <motion.div
-                        id={`ref-panel-${ref.videoId}`}
+                        id={`ref-panel-${vid}`}
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
@@ -98,7 +124,7 @@ export default function ReferencesAccordion({
                         <div className="px-4 pb-4">
                           <div className="relative w-full overflow-hidden rounded-md bg-black" style={{ aspectRatio: "16 / 9" }}>
                             <iframe
-                              src={`https://www.youtube-nocookie.com/embed/${ref.videoId}?rel=0`}
+                              src={`https://www.youtube-nocookie.com/embed/${vid}?rel=0`}
                               title={ref.title}
                               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                               allowFullScreen
@@ -109,7 +135,7 @@ export default function ReferencesAccordion({
                           </div>
                           <div className="mt-2 flex gap-3 text-xs">
                             <a
-                              href={`https://www.youtube.com/watch?v=${ref.videoId}`}
+                              href={`https://www.youtube.com/watch?v=${vid}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-[color:var(--fg-muted)] hover:text-[color:var(--fg)]"

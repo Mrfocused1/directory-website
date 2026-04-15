@@ -135,26 +135,33 @@ async function inferRefsViaLLM(post) {
   if (text.trim().length < 40) return [];
   const prompt = `You're identifying things a viewer would want to look up after watching this short-form video.
 
-Read the caption + transcript below. Extract up to 5 NAMED references that a viewer would benefit from a clickable link to. Examples of what counts:
-- Specific brands, products, tools, services (e.g. "Vanguard", "InvestEngine", "Hargreaves Lansdown")
-- Named YouTube channels or videos
+Read the caption + transcript below. Extract up to 6 NAMED references — a mix of WEBSITES and YOUTUBE VIDEOS — that a viewer would benefit from a clickable link to.
+
+WEBSITE references (kind: "article"):
+- Specific brands, products, tools, services
+- Companies, organizations, regulators
 - Books, podcasts, documentaries
-- Companies, organizations, regulators (e.g. "HMRC", "Companies House")
-- People (only if they're public figures with a clear web presence)
 - Articles or studies referenced
+- url: official site if known, otherwise https://www.google.com/search?q=<urlencoded name>
+
+YOUTUBE references (kind: "youtube"):
+- For at least 2 of the references (when topic warrants), find a high-quality EXPLAINER YOUTUBE VIDEO on the topic from a CREDIBLE channel
+- Credible channels: official brand channels, BBC News, CNBC, Bloomberg Television, The Wall Street Journal, Financial Times, Forbes, TED, official institution channels, well-established educators (>500K subs)
+- url: MUST be a real YouTube watch URL of the form https://www.youtube.com/watch?v=<11-char-id> from a known credible channel
+- If you don't know a specific real video on the topic, DO NOT make one up — instead use a YouTube SEARCH URL: https://www.youtube.com/results?search_query=<urlencoded topic>+<credible source>
 
 DO NOT extract:
-- Generic concepts ("inflation", "savings", "stock market", "ISA", "FIRE" — these are topics, not references)
+- Generic concepts (these are topics, not references)
 - The creator themselves
 - The platform (Instagram, TikTok)
-- Numbers, percentages, prices
+- Numbers, percentages, prices, dates
 
-For each reference, produce one JSON object with these fields:
+For each reference, produce one JSON object:
 {
   "kind": "youtube" | "article",
   "title": "display name (1-6 words)",
-  "url": "best-known URL OR https://www.google.com/search?q=<urlencoded entity name>",
-  "note": "why a viewer would click — 1 short sentence" (optional)
+  "url": "destination URL — see rules above",
+  "note": "why a viewer would click — 1 short sentence"
 }
 
 Output ONLY a JSON array. Empty array [] if nothing concrete to reference.
@@ -201,7 +208,30 @@ ${text}`;
         continue;
       }
       if (kind === "youtube") {
-        out.push({ post_id: post.id, kind: "youtube", title, url: null, video_id: ytId(url) || "search", note });
+        const vid = ytId(url);
+        if (vid) {
+          // Validate via noembed — drops hallucinated video IDs
+          const meta = await fetchYTMeta(vid);
+          if (!meta) continue;
+          out.push({
+            post_id: post.id,
+            kind: "youtube",
+            title: meta.title || title,
+            url: null,
+            video_id: vid,
+            note: note || meta.channel || null,
+          });
+        } else {
+          // Channel page or search URL — store as link-only YouTube ref
+          out.push({
+            post_id: post.id,
+            kind: "youtube",
+            title,
+            url,
+            video_id: null,
+            note,
+          });
+        }
       } else {
         out.push({ post_id: post.id, kind: "article", title, url, video_id: null, note });
       }

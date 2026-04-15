@@ -391,6 +391,9 @@ function EditModal({
               className="w-full px-3 py-2 bg-white border-2 border-[color:var(--border)] rounded-lg text-sm focus:outline-none focus:border-[color:var(--fg)] transition resize-none"
             />
           </div>
+
+          <ReferencesEditor postId={post.id} />
+
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-800 text-xs rounded-lg px-3 py-2">
               {error}
@@ -410,6 +413,292 @@ function EditModal({
               className="h-10 px-4 text-xs font-semibold bg-[color:var(--fg)] text-[color:var(--bg)] rounded-lg hover:opacity-90 transition disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save changes"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── References editor ─────────────────────────────────────────────────
+type RefRow = {
+  id: string;
+  kind: "youtube" | "article";
+  title: string;
+  url: string | null;
+  videoId: string | null;
+  note: string | null;
+};
+
+function ReferencesEditor({ postId }: { postId: string }) {
+  const [refs, setRefs] = useState<RefRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<RefRow | null>(null);
+  const [showAdd, setShowAdd] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`/api/dashboard/posts/${postId}/references`);
+      const data = await r.json();
+      if (r.ok) setRefs(data.references || []);
+    } finally {
+      setLoading(false);
+    }
+  }, [postId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function remove(id: string) {
+    if (!confirm("Delete this reference?")) return;
+    const r = await fetch(`/api/dashboard/posts/${postId}/references?refId=${id}`, {
+      method: "DELETE",
+    });
+    if (r.ok) setRefs((rs) => rs.filter((x) => x.id !== id));
+    else setError("Delete failed");
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-xs font-semibold">References</label>
+        <button
+          type="button"
+          onClick={() => setShowAdd(true)}
+          className="text-[11px] font-semibold text-[color:var(--fg-muted)] hover:text-[color:var(--fg)]"
+        >
+          + Add reference
+        </button>
+      </div>
+      <p className="text-[11px] text-[color:var(--fg-subtle)] mb-2">
+        Sources, videos, brands, or further reading shown in the post modal.
+      </p>
+
+      {loading ? (
+        <div className="text-[11px] text-[color:var(--fg-subtle)] py-2">Loading…</div>
+      ) : refs.length === 0 ? (
+        <div className="text-[11px] text-[color:var(--fg-subtle)] py-2 px-3 bg-black/[0.02] border border-dashed border-[color:var(--border)] rounded-lg">
+          None yet. Click &quot;Add reference&quot; to add one.
+        </div>
+      ) : (
+        <ul className="space-y-1.5">
+          {refs.map((r) => (
+            <li key={r.id} className="flex items-start gap-2 bg-black/[0.02] border border-[color:var(--border)] rounded-lg px-3 py-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider mt-1 px-1.5 py-0.5 rounded shrink-0 w-16 text-center"
+                style={{
+                  background: r.kind === "youtube" ? "#fee2e2" : "#dbeafe",
+                  color: r.kind === "youtube" ? "#991b1b" : "#1e40af",
+                }}
+              >
+                {r.kind}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold truncate">{r.title}</div>
+                {r.note && (
+                  <div className="text-[11px] text-[color:var(--fg-subtle)] line-clamp-1">{r.note}</div>
+                )}
+                <div className="text-[11px] text-[color:var(--fg-subtle)] truncate">
+                  {r.kind === "youtube" && r.videoId ? `youtube.com/watch?v=${r.videoId}` : r.url}
+                </div>
+              </div>
+              <div className="flex gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setEditing(r)}
+                  className="text-[11px] font-semibold px-2 py-1 hover:bg-black/5 rounded"
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => remove(r.id)}
+                  className="text-[11px] font-semibold px-2 py-1 text-red-600 hover:bg-red-50 rounded"
+                >
+                  ✕
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {error && (
+        <div className="mt-2 text-[11px] text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1">
+          {error}
+        </div>
+      )}
+
+      {(showAdd || editing) && (
+        <RefForm
+          postId={postId}
+          existing={editing}
+          onClose={() => {
+            setShowAdd(false);
+            setEditing(null);
+          }}
+          onSaved={(saved) => {
+            setRefs((rs) => {
+              const idx = rs.findIndex((x) => x.id === saved.id);
+              if (idx >= 0) {
+                const next = rs.slice();
+                next[idx] = saved;
+                return next;
+              }
+              return [...rs, saved];
+            });
+            setShowAdd(false);
+            setEditing(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function RefForm({
+  postId,
+  existing,
+  onClose,
+  onSaved,
+}: {
+  postId: string;
+  existing: RefRow | null;
+  onClose: () => void;
+  onSaved: (r: RefRow) => void;
+}) {
+  const [kind, setKind] = useState<"youtube" | "article">(existing?.kind || "article");
+  const [title, setTitle] = useState(existing?.title || "");
+  const [url, setUrl] = useState(existing?.url || "");
+  const [videoId, setVideoId] = useState(existing?.videoId || "");
+  const [note, setNote] = useState(existing?.note || "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const url2 = existing
+        ? `/api/dashboard/posts/${postId}/references?refId=${existing.id}`
+        : `/api/dashboard/posts/${postId}/references`;
+      const res = await fetch(url2, {
+        method: existing ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind,
+          title: title.trim(),
+          url: url.trim() || null,
+          videoId: kind === "youtube" ? videoId.trim() || null : null,
+          note: note.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Save failed");
+        return;
+      }
+      onSaved(data.reference);
+    } catch {
+      setError("Network error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl max-w-md w-full p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="text-sm font-bold mb-3">
+          {existing ? "Edit reference" : "Add reference"}
+        </h3>
+        <form onSubmit={submit} className="space-y-3">
+          <div className="flex gap-2">
+            {(["article", "youtube"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setKind(k)}
+                className={`flex-1 h-9 px-3 text-xs font-semibold rounded-lg border-2 transition ${
+                  kind === k
+                    ? "border-[color:var(--fg)] bg-black/5"
+                    : "border-[color:var(--border)] hover:border-[color:var(--fg-muted)]"
+                }`}
+              >
+                {k === "article" ? "Website / Article" : "YouTube"}
+              </button>
+            ))}
+          </div>
+
+          <input
+            type="text"
+            placeholder="Title (e.g. Vanguard Investor)"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            maxLength={200}
+            required
+            className="w-full h-10 px-3 bg-white border-2 border-[color:var(--border)] rounded-lg text-sm focus:outline-none focus:border-[color:var(--fg)] transition"
+          />
+
+          {kind === "youtube" && (
+            <input
+              type="text"
+              placeholder="Video ID (11 chars, optional)"
+              value={videoId}
+              onChange={(e) => setVideoId(e.target.value)}
+              maxLength={11}
+              className="w-full h-10 px-3 bg-white border-2 border-[color:var(--border)] rounded-lg text-sm focus:outline-none focus:border-[color:var(--fg)] transition font-mono"
+            />
+          )}
+
+          <input
+            type="url"
+            placeholder={kind === "youtube" ? "OR YouTube URL (channel / search OK)" : "Destination URL"}
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            className="w-full h-10 px-3 bg-white border-2 border-[color:var(--border)] rounded-lg text-sm focus:outline-none focus:border-[color:var(--fg)] transition"
+          />
+
+          <input
+            type="text"
+            placeholder='Optional one-line "why click" note'
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={200}
+            className="w-full h-10 px-3 bg-white border-2 border-[color:var(--border)] rounded-lg text-sm focus:outline-none focus:border-[color:var(--fg)] transition"
+          />
+
+          {error && (
+            <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1">
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-9 px-3 text-xs font-semibold border border-[color:var(--border)] rounded-lg hover:bg-black/5 transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !title.trim()}
+              className="h-9 px-4 text-xs font-semibold bg-[color:var(--fg)] text-[color:var(--bg)] rounded-lg hover:opacity-90 transition disabled:opacity-50"
+            >
+              {saving ? "Saving…" : existing ? "Save" : "Add"}
             </button>
           </div>
         </form>

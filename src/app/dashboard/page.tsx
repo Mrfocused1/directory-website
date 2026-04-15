@@ -128,12 +128,14 @@ export default function DashboardPage() {
               {sites.map((site) => (
                 <div
                   key={site.id}
-                  className="bg-white border-2 border-[color:var(--border)] rounded-2xl p-6 hover:shadow-lg hover:shadow-black/5 transition-shadow"
+                  className="bg-white border-2 border-[color:var(--border)] rounded-2xl p-5 sm:p-6 hover:shadow-lg hover:shadow-black/5 transition-shadow"
                 >
-                  <div className="flex items-start justify-between gap-4">
+                  {/* On mobile: stack info above actions so buttons don't crush the handle.
+                      On >=sm: info and actions sit side-by-side as before. */}
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-1">
-                        <h2 className="text-lg font-bold truncate">{site.displayName || site.slug}</h2>
+                      <div className="flex items-center gap-2 sm:gap-3 mb-1 flex-wrap">
+                        <h2 className="text-lg font-bold truncate max-w-full">{site.displayName || site.slug}</h2>
                         {site.isPublished ? (
                           <span className="text-xs font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full shrink-0">
                             Live
@@ -144,20 +146,22 @@ export default function DashboardPage() {
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-[color:var(--fg-muted)]">
+                      <p className="text-sm text-[color:var(--fg-muted)] truncate">
                         @{site.handle} on {site.platform}
                       </p>
-                      <div className="flex items-center gap-4 mt-3 text-xs text-[color:var(--fg-subtle)]">
+                      <div className="flex items-center gap-4 mt-2 sm:mt-3 text-xs text-[color:var(--fg-subtle)]">
                         <span>{site.postCount} posts</span>
                         {site.lastSyncAt && (
-                          <span>
+                          <span className="truncate">
                             Last synced {new Date(site.lastSyncAt).toLocaleDateString()}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    {/* Actions — wrap on mobile, row on desktop. Delete is pushed to the
+                        end with ml-auto so it sits flush-right on mobile too. */}
+                    <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                       {!site.isPublished && (
                         <button
                           type="button"
@@ -201,7 +205,7 @@ export default function DashboardPage() {
                         type="button"
                         onClick={() => handleDelete(site)}
                         disabled={deletingId === site.id}
-                        className="h-9 px-3 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-1 transition disabled:opacity-50"
+                        className="h-9 px-3 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-1 transition disabled:opacity-50 ml-auto sm:ml-0"
                         aria-label={`Delete ${site.displayName || site.slug}`}
                         title="Delete this directory"
                       >

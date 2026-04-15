@@ -131,8 +131,134 @@ async function fetchArticleTitle(url: string): Promise<string | null> {
 }
 
 /**
- * Extract references from a single post. Returns the rows to insert
- * into the `references` table, deduped within the post.
+ * Ask Claude to identify named references in caption + transcript.
+ *
+ * Returns entities a viewer would benefit from clicking through to —
+ * brands, products, tools, books, podcasts, YouTube channels, articles,
+ * websites — even when the creator didn't say a literal URL.
+ *
+ * Each entity comes back with a kind ("youtube" | "article") and a
+ * destination URL: official URL when known/inferrable, otherwise a
+ * Google search query for the entity name.
+ */
+async function inferReferencesViaLLM(
+  post: PostInput,
+): Promise<ReferenceRow[]> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return [];
+
+  const text = `${post.caption || ""}\n${post.transcript || ""}`.slice(0, 6000);
+  if (text.trim().length < 40) return [];
+
+  const prompt = `You're identifying things a viewer would want to look up after watching this short-form video.
+
+Read the caption + transcript below. Extract up to 5 NAMED references that a viewer would benefit from a clickable link to. Examples of what counts:
+- Specific brands, products, tools, services (e.g. "Vanguard", "InvestEngine", "Hargreaves Lansdown")
+- Named YouTube channels or videos
+- Books, podcasts, documentaries
+- Companies, organizations, regulators (e.g. "HMRC", "Companies House")
+- People (only if they're public figures with a clear web presence)
+- Articles or studies referenced
+
+DO NOT extract:
+- Generic concepts ("inflation", "savings", "stock market", "ISA", "FIRE" — these are topics, not references)
+- The creator themselves
+- The platform (Instagram, TikTok)
+- Numbers, percentages, prices
+
+For each reference, produce one JSON object with these fields:
+{
+  "kind": "youtube" | "article",
+  "title": "display name (1-6 words)",
+  "url": "best-known URL OR https://www.google.com/search?q=<urlencoded entity name>",
+  "note": "why a viewer would click — 1 short sentence" (optional)
+}
+
+Output ONLY a JSON array. Empty array [] if nothing concrete to reference.
+
+Caption + transcript:
+${text}`;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 800,
+        messages: [{ role: "user", content: prompt }],
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const responseText = (data.content?.[0]?.text || "").trim();
+    const match = responseText.match(/\[[\s\S]*\]/);
+    if (!match) return [];
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(match[0]);
+    } catch {
+      return [];
+    }
+    if (!Array.isArray(parsed)) return [];
+
+    const out: ReferenceRow[] = [];
+    for (const item of parsed) {
+      if (!item || typeof item !== "object") continue;
+      const o = item as Record<string, unknown>;
+      const kind = o.kind === "youtube" ? "youtube" : "article";
+      const title = typeof o.title === "string" ? o.title.trim().slice(0, 200) : "";
+      const url = typeof o.url === "string" ? o.url.trim() : "";
+      const note = typeof o.note === "string" ? o.note.trim().slice(0, 200) : null;
+      if (!title || !url) continue;
+
+      // Validate URL — drop anything that's not http(s)
+      try {
+        const u = new URL(url);
+        if (u.protocol !== "http:" && u.protocol !== "https:") continue;
+      } catch {
+        continue;
+      }
+
+      if (kind === "youtube") {
+        const videoId = extractYouTubeId(url);
+        out.push({
+          postId: post.postId,
+          kind: "youtube",
+          title,
+          url: null,
+          videoId: videoId || "search",
+          note,
+        });
+      } else {
+        out.push({
+          postId: post.postId,
+          kind: "article",
+          title,
+          url,
+          videoId: null,
+          note,
+        });
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Extract references from a single post. Combines:
+ *   1. Regex extraction of literal URLs in caption + transcript
+ *   2. Claude inference of named entities a viewer would want to click
+ * Returns the rows to insert into the `references` table, deduped
+ * within the post.
  */
 export async function extractReferencesForPost(
   post: PostInput,
@@ -145,6 +271,7 @@ export async function extractReferencesForPost(
   const seenYouTube = new Set<string>();
   const seenArticle = new Set<string>();
 
+  // ── Pass 1: explicit URLs ────────────────────────────────────────
   for (const url of urls) {
     const videoId = extractYouTubeId(url);
     if (videoId) {
@@ -163,8 +290,6 @@ export async function extractReferencesForPost(
       if (seenArticle.has(url)) continue;
       seenArticle.add(url);
       const title = await fetchArticleTitle(url);
-      // If title lookup failed, still keep the reference — the URL alone
-      // is useful. Fall back to the host name as a display title.
       let displayTitle = title;
       if (!displayTitle) {
         try {
@@ -183,6 +308,24 @@ export async function extractReferencesForPost(
       });
     }
   }
+
+  // ── Pass 2: Claude-inferred named entities ───────────────────────
+  // Skipped if no Anthropic key. Dedupes against pass 1 by URL/title.
+  const inferred = await inferReferencesViaLLM(post);
+  for (const ref of inferred) {
+    const dedupeKey =
+      ref.kind === "youtube" ? ref.videoId || ref.title : ref.url || ref.title;
+    if (!dedupeKey) continue;
+    if (ref.kind === "youtube") {
+      if (seenYouTube.has(dedupeKey)) continue;
+      seenYouTube.add(dedupeKey);
+    } else {
+      if (seenArticle.has(dedupeKey)) continue;
+      seenArticle.add(dedupeKey);
+    }
+    out.push(ref);
+  }
+
   return out;
 }
 

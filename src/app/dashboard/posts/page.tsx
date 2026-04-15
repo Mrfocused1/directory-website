@@ -239,10 +239,11 @@ export default function PostsPage() {
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Public-directory layout toggle (2 vs 3 columns on desktop) */}
+            {/* Mobile-only layout toggle. Desktop keeps its natural
+                responsive flow (3-up at sm, 4-up at lg) regardless. */}
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-semibold text-[color:var(--fg-muted)]">
-                Layout
+                Mobile layout
               </span>
               <div className="inline-flex border border-[color:var(--border)] rounded-lg overflow-hidden">
                 {([2, 3] as const).map((cols) => (
@@ -257,7 +258,7 @@ export default function PostsPage() {
                         : "bg-white hover:bg-black/5"
                     } disabled:opacity-50`}
                     aria-pressed={gridColumns === cols}
-                    title={`${cols}-column grid on the public directory`}
+                    title={`Show ${cols} columns on phones (desktop is unchanged)`}
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
                       {cols === 2 ? (

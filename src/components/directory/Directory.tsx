@@ -253,14 +253,14 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
             </nav>
           )}
 
-          {/* Grid — admin chooses 2 or 3 columns on desktop via the
-              dashboard. Mobile stays 2-up regardless to preserve
-              readable tap targets. */}
+          {/* Grid — admin controls MOBILE column count (2 or 3) via the
+              dashboard. Desktop always uses the natural responsive
+              progression (3 at sm, 4 at lg) regardless of the toggle. */}
           {filtered.length > 0 ? (
             <>
               <div
-                className={`grid grid-cols-2 gap-2 sm:gap-3 px-1 sm:px-0 animate-fade-in ${
-                  site.gridColumns === 2 ? "sm:grid-cols-2" : "sm:grid-cols-3"
+                className={`grid gap-2 sm:gap-3 px-1 sm:px-0 animate-fade-in sm:grid-cols-3 lg:grid-cols-4 ${
+                  site.gridColumns === 3 ? "grid-cols-3" : "grid-cols-2"
                 }`}
               >
                 {pageItems.map((p, i) => (

@@ -51,9 +51,12 @@ const PLANS: Record<PlanId, PlanConfig> = {
     siteLimit: 1,
     platformLimit: 1,
     accountsPerPlatform: { instagram: 1, tiktok: 0, youtube: 0 },
-    // Free includes auto-categorization (Claude) since the pricing
-    // card promises it and the per-post cost is ~$0.0003.
-    features: new Set(["auto_categorization"]),
+    // Free includes auto-categorization (Claude, ~$0.0003/post) and
+    // transcription (Deepgram, ~$0.002/post for a 30s reel). At the
+    // 9-post cap that's ~$0.02 of Deepgram spend per free build —
+    // acceptable acquisition cost vs. the UX win of shipping videos
+    // that are searchable by what's actually SAID in them.
+    features: new Set(["auto_categorization", "transcription"]),
   },
   creator: {
     id: "creator",

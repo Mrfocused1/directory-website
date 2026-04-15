@@ -76,7 +76,7 @@ const GENERIC_CATEGORIES = new Set(
 );
 
 const FEATURE_BY_PLAN = {
-  free: new Set(["auto_categorization"]),
+  free: new Set(["auto_categorization", "transcription"]),
   creator: new Set([
     "analytics_basic","analytics_full","newsletter","requests","bookmarks",
     "platforms_multi","references","transcription","auto_categorization","custom_domain",
@@ -292,7 +292,7 @@ async function test_liveSitesHaveContent() {
   for (const s of sites) {
     const planFeats = FEATURE_BY_PLAN[s.plan] || new Set();
     const posts = await sql`
-      SELECT id, type, caption, transcript, category
+      SELECT id, type, caption, transcript, category, created_at
       FROM posts WHERE site_id = ${s.id}
     `;
     if (posts.length === 0) { failures.push(`${s.slug}: 0 posts`); continue; }
@@ -300,10 +300,18 @@ async function test_liveSitesHaveContent() {
       failures.push(`${s.slug}: no post has a non-empty caption`);
     }
     if (planFeats.has("transcription")) {
-      const badVid = posts.find(
-        (p) => p.type === "video" && (!p.transcript || p.transcript.length <= 100),
+      // Only flag RECENTLY-built posts — older rows may have been
+      // scraped before the owner's plan included transcription (e.g.
+      // they were grandfathered in when free got the feature) and
+      // we don't auto-backfill.
+      const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      const recentBadVid = posts.find(
+        (p) =>
+          p.type === "video" &&
+          p.created_at && new Date(p.created_at).getTime() > weekAgo &&
+          (!p.transcript || p.transcript.length <= 100),
       );
-      if (badVid) failures.push(`${s.slug}: video post ${badVid.id.slice(0, 8)} has transcript len=${(badVid.transcript || "").length}`);
+      if (recentBadVid) failures.push(`${s.slug}: recent video post ${recentBadVid.id.slice(0, 8)} has transcript len=${(recentBadVid.transcript || "").length}`);
     }
     if (planFeats.has("references")) {
       const [refCount] = await sql`

@@ -2,8 +2,18 @@ import { inngest } from "./client";
 import { runPipeline } from "@/lib/pipeline/runner";
 import { purchaseDomain, addDomainToProject } from "@/lib/vercel-domains";
 import { db } from "@/db";
-import { sites, subscribers, digestHistory, posts, users } from "@/db/schema";
-import { eq, and, gte, desc } from "drizzle-orm";
+import {
+  sites,
+  subscribers,
+  digestHistory,
+  posts,
+  users,
+  pageViews,
+  postClicks,
+  searchEvents,
+  categoryClicks,
+} from "@/db/schema";
+import { eq, and, gte, desc, lt } from "drizzle-orm";
 import { resend } from "@/lib/email/resend";
 import { digestEmail, sanitizeFromName } from "@/lib/email/templates";
 
@@ -204,5 +214,66 @@ export const scheduledDigestFunction = inngest.createFunction(
     }
 
     return { totalSent, siteCount, frequencies };
+  },
+);
+
+/**
+ * Weekly analytics pruner.
+ *
+ * Raw page_views / post_clicks / search_events / category_clicks rows
+ * are append-only and grow forever. The dashboard analytics reads from
+ * these tables for "last 30 days" windows and from daily_stats for the
+ * longer view, so anything older than ~90 days is dead weight — it's
+ * already been rolled up into daily_stats (or it never contributed to
+ * a date the dashboard cares about).
+ *
+ * Without this, a busy site accumulates ~millions of rows per year and
+ * Supabase's 500 MB free-tier DB fills up long before it otherwise
+ * would. Running weekly instead of daily keeps the writes spiky but
+ * amortized — a Monday DELETE is ~7× what a daily DELETE would be,
+ * still completes in seconds at this volume.
+ */
+export const pruneAnalyticsFunction = inngest.createFunction(
+  {
+    id: "prune-analytics",
+    retries: 1,
+    triggers: [{ cron: "0 3 * * 1" }], // 03:00 UTC every Monday
+  },
+  async () => {
+    if (!db) return { skipped: "db not configured" };
+    const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const results: Record<string, number> = {};
+
+    const [pv] = await db
+      .delete(pageViews)
+      .where(lt(pageViews.createdAt, cutoff))
+      .returning({ id: pageViews.id })
+      .then((rows) => [rows.length]);
+    results.pageViews = pv;
+
+    const [pc] = await db
+      .delete(postClicks)
+      .where(lt(postClicks.createdAt, cutoff))
+      .returning({ id: postClicks.id })
+      .then((rows) => [rows.length]);
+    results.postClicks = pc;
+
+    const [se] = await db
+      .delete(searchEvents)
+      .where(lt(searchEvents.createdAt, cutoff))
+      .returning({ id: searchEvents.id })
+      .then((rows) => [rows.length]);
+    results.searchEvents = se;
+
+    const [cc] = await db
+      .delete(categoryClicks)
+      .where(lt(categoryClicks.createdAt, cutoff))
+      .returning({ id: categoryClicks.id })
+      .then((rows) => [rows.length]);
+    results.categoryClicks = cc;
+
+    const total = Object.values(results).reduce((a, b) => a + b, 0);
+    console.log(`[prune-analytics] deleted ${total} rows older than ${cutoff.toISOString()}`, results);
+    return { deleted: total, byTable: results, cutoff: cutoff.toISOString() };
   },
 );

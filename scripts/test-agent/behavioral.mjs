@@ -200,7 +200,6 @@ async function test_passwordResetLandsOnReset(browser) {
     if (!link) return { pass: false, reason: "no action_link in generateLink response" };
 
     await page.goto(link, { waitUntil: "networkidle2", timeout: 20000 });
-    // Give client-side redirect time to settle
     await page
       .waitForFunction(() => /\/auth\/reset/.test(window.location.pathname), {
         timeout: 10000, polling: 300,
@@ -211,12 +210,22 @@ async function test_passwordResetLandsOnReset(browser) {
     if (finalPath !== "/auth/reset") {
       return { pass: false, reason: `final path is ${finalPath}, expected /auth/reset` };
     }
-    const hasForm = await page.evaluate(() => {
-      const h1 = document.querySelector("h1")?.textContent || "";
-      const labels = [...document.querySelectorAll("label")].map((l) => l.textContent || "").join(" ");
-      return /set a new password/i.test(h1) && /new password/i.test(labels);
-    });
-    if (!hasForm) return { pass: false, reason: "h1/label do not match 'Set a new password' form" };
+    // Poll for the form (client exchanges the code asynchronously)
+    const formReady = await page
+      .waitForFunction(
+        () => {
+          const h1 = document.querySelector("h1")?.textContent || "";
+          const labels = [...document.querySelectorAll("label")].map((l) => l.textContent || "").join(" ");
+          return /set a new password/i.test(h1) && /new password/i.test(labels);
+        },
+        { timeout: 10000, polling: 400 },
+      )
+      .then(() => true)
+      .catch(() => false);
+    if (!formReady) {
+      const body = await page.evaluate(() => document.body.innerText);
+      return { pass: false, reason: `form did not render after 10s (body: "${body.slice(0, 160)}")` };
+    }
     return { pass: true };
   } finally {
     await page.close();
@@ -362,15 +371,28 @@ async function test_dragReorderPersists(browser) {
       )
       .catch(() => null);
 
-    // Click the first tile's "Move down" twice → moves QA1 from pos 0 to pos 2.
-    // The buttons are stable and re-rendered after each reorder, so we re-query.
+    // Move the QA1 tile down twice. We locate it by its rendered title text
+    // on every click because the DOM re-renders after each persist and the
+    // positional index at [0] is no longer QA1 after the first move.
     const moved = await page.evaluate(async () => {
       const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      const findQA1DownBtn = () => {
+        const tiles = [...document.querySelectorAll("div")].filter((d) => {
+          const titleP = d.querySelector("p.line-clamp-2");
+          return titleP && /QA1/.test(titleP.textContent || "");
+        });
+        // Pick the smallest matching ancestor that contains the down button
+        for (const t of tiles) {
+          const btn = t.querySelector('button[aria-label="Move post down"]');
+          if (btn) return btn;
+        }
+        return null;
+      };
       for (let i = 0; i < 2; i++) {
-        const downs = [...document.querySelectorAll('button[aria-label="Move post down"]')];
-        if (!downs.length) return false;
-        downs[0].click();
-        await sleep(700); // wait for server to persist + re-render
+        const btn = findQA1DownBtn();
+        if (!btn) return false;
+        btn.click();
+        await sleep(900);
       }
       return true;
     });

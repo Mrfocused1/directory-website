@@ -11,19 +11,24 @@ export default function PricingButton({
   plan,
   cta,
   highlight,
+  className,
 }: {
   plan: string | null; // null = free
   cta: string;
   highlight: boolean;
+  className?: string;
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const baseClass = `w-full h-12 rounded-xl text-sm font-semibold flex items-center justify-center transition ${
+  // Marketing-theme styling to match the nory-inspired landing page.
+  // Caller can override with `className` if embedded elsewhere.
+  const defaultClass = `w-full h-11 rounded-full text-sm font-semibold flex items-center justify-center transition ${
     highlight
-      ? "bg-gradient-to-r from-purple-600 to-violet-600 text-white hover:opacity-90 shadow-md shadow-purple-200"
-      : "bg-black/5 text-[color:var(--fg)] hover:bg-black/10"
+      ? "bg-[color:var(--bd-dark)] text-[color:var(--bd-lime)] hover:opacity-90"
+      : "bg-white/10 text-white border border-white/20 hover:bg-white/15"
   }`;
+  const baseClass = className || defaultClass;
 
   // Free plan — go straight to onboarding
   if (!plan) {

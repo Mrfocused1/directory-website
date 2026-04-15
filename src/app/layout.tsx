@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Space_Grotesk, Inter } from "next/font/google";
 import "./globals.css";
 import RecoverySniffer from "@/components/auth/RecoverySniffer";
 import PostHogProvider from "@/components/analytics/PostHogProvider";
@@ -12,6 +12,22 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// Marketing-theme fonts (free substitutes for Sharp Grotesk + Graphik,
+// which are commercial). Loaded globally because Next.js dedupes font
+// requests per unique subset; they're only APPLIED to pages wrapped in
+// the .marketing-theme class (landing + legal).
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
+  subsets: ["latin"],
+  weight: ["500", "700"],
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
 });
 
 const SITE_URL =
@@ -59,7 +75,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <a

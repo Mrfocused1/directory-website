@@ -1,63 +1,43 @@
 import Link from "next/link";
+import MarketingNav from "@/components/marketing/MarketingNav";
+import MarketingFooter from "@/components/marketing/MarketingFooter";
 import HowItWorks from "@/components/landing/HowItWorks";
 import PricingButton from "@/components/landing/PricingButton";
 import ContactForm from "@/components/landing/ContactForm";
-import Footer from "@/components/landing/Footer";
+
+/**
+ * Landing page — nory.ai-inspired aesthetic.
+ *
+ * Color palette + typography sourced directly from nory.ai's CSS
+ * (Space Grotesk / Inter substitute for their commercial Sharp
+ * Grotesk / Graphik). Applied ONLY here + /privacy + /terms; tenant
+ * directories, admin, and dashboard keep their own theme.
+ */
 
 const FEATURES = [
   {
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 0 1 9-9" />
-      </svg>
-    ),
-    title: "Auto-Scrape Your Content",
-    desc: "Enter your Instagram or TikTok handle. We pull every post, reel, and carousel automatically.",
+    eyebrow: "Auto-scrape",
+    accent: "#d3fd74",
+    title: "We pull every post, reel and carousel.",
+    desc: "Enter your Instagram or TikTok handle. We do the scraping, the uploading, and the thumbnail prep. You don't touch anything.",
   },
   {
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 6V2H8" /><path d="m8 18-4 4V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2Z" />
-      </svg>
-    ),
-    title: "AI Transcription",
-    desc: "Every video is transcribed with AI. Your audience can search inside your spoken content.",
+    eyebrow: "AI transcription",
+    accent: "#b0b0fe",
+    title: "Your videos become searchable text.",
+    desc: "Whisper Large v3 transcribes every reel. Your audience can search what you SAID, not just your captions — and Google indexes it all.",
   },
   {
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20" />
-      </svg>
-    ),
-    title: "Smart References",
-    desc: "We find YouTube videos and articles that cover the same topics your content does.",
+    eyebrow: "Smart references",
+    accent: "#92eedd",
+    title: "We find the sources you'd have cited.",
+    desc: "Claude reads every post and pulls in related YouTube videos and articles. Credibility at scale, no manual sourcing.",
   },
   {
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z" />
-      </svg>
-    ),
-    title: "Auto-Categorize",
-    desc: "Posts are automatically sorted into categories based on your content themes.",
-  },
-  {
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18M9 21V9" />
-      </svg>
-    ),
-    title: "Beautiful Directory",
-    desc: "A polished, mobile-first grid with search, filters, pagination, and deep-linkable posts.",
-  },
-  {
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-      </svg>
-    ),
-    title: "Custom Domain",
-    desc: "Get buildmy.directory/yourname or connect your own custom domain.",
+    eyebrow: "Auto-categorize",
+    accent: "#ffc72d",
+    title: "Niche-specific tabs, not generic junk.",
+    desc: "We detect your niche first, then generate categories that fit. No 'General' or 'Updates' dumps — real tags your audience actually wants.",
   },
 ];
 
@@ -72,20 +52,20 @@ const PRICING = [
       "Up to 9 posts (one-shot build)",
       "1 Instagram or TikTok account",
       "AI transcription",
-      "Auto-categorization (Claude)",
+      "Auto-categorization",
       "Search, filters, post modal",
       "RSS feed + embed widget",
       "buildmy.directory/yourname URL",
       "No ongoing sync — upgrade for that",
     ],
-    cta: "Start Free",
+    cta: "Start free",
     planId: null as string | null,
     highlight: false,
   },
   {
     name: "Creator",
     price: "$19",
-    period: "/month",
+    period: "/mo",
     tagline: "Everything in Free, plus…",
     features: [
       "Up to 100 posts",
@@ -98,16 +78,16 @@ const PRICING = [
       "Scheduled weekly digests",
       "Content request board + voting",
       "Visitor bookmark collections",
-      "Smart references (articles + YouTube)",
+      "Smart references",
     ],
-    cta: "Get Started",
+    cta: "Get started",
     planId: "creator" as string | null,
     highlight: false,
   },
   {
     name: "Pro",
     price: "$39",
-    period: "/month",
+    period: "/mo",
     tagline: "Everything in Creator, plus…",
     features: [
       "Up to 500 posts",
@@ -125,16 +105,15 @@ const PRICING = [
   {
     name: "Agency",
     price: "$99",
-    period: "/month",
+    period: "/mo",
     tagline: "Everything in Pro, plus…",
     features: [
       "Unlimited posts",
       "500 syncs per month across all sites",
       "Up to 10 directory sites",
       "5 accounts per platform (multi-creator)",
-      "Full white-label footer branding",
+      "Full white-label branding",
       "Public API — sites, posts, subscribers",
-      "API keys with sha256-hashed auth",
       "Priority email support",
     ],
     cta: "Get Agency",
@@ -145,198 +124,211 @@ const PRICING = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen relative">
-      {/* Background */}
-      <div className="fixed inset-0 dotted-bg pointer-events-none" aria-hidden />
-      <div className="fixed inset-0 bg-gradient-to-br from-white/70 via-white/30 to-white/70 pointer-events-none" aria-hidden />
+    <div className="marketing-theme min-h-screen">
+      {/* ── HERO (dark purple) ─────────────────────────────────────── */}
+      <div className="bg-[color:var(--bd-dark)] text-white">
+        <MarketingNav />
 
-      <div className="relative z-10">
-        {/* Nav */}
-        <nav className="flex items-center justify-between px-6 sm:px-10 h-16 max-w-6xl mx-auto">
-          <span className="text-lg font-extrabold tracking-tight">
-            BuildMy<span className="text-black/40">.</span>Directory
-          </span>
-          <div className="flex items-center gap-4">
-            <Link
-              href="#pricing"
-              className="hidden sm:inline text-sm font-semibold text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] transition"
-            >
-              Pricing
-            </Link>
-            <Link
-              href="#contact"
-              className="hidden sm:inline text-sm font-semibold text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] transition"
-            >
-              Contact
-            </Link>
-            <Link
-              href="/dashboard"
-              className="text-sm font-semibold text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] transition"
-            >
-              Log in
-            </Link>
-            <Link
-              href="/onboarding"
-              className="text-sm font-semibold bg-[color:var(--fg)] text-[color:var(--bg)] px-5 py-2.5 rounded-full hover:opacity-90 transition"
-            >
-              Get Started
-            </Link>
-          </div>
-        </nav>
-
-        {/* Hero */}
-        <section className="pt-20 pb-24 px-6 text-center max-w-4xl mx-auto animate-fade-in">
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-extrabold tracking-tight leading-[1.05] mb-6">
-            Turn your content into a
-            <br />
-            <span className="gradient-text">searchable directory</span>
-          </h1>
-          <p className="text-lg sm:text-xl text-[color:var(--fg-muted)] max-w-2xl mx-auto mb-10 leading-relaxed">
-            Enter your Instagram or TikTok handle. We automatically scrape your content,
-            transcribe your videos, find references, and build you a beautiful, searchable
-            directory site — in minutes.
-          </p>
-
-          {/* CTA input */}
-          <form action="/onboarding" method="GET" className="max-w-md mx-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-2">
-            <div className="relative flex-1">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--fg-subtle)] text-sm font-medium">@</span>
-              <input
-                type="text"
-                name="handle"
-                placeholder="yourhandle"
-                aria-label="Instagram or TikTok handle"
-                className="w-full h-14 pl-9 pr-4 bg-white border-2 border-[color:var(--border)] rounded-2xl text-lg font-medium placeholder:text-[color:var(--fg-subtle)] focus:outline-none focus:border-[color:var(--fg)] transition"
-              />
-            </div>
-            <button
-              type="submit"
-              className="h-14 px-8 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-2xl text-base font-semibold flex items-center justify-center hover:opacity-90 transition whitespace-nowrap"
-            >
-              Build My Directory
-            </button>
-          </form>
-          <p className="mt-4 text-xs text-[color:var(--fg-subtle)]">
-            Free to try. No credit card required.
-          </p>
-        </section>
-
-        {/* Demo preview */}
-        <section className="px-6 pb-24 max-w-5xl mx-auto animate-fade-in">
-          <div className="relative bg-white rounded-2xl border-2 border-[color:var(--border)] shadow-2xl shadow-black/5 overflow-hidden">
-            <div className="flex items-center gap-2 px-4 h-10 border-b border-[color:var(--border)] bg-[color:var(--card)]">
-              <div className="flex gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-red-400/60" />
-                <div className="w-3 h-3 rounded-full bg-yellow-400/60" />
-                <div className="w-3 h-3 rounded-full bg-green-400/60" />
+        <section className="relative overflow-hidden">
+          <div className="absolute inset-0 hero-glow pointer-events-none" aria-hidden />
+          <div className="relative max-w-[90rem] mx-auto px-6 sm:px-10 pt-24 pb-32 grid lg:grid-cols-[1.1fr_1fr] gap-16 items-center">
+            <div>
+              <div className="flex items-center gap-3 mb-8 flex-wrap">
+                <span className="pill bg-[color:var(--bd-lilac)]/20 text-[color:var(--bd-lilac)]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--bd-lime)]" />
+                  Trusted by creators worldwide
+                </span>
+                <span className="pill bg-white/10 text-white/90">
+                  ★ 4.8 average rating
+                </span>
               </div>
-              <div className="flex-1 flex justify-center">
-                <div className="text-xs text-[color:var(--fg-subtle)] bg-black/5 px-4 py-1 rounded-md font-mono">
-                  buildmy.directory/yourname
+
+              <h1 className="font-display-tight text-[3.25rem] sm:text-[4.5rem] lg:text-[5.75rem] text-white mb-6">
+                Your content,
+                <br />
+                fully searchable.
+              </h1>
+
+              <p className="text-lg text-white/75 leading-relaxed max-w-xl mb-10">
+                Turn your Instagram or TikTok feed into a beautiful, searchable directory
+                your audience can explore. Transcribed, categorized, cross-referenced —
+                all done for you in minutes.
+              </p>
+
+              <div className="flex items-center gap-3 flex-wrap">
+                <Link
+                  href="/onboarding"
+                  className="inline-flex items-center h-12 px-6 rounded-full bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] text-base font-semibold hover:opacity-90 transition"
+                >
+                  Start free
+                </Link>
+                <Link
+                  href="/demo"
+                  className="inline-flex items-center gap-2 h-12 px-6 rounded-full border border-white/20 text-white text-base font-medium hover:bg-white/5 transition"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                  Watch demo
+                </Link>
+              </div>
+
+              <p className="mt-6 text-sm text-white/50">
+                Free to try. No credit card required.
+              </p>
+            </div>
+
+            {/* Device mockup — pastiche of nory's phone-on-warm-bg */}
+            <div className="relative">
+              <div className="aspect-[4/5] bg-gradient-to-br from-[color:var(--bd-maroon)] via-[color:var(--bd-purple)] to-[color:var(--bd-dark)] rounded-[2rem] p-6 shadow-2xl overflow-hidden">
+                <div className="h-full bg-[color:var(--bd-cream)] rounded-[1.5rem] p-5 flex flex-col">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-semibold text-[color:var(--bd-grey)]">
+                      buildmy.directory/you
+                    </span>
+                    <span className="w-6 h-6 rounded-full bg-[color:var(--bd-lime)] flex items-center justify-center text-[color:var(--bd-dark)] text-xs font-bold">
+                      Y
+                    </span>
+                  </div>
+                  <div className="flex-1 grid grid-cols-2 gap-2">
+                    {[
+                      "bg-[color:var(--bd-lilac)]",
+                      "bg-[color:var(--bd-lime)]",
+                      "bg-[color:var(--bd-maroon)]",
+                      "bg-[color:var(--bd-purple)]",
+                      "bg-[color:var(--bd-green)]",
+                      "bg-[color:var(--bd-cream-2)]",
+                    ].map((cls, i) => (
+                      <div key={i} className={`rounded-xl ${cls} aspect-square`} />
+                    ))}
+                  </div>
+                  <div className="mt-3 bg-white rounded-xl px-3 py-2 flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[color:var(--bd-grey)]">
+                      <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+                    </svg>
+                    <span className="text-xs text-[color:var(--bd-grey)]">Search posts…</span>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="p-6 sm:p-10">
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-extrabold tracking-tight mb-1">Your Directory</h2>
-                <p className="text-sm text-[color:var(--fg-muted)]">
-                  Exploring Business, Africa, Economics & Current Affairs
+          </div>
+        </section>
+      </div>
+
+      {/* ── "Results you can see" stats strip ─────────────────────── */}
+      <section className="bg-[color:var(--bd-cream)] py-24">
+        <div className="max-w-[90rem] mx-auto px-6 sm:px-10">
+          <h2 className="font-display-tight text-center text-[color:var(--bd-dark)] text-[2.75rem] sm:text-[4rem] lg:text-[5rem] mb-20">
+            Built for creators
+            <br />
+            who actually ship.
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-[color:var(--bd-dark-faded)]">
+            <Stat label="Auto-scrape" accent="#d3fd74" big="5min" sub="From signup to published directory — typical." />
+            <Stat label="Per-post cost" accent="#b0b0fe" big="<1¢" sub="Transcription + categorization on your free tier." />
+            <Stat label="Syncs / month" accent="#ffc72d" big="500" sub="Agency tier. Your content stays fresh automatically." />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Feature cards (nory style: eyebrow + bold headline + dark mockup) ── */}
+      <section id="how" className="bg-[color:var(--bd-cream)] pb-24">
+        <div className="max-w-[90rem] mx-auto px-6 sm:px-10 space-y-6">
+          {FEATURES.map((f, i) => (
+            <div
+              key={f.eyebrow}
+              className="bg-white rounded-[2rem] p-8 sm:p-12 grid md:grid-cols-[1fr_1fr] gap-10 items-center"
+            >
+              <div className={i % 2 === 1 ? "md:order-2" : ""}>
+                <div className="eyebrow text-[color:var(--bd-dark)] mb-4">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: f.accent }} />
+                  {f.eyebrow}
+                </div>
+                <h3 className="font-display-tight text-[color:var(--bd-dark)] text-[2rem] sm:text-[2.75rem] mb-4">
+                  {f.title}
+                </h3>
+                <p className="text-[color:var(--bd-grey)] leading-relaxed text-base max-w-md">
+                  {f.desc}
                 </p>
               </div>
-              {/* Fake grid — 3 cols × 2 rows = 6 tiles */}
-              <div className="grid grid-cols-3 gap-3">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="aspect-[4/5] bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl" />
-                ))}
+              <div
+                className={`aspect-[5/4] rounded-2xl flex items-center justify-center relative overflow-hidden ${
+                  i % 2 === 1 ? "md:order-1" : ""
+                }`}
+                style={{ backgroundColor: f.accent + "33" }}
+              >
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    backgroundImage: `radial-gradient(circle at 50% 50%, ${f.accent}60 0%, transparent 70%)`,
+                  }}
+                />
+                <span
+                  className="relative font-display-tight text-[color:var(--bd-dark)] text-[3rem] opacity-40"
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </span>
               </div>
             </div>
-          </div>
-        </section>
+          ))}
+        </div>
+      </section>
 
-        {/* Features */}
-        <section id="features" className="pb-24 max-w-5xl mx-auto overflow-hidden scroll-mt-16">
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-center mb-4 px-6">
-            Everything automated
-          </h2>
-          <p className="text-center text-[color:var(--fg-muted)] mb-14 max-w-xl mx-auto px-6">
-            From scraping to transcription to categorization — we handle the entire pipeline
-            so you can focus on creating.
-          </p>
-          {/* Mobile: horizontal scroll slider */}
-          <div className="sm:hidden flex gap-4 overflow-x-auto overflow-y-hidden snap-x snap-mandatory px-6 pb-4 scrollbar-hide max-w-[100vw]">
-            {FEATURES.map((f) => (
-              <div
-                key={f.title}
-                className="bg-white border border-[color:var(--border)] rounded-2xl p-6 min-w-[260px] w-[260px] shrink-0 snap-center"
-              >
-                <div className="w-12 h-12 rounded-xl bg-black/5 flex items-center justify-center text-[color:var(--fg)] mb-4">
-                  {f.icon}
-                </div>
-                <h3 className="text-base font-bold mb-2">{f.title}</h3>
-                <p className="text-sm text-[color:var(--fg-muted)] leading-relaxed">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-          {/* Desktop: grid */}
-          <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-6 px-6">
-            {FEATURES.map((f) => (
-              <div
-                key={f.title}
-                className="bg-white border border-[color:var(--border)] rounded-2xl p-6 hover:shadow-lg hover:shadow-black/5 transition-shadow"
-              >
-                <div className="w-12 h-12 rounded-xl bg-black/5 flex items-center justify-center text-[color:var(--fg)] mb-4">
-                  {f.icon}
-                </div>
-                <h3 className="text-base font-bold mb-2">{f.title}</h3>
-                <p className="text-sm text-[color:var(--fg-muted)] leading-relaxed">{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* How it works — with animated demos */}
+      {/* ── How it works (existing component reused inside theme) ─── */}
+      <section className="bg-[color:var(--bd-cream)]">
         <HowItWorks />
+      </section>
 
-        {/* Pricing */}
-        <section id="pricing" className="px-6 pb-24 max-w-5xl mx-auto">
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-center mb-4">
-            Simple pricing
-          </h2>
-          <p className="text-center text-[color:var(--fg-muted)] mb-14">
-            Start free. Upgrade when you&apos;re ready.
-          </p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      {/* ── Pricing ───────────────────────────────────────────────── */}
+      <section id="pricing" className="bg-[color:var(--bd-dark)] text-white py-24">
+        <div className="max-w-[90rem] mx-auto px-6 sm:px-10">
+          <div className="text-center mb-16">
+            <div className="eyebrow text-white/60 mb-4 justify-center inline-flex">
+              <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--bd-lime)]" />
+              Pricing
+            </div>
+            <h2 className="font-display-tight text-[2.75rem] sm:text-[4rem] lg:text-[5rem] mb-4">
+              Start free.
+              <br />
+              Upgrade when ready.
+            </h2>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {PRICING.map((p) => (
               <div
                 key={p.name}
-                className={`relative bg-white border-2 rounded-2xl p-6 flex flex-col ${
+                className={`relative rounded-[1.25rem] p-6 flex flex-col ${
                   p.highlight
-                    ? "border-purple-500 shadow-xl shadow-purple-100"
-                    : "border-[color:var(--border)]"
+                    ? "bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)]"
+                    : "bg-white/5 border border-white/10 text-white"
                 }`}
               >
                 {p.highlight && (
-                  <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[10px] font-bold uppercase tracking-widest bg-gradient-to-r from-purple-600 to-violet-600 text-white px-3 py-0.5 rounded-full shadow-md shadow-purple-200">
-                    Popular
+                  <span className="absolute -top-3 left-6 text-[10px] font-bold uppercase tracking-widest bg-[color:var(--bd-dark)] text-[color:var(--bd-lime)] px-3 py-1 rounded-full">
+                    Most popular
                   </span>
                 )}
-                <h3 className="text-lg font-bold mb-1">{p.name}</h3>
-                <div className="mb-1">
-                  <span className="text-4xl font-extrabold">{p.price}</span>
-                  <span className="text-sm text-[color:var(--fg-muted)]">{p.period}</span>
+                <h3 className="font-display-tight text-2xl mb-2">{p.name}</h3>
+                <div className="flex items-baseline gap-1 mb-1">
+                  <span className="font-display-tight text-[3rem] leading-none">{p.price}</span>
+                  <span className={`text-sm ${p.highlight ? "text-[color:var(--bd-dark)]/70" : "text-white/60"}`}>
+                    {p.period}
+                  </span>
                 </div>
-                {p.tagline && (
-                  <p className="text-xs font-semibold text-[color:var(--fg-muted)] mb-4">
-                    {p.tagline}
-                  </p>
-                )}
-                <ul className="space-y-2.5 mb-8 flex-1">
-                  {p.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm">
-                      <svg className="w-4 h-4 mt-0.5 text-green-600 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M20 6L9 17l-5-5" />
-                      </svg>
-                      {f}
+                <p className={`text-xs mb-6 ${p.highlight ? "text-[color:var(--bd-dark)]/70" : "text-white/60"}`}>
+                  {p.tagline}
+                </p>
+                <ul className="space-y-2.5 mb-8 flex-1 text-sm">
+                  {p.features.map((feat) => (
+                    <li key={feat} className="flex items-start gap-2">
+                      <span className={`shrink-0 mt-[5px] w-1.5 h-1.5 rounded-full ${
+                        p.highlight ? "bg-[color:var(--bd-dark)]" : "bg-[color:var(--bd-lime)]"
+                      }`} />
+                      <span className={p.highlight ? "text-[color:var(--bd-dark)]/85" : "text-white/85"}>
+                        {feat}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -344,14 +336,40 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Contact */}
+      {/* ── Contact (existing, wrapped in cream bg) ───────────────── */}
+      <section id="contact" className="bg-[color:var(--bd-cream)] py-24">
         <ContactForm />
+      </section>
 
-        {/* Footer */}
-        <Footer />
+      <MarketingFooter />
+    </div>
+  );
+}
+
+function Stat({
+  label,
+  accent,
+  big,
+  sub,
+}: {
+  label: string;
+  accent: string;
+  big: string;
+  sub: string;
+}) {
+  return (
+    <div className="bg-[color:var(--bd-cream)] p-8 sm:p-12 text-center">
+      <div className="eyebrow text-[color:var(--bd-dark)] justify-center mb-6">
+        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: accent }} />
+        {label}
       </div>
+      <div className="font-display-tight text-[color:var(--bd-dark)] text-[4.5rem] sm:text-[6rem] leading-none mb-4">
+        {big}
+      </div>
+      <p className="text-sm text-[color:var(--bd-grey)] max-w-[220px] mx-auto">{sub}</p>
     </div>
   );
 }

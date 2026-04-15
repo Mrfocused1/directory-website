@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 @utility scrollbar-hide {
   -ms-overflow-style: none;
@@ -57,6 +58,88 @@ html, body {
 
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ─── Marketing theme (nory.ai-inspired) ──────────────────────────────
+ * Scope: landing page + legal pages ONLY. Do NOT apply to tenant
+ * directory pages, admin, or dashboard — they keep the default light
+ * theme. Wrap a page in <div className="marketing-theme"> to opt in.
+ *
+ * Palette sourced from nory.ai's own CSS variables; fonts substituted
+ * for free Google equivalents (Space Grotesk ≈ Sharp Grotesk, Inter ≈
+ * Graphik). */
+.marketing-theme {
+  --bd-dark: #140018;          /* hero background */
+  --bd-cream: #f3f0e8;         /* feature section background */
+  --bd-cream-2: #e0dbcf;       /* subtle card variant */
+  --bd-purple: #4a3050;        /* mid purple */
+  --bd-lilac: #b0b0fe;         /* soft lavender accent */
+  --bd-lime: #d3fd74;          /* bright yellow-green accent */
+  --bd-maroon: #3c0304;        /* deep burgundy card */
+  --bd-green: #053017;         /* forest green card */
+  --bd-grey: #69616b;          /* muted text on cream */
+  --bd-dark-faded: #3532330d;  /* faint divider on cream */
+  --bd-light-faded: #ffffff1a; /* faint divider on dark */
+
+  --bd-font-display: var(--font-space-grotesk), "Space Grotesk", system-ui, sans-serif;
+  --bd-font-body: var(--font-inter), "Inter", system-ui, sans-serif;
+
+  --bd-radius-sm: 0.25rem;
+  --bd-radius-md: 0.5rem;
+  --bd-radius-pill: 100vw;
+
+  --bd-container: 90rem;
+  --bd-section-sm: 5rem;
+  --bd-section-md: 6rem;
+  --bd-section-lg: 8rem;
+
+  font-family: var(--bd-font-body);
+  color: var(--bd-dark);
+}
+
+/* Display type resets the default leading/tracking to match Nory's
+ * chunky, tight display setting. Apply via `font-display-tight`. */
+.marketing-theme .font-display-tight {
+  font-family: var(--bd-font-display);
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+}
+
+/* Small uppercase eyebrow/tag label used above section headlines */
+.marketing-theme .eyebrow {
+  font-family: var(--bd-font-body);
+  font-weight: 500;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Pill badge used in hero ("Top performer in …") */
+.marketing-theme .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--bd-radius-pill);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+/* Subtle inner-glow effect on the dark hero, centered behind content.
+ * Nory uses a soft radial gradient + grain — recreated with
+ * background-image + mix-blend-mode. */
+.marketing-theme .hero-glow {
+  background-image:
+    radial-gradient(
+      ellipse 80% 60% at 50% 40%,
+      rgba(176, 176, 254, 0.18) 0%,
+      rgba(176, 176, 254, 0) 60%
+    );
+}
 
 /* Gradient text utility */
 .gradient-text {

@@ -1,6 +1,11 @@
-import Link from "next/link";
-import Footer from "@/components/landing/Footer";
+import MarketingNav from "@/components/marketing/MarketingNav";
+import MarketingFooter from "@/components/marketing/MarketingFooter";
 
+/**
+ * Layout for /privacy and /terms. Dark header (same MarketingNav as
+ * the landing page), cream body with the long-form text set in
+ * Inter, title set in Space Grotesk (via font-display-tight).
+ */
 export default function LegalLayout({
   title,
   lastUpdated,
@@ -11,42 +16,44 @@ export default function LegalLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen relative">
-      <div className="fixed inset-0 dotted-bg pointer-events-none" aria-hidden />
-      <div className="fixed inset-0 bg-gradient-to-br from-white/70 via-white/30 to-white/70 pointer-events-none" aria-hidden />
+    <div className="marketing-theme min-h-screen flex flex-col">
+      <div className="bg-[color:var(--bd-dark)] text-white">
+        <MarketingNav />
+      </div>
 
-      <div className="relative z-10">
-        {/* Nav */}
-        <nav className="flex items-center justify-between px-6 sm:px-10 h-16 max-w-6xl mx-auto">
-          <Link href="/" className="text-lg font-extrabold tracking-tight">
-            BuildMy<span className="text-black/40">.</span>Directory
-          </Link>
-          <Link
-            href="/"
-            className="text-sm font-medium text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] transition flex items-center gap-1.5"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-            Back
-          </Link>
-        </nav>
-
-        <main className="max-w-3xl mx-auto px-6 sm:px-10 pt-10 pb-20">
-          <div className="mb-10">
-            <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-3">{title}</h1>
-            <p className="text-sm text-[color:var(--fg-subtle)]">
+      <main className="flex-1 bg-[color:var(--bd-cream)]">
+        <div className="max-w-3xl mx-auto px-6 sm:px-10 py-20">
+          <header className="mb-12">
+            <h1 className="font-display-tight text-[2.75rem] sm:text-[4rem] text-[color:var(--bd-dark)] mb-4">
+              {title}
+            </h1>
+            <p className="text-sm text-[color:var(--bd-grey)]">
               Last updated: {lastUpdated}
             </p>
-          </div>
+          </header>
 
-          <article className="prose prose-sm sm:prose-base max-w-none text-[color:var(--fg-muted)] leading-relaxed">
+          <article
+            className="prose prose-sm sm:prose-base max-w-none
+                       prose-headings:font-display-tight
+                       prose-headings:text-[color:var(--bd-dark)]
+                       prose-headings:tracking-tight
+                       prose-p:text-[color:var(--bd-grey)]
+                       prose-p:leading-relaxed
+                       prose-li:text-[color:var(--bd-grey)]
+                       prose-strong:text-[color:var(--bd-dark)]
+                       prose-a:text-[color:var(--bd-dark)]
+                       prose-a:underline
+                       prose-a:decoration-[color:var(--bd-lime)]
+                       prose-a:decoration-2
+                       prose-a:underline-offset-2
+                       prose-a:hover:opacity-80"
+          >
             {children}
           </article>
-        </main>
+        </div>
+      </main>
 
-        <Footer />
-      </div>
+      <MarketingFooter />
     </div>
   );
 }

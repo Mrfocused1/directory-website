@@ -14,6 +14,7 @@
 
 import puppeteer from "puppeteer";
 import { readFileSync } from "node:fs";
+import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import postgres from "postgres";
 
@@ -709,6 +710,516 @@ async function test_referencesAccordionRenders(browser) {
   }
 }
 
+// ── test B: apiAccessAgencyOnly ──────────────────────────────────────
+function mintApiKey() {
+  const random = crypto.randomBytes(30).toString("base64url");
+  const raw = `bmd_${random}`;
+  const hash = crypto.createHash("sha256").update(raw).digest("hex");
+  return { raw, hash, prefix: raw.slice(0, 12) };
+}
+
+async function test_apiAccessAgencyOnly() {
+  const u = await createThrowawayUser("api");
+  const slug = `qa-api-${Date.now().toString(36)}`;
+  let siteId = null;
+  try {
+    await sql`UPDATE users SET plan = 'agency' WHERE id = ${u.id}`;
+    const [siteRow] = await sql`
+      INSERT INTO sites (user_id, slug, platform, handle, display_name, is_published)
+      VALUES (${u.id}, ${slug}, 'instagram', 'qa', 'QA API', true)
+      RETURNING id
+    `;
+    siteId = siteRow.id;
+    await sql`
+      INSERT INTO posts (site_id, shortcode, type, caption, title, category)
+      VALUES (${siteId}, 'QAPI1', 'image', 'c', 't', 'Food')
+    `;
+
+    // Positive: Agency owner → 200 + correct payload
+    const { raw, hash, prefix } = mintApiKey();
+    await sql`
+      INSERT INTO api_keys (user_id, label, key_prefix, key_hash)
+      VALUES (${u.id}, 'qa', ${prefix}, ${hash})
+    `;
+    const okRes = await fetch(`${BASE}/api/v1/sites`, {
+      headers: { Authorization: `Bearer ${raw}` },
+    });
+    if (okRes.status !== 200) {
+      const body = await okRes.text();
+      return { pass: false, reason: `agency /api/v1/sites returned ${okRes.status}: ${body.slice(0, 120)}` };
+    }
+    const okBody = await okRes.json();
+    const mine = okBody.sites?.find((s) => s.slug === slug);
+    if (!mine) return { pass: false, reason: `agency payload missing our site (got ${okBody.sites?.length ?? 0} sites)` };
+    if (mine.postCount !== 1) return { pass: false, reason: `postCount=${mine.postCount}, expected 1` };
+
+    // Negative: same key, owner downgraded to free → 403
+    await sql`UPDATE users SET plan = 'free' WHERE id = ${u.id}`;
+    const badRes = await fetch(`${BASE}/api/v1/sites`, {
+      headers: { Authorization: `Bearer ${raw}` },
+    });
+    if (badRes.status !== 403) {
+      return { pass: false, reason: `non-agency /api/v1/sites returned ${badRes.status}, expected 403` };
+    }
+    return { pass: true };
+  } finally {
+    if (siteId) { try { await sql`DELETE FROM sites WHERE id = ${siteId}`; } catch {} }
+    await deleteThrowawayUser(u.id);
+  }
+}
+
+// ── test E: bulkPostActionsPersist ───────────────────────────────────
+async function test_bulkPostActionsPersist(browser) {
+  const u = await createThrowawayUser("bulk");
+  let siteId = null;
+  const page = await newPage(browser);
+  try {
+    const slug = `qa-bulk-${Date.now().toString(36)}`;
+    const [siteRow] = await sql`
+      INSERT INTO sites (user_id, slug, platform, handle, display_name, is_published)
+      VALUES (${u.id}, ${slug}, 'instagram', 'qa', 'QA Bulk', true)
+      RETURNING id
+    `;
+    siteId = siteRow.id;
+    const ids = [];
+    for (let i = 0; i < 3; i++) {
+      const [row] = await sql`
+        INSERT INTO posts (site_id, shortcode, type, caption, title, category, is_visible, is_featured)
+        VALUES (${siteId}, ${`BLK${i}`}, 'image', 'c', 't', 'Food', true, false)
+        RETURNING id
+      `;
+      ids.push(row.id);
+    }
+
+    await signInViaForm(page, u.email, u.password, "/dashboard");
+    // Grab cookies so we can make fetches via the page session
+    const cookies = await page.cookies(BASE);
+    const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+
+    const call = async (body) => {
+      const res = await page.evaluate(async (payload) => {
+        const r = await fetch("/api/dashboard/posts/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        return { status: r.status, body: await r.text() };
+      }, body);
+      return res;
+    };
+
+    // hide
+    let r = await call({ ids, action: "hide" });
+    if (r.status !== 200) return { pass: false, reason: `hide → ${r.status} ${r.body.slice(0, 100)}` };
+    let rows = await sql`SELECT is_visible FROM posts WHERE site_id = ${siteId}`;
+    if (rows.some((p) => p.is_visible)) return { pass: false, reason: "hide: some posts still visible" };
+
+    // show
+    r = await call({ ids, action: "show" });
+    if (r.status !== 200) return { pass: false, reason: `show → ${r.status}` };
+    rows = await sql`SELECT is_visible FROM posts WHERE site_id = ${siteId}`;
+    if (rows.some((p) => !p.is_visible)) return { pass: false, reason: "show: some posts still hidden" };
+
+    // feature
+    r = await call({ ids, action: "feature" });
+    if (r.status !== 200) return { pass: false, reason: `feature → ${r.status}` };
+    rows = await sql`SELECT is_featured FROM posts WHERE site_id = ${siteId}`;
+    if (rows.some((p) => !p.is_featured)) return { pass: false, reason: "feature: some posts not featured" };
+
+    // unfeature
+    r = await call({ ids, action: "unfeature" });
+    if (r.status !== 200) return { pass: false, reason: `unfeature → ${r.status}` };
+    rows = await sql`SELECT is_featured FROM posts WHERE site_id = ${siteId}`;
+    if (rows.some((p) => p.is_featured)) return { pass: false, reason: "unfeature: some still featured" };
+
+    // recategorize
+    r = await call({ ids, action: "recategorize", category: "Renamed" });
+    if (r.status !== 200) return { pass: false, reason: `recategorize → ${r.status}` };
+    rows = await sql`SELECT category FROM posts WHERE site_id = ${siteId}`;
+    if (rows.some((p) => p.category !== "Renamed")) {
+      return { pass: false, reason: `recategorize: leftover categories ${rows.map((p) => p.category).join(",")}` };
+    }
+
+    // delete
+    r = await call({ ids, action: "delete" });
+    if (r.status !== 200) return { pass: false, reason: `delete → ${r.status}` };
+    const [{ c }] = await sql`SELECT COUNT(*)::int AS c FROM posts WHERE site_id = ${siteId}`;
+    if (c !== 0) return { pass: false, reason: `delete: ${c} posts remain` };
+
+    return { pass: true };
+  } finally {
+    await page.close();
+    if (siteId) { try { await sql`DELETE FROM sites WHERE id = ${siteId}`; } catch {} }
+    await deleteThrowawayUser(u.id);
+  }
+}
+
+// ── test F: categoryRenameMerge ──────────────────────────────────────
+async function test_categoryRenameMerge(browser) {
+  const u = await createThrowawayUser("cat");
+  let siteId = null;
+  const page = await newPage(browser);
+  try {
+    const slug = `qa-cat-${Date.now().toString(36)}`;
+    const [siteRow] = await sql`
+      INSERT INTO sites (user_id, slug, platform, handle, display_name, is_published)
+      VALUES (${u.id}, ${slug}, 'instagram', 'qa', 'QA Cat', true)
+      RETURNING id
+    `;
+    siteId = siteRow.id;
+    // 3 posts in "Alpha", 2 in "Beta"
+    for (let i = 0; i < 3; i++) {
+      await sql`
+        INSERT INTO posts (site_id, shortcode, type, caption, title, category)
+        VALUES (${siteId}, ${`CA${i}`}, 'image', 'c', 't', 'Alpha')
+      `;
+    }
+    for (let i = 0; i < 2; i++) {
+      await sql`
+        INSERT INTO posts (site_id, shortcode, type, caption, title, category)
+        VALUES (${siteId}, ${`CB${i}`}, 'image', 'c', 't', 'Beta')
+      `;
+    }
+
+    await signInViaForm(page, u.email, u.password, "/dashboard");
+    const call = (body) =>
+      page.evaluate(async (payload) => {
+        const r = await fetch("/api/dashboard/categories", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        return { status: r.status, body: await r.text() };
+      }, body);
+
+    // rename Alpha → AlphaRenamed
+    let r = await call({ siteId, action: "rename", from: "Alpha", to: "AlphaRenamed" });
+    if (r.status !== 200) return { pass: false, reason: `rename → ${r.status} ${r.body.slice(0, 100)}` };
+    let [{ c }] = await sql`SELECT COUNT(*)::int AS c FROM posts WHERE site_id = ${siteId} AND category = 'AlphaRenamed'`;
+    if (c !== 3) return { pass: false, reason: `after rename, AlphaRenamed count=${c}, expected 3` };
+
+    // merge AlphaRenamed → Beta
+    r = await call({ siteId, action: "merge", from: "AlphaRenamed", to: "Beta" });
+    if (r.status !== 200) return { pass: false, reason: `merge → ${r.status}` };
+    const counts = await sql`
+      SELECT category, COUNT(*)::int AS c
+      FROM posts WHERE site_id = ${siteId} GROUP BY category
+    `;
+    const beta = counts.find((x) => x.category === "Beta");
+    if (!beta || beta.c !== 5) return { pass: false, reason: `after merge, Beta=${beta?.c}, expected 5` };
+    if (counts.some((x) => x.category === "AlphaRenamed")) {
+      return { pass: false, reason: "AlphaRenamed still has posts after merge" };
+    }
+    return { pass: true };
+  } finally {
+    await page.close();
+    if (siteId) { try { await sql`DELETE FROM sites WHERE id = ${siteId}`; } catch {} }
+    await deleteThrowawayUser(u.id);
+  }
+}
+
+// ── test G: visitorBookmarkShare ─────────────────────────────────────
+async function test_visitorBookmarkShare(browser) {
+  // Pick a live site that has posts. Read-only on the content side;
+  // we only write to visitor_profiles/collections/bookmarks under a
+  // throwaway email, and clean up after.
+  const [target] = await sql`
+    SELECT s.id, s.slug
+    FROM sites s
+    WHERE s.is_published = true
+      AND EXISTS (SELECT 1 FROM posts p WHERE p.site_id = s.id)
+    ORDER BY s.created_at DESC LIMIT 1
+  `;
+  if (!target) return { pass: false, reason: "no live site with posts" };
+  const shortcodes = await sql`
+    SELECT shortcode FROM posts WHERE site_id = ${target.id} LIMIT 3
+  `;
+  if (shortcodes.length < 3) return { pass: false, reason: `only ${shortcodes.length} posts on ${target.slug}` };
+
+  const visitorEmail = `qa-vis-${Date.now().toString(36)}@example.com`;
+  const page = await newPage(browser);
+  try {
+    // Sign in as visitor (creates visitor + default "Saved" collection)
+    let res = await fetch(`${BASE}/api/bookmarks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ siteId: target.slug, email: visitorEmail, name: "QA Visitor" }),
+    });
+    if (!res.ok) return { pass: false, reason: `visitor sign-in ${res.status}` };
+
+    // Bookmark 3 posts into default collection
+    for (const s of shortcodes) {
+      res = await fetch(`${BASE}/api/bookmarks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          siteId: target.slug, email: visitorEmail, action: "bookmark", postShortcode: s.shortcode,
+        }),
+      });
+      if (!res.ok) return { pass: false, reason: `bookmark ${s.shortcode} → ${res.status}` };
+    }
+
+    // Create a new named collection
+    res = await fetch(`${BASE}/api/bookmarks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        siteId: target.slug, email: visitorEmail, action: "create_collection",
+        collectionName: "QA Picks", emoji: "⭐",
+      }),
+    });
+    if (!res.ok) return { pass: false, reason: `create_collection → ${res.status}` };
+    const created = await res.json();
+    const colId = created.collection?.id;
+    if (!colId) return { pass: false, reason: "no collection id returned" };
+
+    // Move one bookmark into the new collection (so share URL shows something)
+    const [defaultCol] = await sql`
+      SELECT id FROM collections WHERE visitor_id = (
+        SELECT id FROM visitor_profiles WHERE site_id = ${target.id} AND email = ${visitorEmail}
+      ) AND is_default = true
+    `;
+    res = await fetch(`${BASE}/api/bookmarks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        siteId: target.slug, email: visitorEmail, action: "move_bookmark",
+        postShortcode: shortcodes[0].shortcode,
+        fromCollectionId: defaultCol.id,
+        toCollectionId: colId,
+      }),
+    });
+    if (!res.ok) return { pass: false, reason: `move_bookmark → ${res.status}` };
+
+    // Turn sharing on
+    res = await fetch(`${BASE}/api/bookmarks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        siteId: target.slug, email: visitorEmail, action: "toggle_share",
+        collectionId: colId, share: true,
+      }),
+    });
+    if (!res.ok) return { pass: false, reason: `toggle_share → ${res.status}` };
+    const shareData = await res.json();
+    const shareUrl = shareData.shareUrl;
+    if (!shareUrl) return { pass: false, reason: "no shareUrl returned" };
+
+    // Open share URL anonymously in a fresh page (no cookies)
+    await page.goto(`${BASE}${shareUrl}`, { waitUntil: "networkidle2", timeout: 20000 });
+    const body = await page.evaluate(() => document.body.innerText);
+    if (/not found|404/i.test(body.slice(0, 200))) {
+      return { pass: false, reason: `share URL 404: ${shareUrl}` };
+    }
+    // Shared collection page renders posts as <a href="/<slug>/p/<shortcode>">
+    const linkedShortcodes = await page.evaluate(() => {
+      return [...document.querySelectorAll("a[href*='/p/']")]
+        .map((a) => (a.getAttribute("href") || "").split("/p/").pop());
+    });
+    if (linkedShortcodes.length === 0) {
+      return { pass: false, reason: "share page renders 0 post tiles" };
+    }
+    if (!linkedShortcodes.includes(shortcodes[0].shortcode)) {
+      return { pass: false, reason: `share page missing bookmarked shortcode ${shortcodes[0].shortcode} (got ${linkedShortcodes.join(",")})` };
+    }
+    return { pass: true };
+  } finally {
+    await page.close();
+    // Cleanup visitor profile (cascades to collections + bookmarks)
+    try {
+      await sql`
+        DELETE FROM visitor_profiles
+        WHERE site_id = ${target.id} AND email = ${visitorEmail}
+      `;
+    } catch {}
+  }
+}
+
+// ── test H: contentRequests ──────────────────────────────────────────
+async function test_contentRequests(browser) {
+  const u = await createThrowawayUser("req");
+  let siteId = null;
+  try {
+    const slug = `qa-req-${Date.now().toString(36)}`;
+    const [siteRow] = await sql`
+      INSERT INTO sites (user_id, slug, platform, handle, display_name, is_published)
+      VALUES (${u.id}, ${slug}, 'instagram', 'qa', 'QA Req', true)
+      RETURNING id
+    `;
+    siteId = siteRow.id;
+    await sql`
+      INSERT INTO posts (site_id, shortcode, type, caption, title, category)
+      VALUES (${siteId}, 'REQDONE', 'image', 'c', 't', 'Food')
+    `;
+
+    // Submit request (as anon visitor)
+    let res = await fetch(`${BASE}/api/requests`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ siteId: slug, title: "QA test request", description: "pls", authorName: "QA" }),
+    });
+    if (!res.ok) return { pass: false, reason: `submit → ${res.status}` };
+    const created = (await res.json()).request;
+    if (!created?.id) return { pass: false, reason: "no request id returned" };
+    if (created.voteCount !== 1) return { pass: false, reason: `initial voteCount=${created.voteCount}` };
+
+    // Vote (session-based, different session)
+    const sessionA = `sess-${Date.now().toString(36)}-a`;
+    res = await fetch(`${BASE}/api/requests`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requestId: created.id, action: "vote", sessionId: sessionA }),
+    });
+    if (!res.ok) return { pass: false, reason: `vote → ${res.status}` };
+    let [row] = await sql`SELECT vote_count FROM content_requests WHERE id = ${created.id}`;
+    if (row.vote_count !== 2) return { pass: false, reason: `after vote count=${row.vote_count}, expected 2` };
+
+    // Duplicate vote by same session should not increment
+    res = await fetch(`${BASE}/api/requests`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requestId: created.id, action: "vote", sessionId: sessionA }),
+    });
+    [row] = await sql`SELECT vote_count FROM content_requests WHERE id = ${created.id}`;
+    if (row.vote_count !== 1) return { pass: false, reason: `after unvote count=${row.vote_count}, expected 1 (toggled off)` };
+
+    // Creator (owner) marks completed and links a post
+    const page = await newPage(browser);
+    try {
+      await signInViaForm(page, u.email, u.password, "/dashboard");
+      const status = await page.evaluate(
+        async (payload) => {
+          const r = await fetch("/api/requests", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          return r.status;
+        },
+        {
+          requestId: created.id, action: "update_status",
+          status: "completed", completedPostShortcode: "REQDONE", creatorNote: "Done!",
+        },
+      );
+      if (status !== 200) return { pass: false, reason: `update_status → ${status}` };
+    } finally {
+      await page.close();
+    }
+
+    // Public board reflects it
+    res = await fetch(`${BASE}/api/requests?siteId=${slug}&sort=newest`);
+    const listed = (await res.json()).requests.find((r) => r.id === created.id);
+    if (!listed) return { pass: false, reason: "request missing from public board" };
+    if (listed.status !== "completed") return { pass: false, reason: `public status=${listed.status}` };
+    if (listed.completedPostShortcode !== "REQDONE") return { pass: false, reason: `public completedPostShortcode=${listed.completedPostShortcode}` };
+    return { pass: true };
+  } finally {
+    if (siteId) { try { await sql`DELETE FROM sites WHERE id = ${siteId}`; } catch {} }
+    await deleteThrowawayUser(u.id);
+  }
+}
+
+// ── test I: keyboardFlow ─────────────────────────────────────────────
+async function test_keyboardFlow(browser) {
+  // Tab through a live tenant directory; every reached interactive element
+  // must have a detectable focus style (outline or box-shadow or ring).
+  const [target] = await sql`
+    SELECT slug FROM sites
+    WHERE is_published = true
+      AND EXISTS (SELECT 1 FROM posts p WHERE p.site_id = sites.id)
+    ORDER BY created_at DESC LIMIT 1
+  `;
+  if (!target) return { pass: false, reason: "no live site with posts" };
+
+  const page = await newPage(browser);
+  try {
+    await page.goto(`${BASE}/${target.slug}`, { waitUntil: "networkidle2", timeout: 20000 });
+
+    const result = await page.evaluate(async () => {
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      const noFocusStyle = [];
+      const tabbables = [...document.querySelectorAll(
+        "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
+      )].filter((e) => {
+        const r = e.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+      });
+
+      // Cap at first 25 elements to keep the test fast and representative.
+      const sample = tabbables.slice(0, 25);
+      for (const el of sample) {
+        el.focus();
+        await sleep(15);
+        const style = window.getComputedStyle(el);
+        const outline =
+          style.outlineStyle && style.outlineStyle !== "none" && parseFloat(style.outlineWidth) > 0;
+        const shadow = style.boxShadow && style.boxShadow !== "none";
+        if (!outline && !shadow) {
+          const label = (el.getAttribute("aria-label") || el.textContent || el.tagName).trim().slice(0, 40);
+          noFocusStyle.push(`${el.tagName}:${label}`);
+        }
+      }
+      return { visited: sample.length, noFocusStyle };
+    });
+
+    if (result.visited < 3) {
+      return { pass: false, reason: `only ${result.visited} tabbable elements reached` };
+    }
+    if (result.noFocusStyle.length) {
+      return {
+        pass: false,
+        reason: `${result.noFocusStyle.length} elements lack a visible focus style (${result.noFocusStyle.slice(0, 3).join(" | ")})`,
+      };
+    }
+    return { pass: true, reason: `${result.visited} elements, all with focus style` };
+  } finally {
+    await page.close();
+  }
+}
+
+// ── test J: pipelineRetryAfterFailure ────────────────────────────────
+async function test_pipelineRetryAfterFailure(browser) {
+  const u = await createThrowawayUser("retry");
+  let siteId = null;
+  const page = await newPage(browser);
+  try {
+    const slug = `qa-retry-${Date.now().toString(36)}`;
+    const [siteRow] = await sql`
+      INSERT INTO sites (user_id, slug, platform, handle, display_name, is_published)
+      VALUES (${u.id}, ${slug}, 'instagram', 'qa', 'QA Retry', false)
+      RETURNING id
+    `;
+    siteId = siteRow.id;
+    // Inject a failed job — simulates an Apify scrape failure.
+    const [failedJob] = await sql`
+      INSERT INTO pipeline_jobs (site_id, step, status, progress, message, error)
+      VALUES (${siteId}, 'scrape', 'failed', 0, 'scrape failed', 'Apify timeout')
+      RETURNING id
+    `;
+
+    await signInViaForm(page, u.email, u.password, "/dashboard");
+    const status = await page.evaluate(async (sid) => {
+      const r = await fetch(`/api/pipeline/retry?siteId=${sid}`, { method: "POST" });
+      return r.status;
+    }, siteId);
+    if (status !== 200) return { pass: false, reason: `retry → ${status}` };
+
+    // The failed row should have been reset to pending
+    const [after] = await sql`SELECT status, error FROM pipeline_jobs WHERE id = ${failedJob.id}`;
+    if (after.status !== "pending") {
+      return { pass: false, reason: `failed job still status=${after.status}` };
+    }
+    if (after.error) {
+      return { pass: false, reason: `error not cleared: ${after.error}` };
+    }
+    return { pass: true };
+  } finally {
+    await page.close();
+    if (siteId) { try { await sql`DELETE FROM sites WHERE id = ${siteId}`; } catch {} }
+    await deleteThrowawayUser(u.id);
+  }
+}
+
 // ── main ─────────────────────────────────────────────────────────────
 async function main() {
   console.log(`\n🧪 BEHAVIORAL AUDIT — ${BASE}\n`);
@@ -725,6 +1236,13 @@ async function main() {
     await run("adminGate", () => test_adminGate(browser));
     await run("resetEmailSenderIsCorrect", () => test_resetEmailSenderIsCorrect());
     await run("referencesAccordionRenders", () => test_referencesAccordionRenders(browser));
+    await run("apiAccessAgencyOnly", () => test_apiAccessAgencyOnly());
+    await run("bulkPostActionsPersist", () => test_bulkPostActionsPersist(browser));
+    await run("categoryRenameMerge", () => test_categoryRenameMerge(browser));
+    await run("visitorBookmarkShare", () => test_visitorBookmarkShare(browser));
+    await run("contentRequests", () => test_contentRequests(browser));
+    await run("keyboardFlow", () => test_keyboardFlow(browser));
+    await run("pipelineRetryAfterFailure", () => test_pipelineRetryAfterFailure(browser));
   } finally {
     await browser.close();
     await sql.end();

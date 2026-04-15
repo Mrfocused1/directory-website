@@ -399,12 +399,26 @@ async function suiteForgotPassword(browser) {
   }
   await email.type("test@example.com");
   await page.click('button[type="submit"]');
-  await new Promise((r) => setTimeout(r, 2500));
-  const text = await page.evaluate(() => document.body.innerText);
-  if (/reset link is on its way|check your inbox/i.test(text)) {
+  // Supabase resetPasswordForEmail call can take a few seconds on cold infra.
+  // Poll for the success copy instead of a fixed wait.
+  let success = false;
+  let bodyText = "";
+  for (let i = 0; i < 20; i++) {
+    await new Promise((r) => setTimeout(r, 400));
+    bodyText = await page.evaluate(() => document.body.innerText);
+    if (/reset link is on its way|check your inbox/i.test(bodyText)) {
+      success = true;
+      break;
+    }
+  }
+  if (success) {
     console.log("  ✓ forgot-password success state renders");
   } else {
-    log("MEDIUM", "forgot-password", `no success message after submit (body: "${text.slice(0, 100)}")`);
+    log(
+      "MEDIUM",
+      "forgot-password",
+      `no success message after 8s (body: "${bodyText.slice(0, 100)}")`,
+    );
   }
   await page.close();
 }
@@ -413,14 +427,28 @@ async function suitePreferences(browser) {
   section("Preferences page — invalid token shows error");
   const page = await newPage(browser, VIEWPORTS[0]);
   await page.goto(`${BASE}/demo/preferences?token=bogus`, { waitUntil: "networkidle2" });
-  await new Promise((r) => setTimeout(r, 1500));
-  const text = await page.evaluate(() => document.body.innerText);
-  // Accept any clear error phrasing — API may return "Site not found" on a
-  // non-DB-backed demo tenant (localhost fallback) or "Invalid token" in prod.
-  if (/invalid|missing|not found/i.test(text)) {
+  // Page fetches its own state on mount via /api/subscribe/preferences; poll
+  // for the error phrasing instead of a fixed wait.
+  let rejected = false;
+  let bodyText = "";
+  for (let i = 0; i < 15; i++) {
+    await new Promise((r) => setTimeout(r, 400));
+    bodyText = await page.evaluate(() => document.body.innerText);
+    // API may return "Site not found" on a non-DB-backed demo tenant
+    // (localhost fallback) or "Invalid token" / "Missing" in prod.
+    if (/invalid|missing|not found/i.test(bodyText)) {
+      rejected = true;
+      break;
+    }
+  }
+  if (rejected) {
     console.log("  ✓ preferences rejects bogus token");
   } else {
-    log("MEDIUM", "preferences", `no error state for bogus token (body: "${text.slice(0, 120)}")`);
+    log(
+      "MEDIUM",
+      "preferences",
+      `no error state for bogus token after 6s (body: "${bodyText.slice(0, 120)}")`,
+    );
   }
   await page.close();
 }
@@ -435,14 +463,30 @@ async function suiteUnsubscribe(browser) {
     await page.close();
     return;
   }
-  // Bogus token should result in silent success because DELETE is idempotent — just ensure no 500 / console err
+  // Bogus token should result in silent success (DELETE is idempotent) or
+  // error state. On a cold dev server the DELETE can take >1.5s because Next
+  // lazy-compiles the /api/subscribe route and the Supabase pool does its
+  // first TLS handshake. Poll up to ~6s for the UI to settle instead of using
+  // a fixed wait.
   await btn.click();
-  await new Promise((r) => setTimeout(r, 1500));
-  const text = await page.evaluate(() => document.body.innerText);
-  if (/unsubscribed|something went wrong/i.test(text)) {
+  let settled = false;
+  let finalText = "";
+  for (let i = 0; i < 15; i++) {
+    await new Promise((r) => setTimeout(r, 400));
+    finalText = await page.evaluate(() => document.body.innerText);
+    if (/unsubscribed|something went wrong/i.test(finalText)) {
+      settled = true;
+      break;
+    }
+  }
+  if (settled) {
     console.log("  ✓ unsubscribe button produces a terminal state");
   } else {
-    log("MEDIUM", "unsubscribe", `button click did not produce done/error state (body: "${text.slice(0, 120)}")`);
+    log(
+      "MEDIUM",
+      "unsubscribe",
+      `button click did not produce done/error state after 6s (body: "${finalText.slice(0, 120)}")`,
+    );
   }
   await page.close();
 }

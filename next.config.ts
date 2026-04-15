@@ -32,14 +32,19 @@ const nextConfig: NextConfig = {
 // Vercel environment. Safe to ship before any account exists —
 // withSentryConfig wraps the build but the SDK itself short-circuits
 // when no DSN is present.
+//
+// EU region: our Sentry org lives on de.sentry.io. The SDK reads the
+// DSN's hostname so events auto-route, but the CLI used for source-map
+// upload at build time needs SENTRY_URL set explicitly — otherwise it
+// hits sentry.io and 401s. Default to EU; override in Vercel if
+// needed.
 export default withSentryConfig(nextConfig, {
   silent: true,
   org: process.env.SENTRY_ORG || undefined,
   project: process.env.SENTRY_PROJECT || undefined,
-  // Don't run the source-map upload step unless an auth token exists.
-  // Prevents build errors when the project is added to Vercel before
-  // any Sentry auth is configured.
+  sentryUrl: process.env.SENTRY_URL || "https://de.sentry.io/",
   sourcemaps: {
+    // Don't run the source-map upload step unless an auth token exists.
     disable: !process.env.SENTRY_AUTH_TOKEN,
   },
 });

@@ -10,6 +10,8 @@ import {
   searchEvents,
   categoryClicks,
   pipelineJobs,
+  subscribers,
+  digestHistory,
 } from "@/db/schema";
 import { eq, and, gte, desc, count, isNotNull, sql } from "drizzle-orm";
 import { requireAdmin } from "@/lib/admin";
@@ -177,6 +179,49 @@ async function loadAnalytics(siteId: string, days = 30) {
   };
 }
 
+async function loadSubscribers(siteId: string) {
+  if (!db) return { rows: [], active: 0, verified: 0, recentDigests: [] };
+  const [rows, [activeRow], [verifiedRow], recentDigests] = await Promise.all([
+    db
+      .select({
+        email: subscribers.email,
+        name: subscribers.name,
+        frequency: subscribers.frequency,
+        isVerified: subscribers.isVerified,
+        isActive: subscribers.isActive,
+        lastDigestAt: subscribers.lastDigestAt,
+        createdAt: subscribers.createdAt,
+      })
+      .from(subscribers)
+      .where(eq(subscribers.siteId, siteId))
+      .orderBy(desc(subscribers.createdAt))
+      .limit(200),
+    db.select({ c: count() }).from(subscribers)
+      .where(and(eq(subscribers.siteId, siteId), eq(subscribers.isActive, true))),
+    db.select({ c: count() }).from(subscribers)
+      .where(and(eq(subscribers.siteId, siteId), eq(subscribers.isVerified, true))),
+    db
+      .select({
+        subject: digestHistory.subject,
+        postCount: digestHistory.postCount,
+        recipientCount: digestHistory.recipientCount,
+        openCount: digestHistory.openCount,
+        clickCount: digestHistory.clickCount,
+        sentAt: digestHistory.sentAt,
+      })
+      .from(digestHistory)
+      .where(eq(digestHistory.siteId, siteId))
+      .orderBy(desc(digestHistory.sentAt))
+      .limit(10),
+  ]);
+  return {
+    rows,
+    active: activeRow.c,
+    verified: verifiedRow.c,
+    recentDigests,
+  };
+}
+
 type PostRow = { shortcode: string; title: string; clicks: number };
 const postCols: Column<PostRow>[] = [
   { header: "Post", cell: (r) => <span className="text-sm font-medium truncate block max-w-[360px]">{r.title}</span> },
@@ -209,7 +254,10 @@ export default async function AdminSiteDetailPage({
   const site = await loadSite(siteId);
   if (!site) notFound();
 
-  const analytics = await loadAnalytics(siteId, 30);
+  const [analytics, subs] = await Promise.all([
+    loadAnalytics(siteId, 30),
+    loadSubscribers(siteId),
+  ]);
 
   return (
     <PageShell
@@ -308,6 +356,105 @@ export default async function AdminSiteDetailPage({
               empty="—"
             />
           </section>
+
+          <section className="mb-8">
+            <div className="flex items-end justify-between gap-3 mb-3 flex-wrap">
+              <h3 className="text-sm font-bold">
+                Subscribers{" "}
+                <span className="text-[color:var(--fg-muted)] font-normal">
+                  · {subs.rows.length} total · {subs.active} active · {subs.verified} verified
+                </span>
+              </h3>
+            </div>
+            {subs.rows.length === 0 ? (
+              <div className="text-sm text-[color:var(--fg-muted)] bg-white border border-[color:var(--border)] rounded-lg px-4 py-6 text-center">
+                No subscribers yet.
+              </div>
+            ) : (
+              <DataTable
+                columns={[
+                  {
+                    header: "Email",
+                    cell: (r: (typeof subs.rows)[number]) => (
+                      <div className="min-w-0">
+                        <div className="text-sm truncate">{r.email}</div>
+                        {r.name && (
+                          <div className="text-[11px] text-[color:var(--fg-subtle)] truncate">{r.name}</div>
+                        )}
+                      </div>
+                    ),
+                  },
+                  {
+                    header: "Freq",
+                    cell: (r: (typeof subs.rows)[number]) => (
+                      <span className="text-xs">{r.frequency}</span>
+                    ),
+                  },
+                  {
+                    header: "State",
+                    cell: (r: (typeof subs.rows)[number]) => {
+                      if (!r.isVerified) {
+                        return <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700">Unverified</span>;
+                      }
+                      if (!r.isActive) {
+                        return <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-gray-200 text-gray-700">Unsubscribed</span>;
+                      }
+                      return <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-green-100 text-green-700">Active</span>;
+                    },
+                  },
+                  {
+                    header: "Last digest",
+                    cell: (r: (typeof subs.rows)[number]) =>
+                      r.lastDigestAt ? (
+                        <span className="text-xs">{new Date(r.lastDigestAt).toLocaleDateString()}</span>
+                      ) : (
+                        <span className="text-xs text-[color:var(--fg-subtle)]">—</span>
+                      ),
+                  },
+                  {
+                    header: "Joined",
+                    cell: (r: (typeof subs.rows)[number]) => (
+                      <span className="text-xs text-[color:var(--fg-subtle)]">
+                        {new Date(r.createdAt).toLocaleDateString()}
+                      </span>
+                    ),
+                  },
+                ]}
+                rows={subs.rows}
+                empty="No subscribers."
+              />
+            )}
+          </section>
+
+          {subs.recentDigests.length > 0 && (
+            <section className="mb-8">
+              <h3 className="text-sm font-bold mb-2">Recent digests</h3>
+              <DataTable
+                columns={[
+                  {
+                    header: "Subject",
+                    cell: (d: (typeof subs.recentDigests)[number]) => (
+                      <span className="text-sm truncate block max-w-[360px]">{d.subject}</span>
+                    ),
+                  },
+                  { header: "Posts", cell: (d: (typeof subs.recentDigests)[number]) => d.postCount, align: "right" },
+                  { header: "Sent to", cell: (d: (typeof subs.recentDigests)[number]) => d.recipientCount, align: "right" },
+                  { header: "Opens", cell: (d: (typeof subs.recentDigests)[number]) => d.openCount, align: "right" },
+                  { header: "Clicks", cell: (d: (typeof subs.recentDigests)[number]) => d.clickCount, align: "right" },
+                  {
+                    header: "Sent",
+                    cell: (d: (typeof subs.recentDigests)[number]) => (
+                      <span className="text-xs text-[color:var(--fg-subtle)]">
+                        {new Date(d.sentAt).toLocaleDateString()}
+                      </span>
+                    ),
+                  },
+                ]}
+                rows={subs.recentDigests}
+                empty="No digests sent."
+              />
+            </section>
+          )}
 
           {analytics.recentFailures.length > 0 && (
             <section className="mb-8">

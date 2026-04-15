@@ -101,6 +101,89 @@ Respond with ONLY the category name, nothing else.`;
 }
 
 /**
+ * Batch-categorize up to ~30 posts in a single Claude call.
+ *
+ * Replaces the N-posts-= N-API-calls loop with one call that returns
+ * a JSON array mapping each post index to its assigned category.
+ * Roughly 5–10× cheaper per post (shared system prompt, no per-call
+ * overhead) and 5× faster wall-clock because there's no round-trip
+ * fan-out. Falls back to the first available category on any error.
+ */
+export async function categorizeBatchWithLLM(
+  posts: { caption: string; transcript: string | null }[],
+  availableCategories: string[],
+): Promise<CategoryResult[]> {
+  if (!process.env.ANTHROPIC_API_KEY || posts.length === 0 || availableCategories.length === 0) {
+    const fallback = availableCategories[0] || "Uncategorized";
+    return posts.map(() => ({ category: fallback, confidence: 0 }));
+  }
+
+  const fallback = availableCategories[0] || "Uncategorized";
+
+  try {
+    const postBlock = posts
+      .map((p, i) => {
+        const cap = (p.caption || "").slice(0, 300);
+        const t = p.transcript ? ` | transcript: ${p.transcript.slice(0, 200)}` : "";
+        return `${i + 1}. ${cap}${t}`;
+      })
+      .join("\n\n");
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": process.env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 400,
+        messages: [
+          {
+            role: "user",
+            content: `Assign each numbered post to exactly one category. Available categories: ${availableCategories.join(", ")}.
+
+Output ONLY a JSON array of category strings, one per post, in order. No preamble. Example: ["Tax Strategy", "Property Investment", ...]
+
+Each category MUST match one of the available categories exactly (case-sensitive). If unsure, pick "${fallback}".
+
+Posts:
+${postBlock}`,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn("[categorizer] batch HTTP", response.status);
+      return posts.map(() => ({ category: fallback, confidence: 0 }));
+    }
+
+    const data = await response.json();
+    const text = (data.content?.[0]?.text || "").trim();
+    const match = text.match(/\[[\s\S]*?\]/);
+    if (!match) return posts.map(() => ({ category: fallback, confidence: 0 }));
+
+    let arr: unknown;
+    try { arr = JSON.parse(match[0]); } catch { return posts.map(() => ({ category: fallback, confidence: 0 })); }
+    if (!Array.isArray(arr)) return posts.map(() => ({ category: fallback, confidence: 0 }));
+
+    const allowed = new Set(availableCategories.map((c) => c.toLowerCase()));
+    return posts.map((_, i) => {
+      const raw = typeof arr[i] === "string" ? (arr[i] as string).trim() : "";
+      const matched = availableCategories.find((c) => c.toLowerCase() === raw.toLowerCase());
+      if (matched) return { category: matched, confidence: 0.9 };
+      // Unexpected value or missing index — fall back rather than invent
+      return { category: fallback, confidence: 0.3 };
+    });
+  } catch (error) {
+    console.error("[categorizer] batch error:", error);
+    return posts.map(() => ({ category: fallback, confidence: 0 }));
+  }
+}
+
+/**
  * Detect categories from a set of post captions using Claude.
  *
  * The prompt now forces the model to identify the creator's niche

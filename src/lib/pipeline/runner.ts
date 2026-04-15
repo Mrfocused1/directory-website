@@ -12,7 +12,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { scrapeProfile } from "./scraper";
 import { uploadThumbnail, uploadMedia } from "./storage";
 import { transcribeVideo } from "./transcriber";
-import { categorizeWithLLM, detectCategories, categorizeByKeywords } from "./categorizer";
+import { categorizeBatchWithLLM, detectCategories, categorizeByKeywords } from "./categorizer";
 import { extractReferencesForPosts } from "./references";
 import { references as referencesTable } from "@/db/schema";
 import { hasFeature, getPlan, type PlanId } from "@/lib/plans";
@@ -210,7 +210,10 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
       where: eq(posts.siteId, siteId),
       limit: 1000,
     });
-    const BATCH_SIZE = 5;
+    // Batch size = 25 posts per Claude call. Haiku comfortably handles
+    // this volume of short captions in a single prompt, and we avoid
+    // the per-call overhead of the old one-post-at-a-time loop.
+    const BATCH_SIZE = 25;
     let categorized = 0;
 
     // Pre-build keyword rules for fallback categorization
@@ -222,22 +225,37 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
 
     for (let i = 0; i < dbPosts.length; i += BATCH_SIZE) {
       const batch = dbPosts.slice(i, i + BATCH_SIZE);
-      // Per-post try-catch so one failure doesn't kill the entire batch.
-      // Posts that fail to categorize stay as "Uncategorized".
-      await Promise.all(
-        batch.map(async (post) => {
-          try {
-            const result = canAutoCategorize
-              ? await categorizeWithLLM(post.caption, post.transcript, detectedCategories)
-              : categorizeByKeywords(post.caption, post.transcript, keywordRules);
-            await database.update(posts)
-              .set({ category: result.category })
-              .where(eq(posts.id, post.id));
-          } catch (err) {
-            console.error(`[runner] Failed to categorize post ${post.id}:`, err);
-          }
-        }),
-      );
+      try {
+        if (canAutoCategorize) {
+          const results = await categorizeBatchWithLLM(
+            batch.map((p) => ({ caption: p.caption, transcript: p.transcript })),
+            detectedCategories,
+          );
+          // Update in parallel — just DB round-trips now, not API calls
+          await Promise.all(
+            batch.map((post, idx) =>
+              database
+                .update(posts)
+                .set({ category: results[idx]?.category || detectedCategories[0] })
+                .where(eq(posts.id, post.id)),
+            ),
+          );
+        } else {
+          await Promise.all(
+            batch.map(async (post) => {
+              const result = categorizeByKeywords(post.caption, post.transcript, keywordRules);
+              await database
+                .update(posts)
+                .set({ category: result.category })
+                .where(eq(posts.id, post.id));
+            }),
+          );
+        }
+      } catch (err) {
+        // If the entire batch call fails, leave posts as "Uncategorized"
+        // and continue — one slow Claude call shouldn't break the run.
+        console.error(`[runner] Batch categorize failed (${batch.length} posts):`, err);
+      }
       categorized += batch.length;
       const pct = Math.round(60 + (categorized / dbPosts.length) * 25);
       await report("categorize", pct, `Categorized ${categorized}/${dbPosts.length} posts`);

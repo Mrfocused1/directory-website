@@ -23,19 +23,16 @@ new ApiCheck("homepage-200", {
   maxResponseTime: 3000,
 });
 
-new ApiCheck("signup-endpoint-reachable", {
-  name: "/api/auth/signup responds <3s",
+new ApiCheck("auth-endpoint-reachable", {
+  name: "auth endpoint reachable",
   request: {
-    method: "POST",
-    url: "https://buildmy.directory/api/auth/signup",
-    headers: [{ key: "Content-Type", value: "application/json" }],
-    body: JSON.stringify({ email: "checkly@example.com", password: "short" }),
-    bodyType: "JSON",
+    method: "GET",
+    url: "https://buildmy.directory/api/auth/is-admin",
     assertions: [
-      // Expect 400 (validation error for short password) — proves
-      // the endpoint ran without 5xx'ing.
-      AssertionBuilder.statusCode().lessThan(500),
-      AssertionBuilder.responseTime().lessThan(3000),
+      // Anonymous callers get 200 with {isAdmin:false}. Any non-200
+      // means auth session handling is broken.
+      AssertionBuilder.statusCode().equals(200),
+      AssertionBuilder.jsonBody("$.isAdmin").equals(false),
     ],
   },
 });

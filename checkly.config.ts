@@ -25,16 +25,21 @@ export default defineConfig({
   logicalId: "buildmy-directory",
   repoUrl: "https://github.com/Mrfocused1/directory-website",
   checks: {
-    // Global defaults for every check below
-    locations: ["us-east-1", "eu-west-1", "ap-southeast-1"],
+    // Budget math for Hobby tier (10k API + 1.5k browser runs/mo):
+    //   6 API checks × 2 regions × 1 run/hr × 24 × 30 = 8,640 / 10,000
+    //   1 browser check × 1 region × 1 run/hr × 24 × 30 = 720 / 1,500
+    // ~14 % headroom on API, ~52 % on browser.
+    //
+    // Hourly cadence still catches prod outages within ~1 hour; the
+    // Sentry alert rules catch crashes faster for paying-customer
+    // paths. If we add more checks, bump to Team plan ($30/mo).
+    locations: ["us-east-1", "eu-west-1"],
     tags: ["prod"],
     runtimeId: "2024.02",
-    frequency: Frequency.EVERY_5M,
+    frequency: Frequency.EVERY_1H,
     checkMatch: "src/**/*.check.{js,ts}",
     browserChecks: {
       testMatch: "scripts/test-agent/*.check.ts",
-      // Browser checks are expensive — run hourly from one region by
-      // default. Can override per-check to increase frequency.
       frequency: Frequency.EVERY_1H,
       locations: ["eu-west-1"],
     },

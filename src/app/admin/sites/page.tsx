@@ -66,15 +66,22 @@ const columns: Column<Row>[] = [
     cell: (r) => (
       <div className="min-w-0">
         <a
-          href={`/${r.slug}`}
-          target="_blank"
-          rel="noopener noreferrer"
+          href={`/admin/sites/${r.id}`}
           className="text-sm font-semibold hover:underline truncate block"
+          title="View analytics + pipeline history"
         >
           /{r.slug}
         </a>
         <div className="text-[11px] text-[color:var(--fg-subtle)] truncate">
-          @{r.handle} · {r.platform}
+          @{r.handle} · {r.platform} ·{" "}
+          <a
+            href={`/${r.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline"
+          >
+            view public ↗
+          </a>
         </div>
       </div>
     ),

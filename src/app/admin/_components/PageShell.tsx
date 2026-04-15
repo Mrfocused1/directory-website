@@ -5,7 +5,7 @@ export default function PageShell({
   children,
 }: {
   title: string;
-  description?: string;
+  description?: React.ReactNode;
   actions?: React.ReactNode;
   children: React.ReactNode;
 }) {

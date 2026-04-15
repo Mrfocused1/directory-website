@@ -13,6 +13,8 @@ import { scrapeProfile } from "./scraper";
 import { uploadThumbnail, uploadMedia } from "./storage";
 import { transcribeVideo } from "./transcriber";
 import { categorizeWithLLM, detectCategories, categorizeByKeywords } from "./categorizer";
+import { extractReferencesForPosts } from "./references";
+import { references as referencesTable } from "@/db/schema";
 import { hasFeature, getPlan, type PlanId } from "@/lib/plans";
 
 type ProgressCallback = (step: string, progress: number, message: string) => Promise<void>;
@@ -37,6 +39,7 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
   const planConfig = getPlan(userPlan);
   const canTranscribe = hasFeature(userPlan, "transcription");
   const canAutoCategorize = hasFeature(userPlan, "auto_categorization");
+  const canExtractReferences = hasFeature(userPlan, "references");
   // postLimit = 0 means unlimited; otherwise cap to plan's post limit
   const maxPosts = planConfig.postLimit === 0 ? 200 : planConfig.postLimit;
 
@@ -193,6 +196,47 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     }
 
     await updateJob(siteId, "categorize", "completed", 100, `Categorized into ${detectedCategories.length} categories`);
+
+    // ── Step 4.5: REFERENCES (Creator+ plans only) ──────────────────
+    // Extract any YouTube videos / article URLs that appear in the
+    // post's caption or transcript. Non-fatal: if this fails or times
+    // out per-post, we still publish the directory — refs are a nice-
+    // to-have, not a blocker.
+    if (canExtractReferences) {
+      await report("references", 85, "Finding references...");
+      try {
+        // Re-query with just what the extractor needs
+        const refPosts = await database.query.posts.findMany({
+          where: eq(posts.siteId, siteId),
+          columns: { id: true, caption: true, transcript: true },
+          limit: 1000,
+        });
+        const rows = await extractReferencesForPosts(
+          refPosts.map((p) => ({
+            postId: p.id,
+            caption: p.caption || "",
+            transcript: p.transcript,
+          })),
+          (done, total) => {
+            const pct = Math.round(85 + (done / Math.max(total, 1)) * 4);
+            void report("references", pct, `Found references for ${done}/${total}`);
+          },
+        );
+        // Bulk-insert; skip dupes we may have from a retry
+        for (const r of rows) {
+          await database.insert(referencesTable).values({
+            postId: r.postId,
+            kind: r.kind,
+            title: r.title,
+            url: r.url,
+            videoId: r.videoId,
+            note: r.note,
+          }).onConflictDoNothing();
+        }
+      } catch (err) {
+        console.error("[runner] references step failed (non-fatal):", err);
+      }
+    }
 
     // ── Step 5: PUBLISH ─────────────────────────────────────────────
     currentStep = "complete";

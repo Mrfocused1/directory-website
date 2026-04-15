@@ -151,6 +151,34 @@ export default function PlatformsPage() {
     }
   };
 
+  const handleUpdateHandle = async (connectionId: string, currentHandle: string) => {
+    const input = window.prompt("New handle (without @):", currentHandle);
+    if (input == null) return;
+    const newHandleValue = input.trim();
+    if (!newHandleValue || newHandleValue === currentHandle) return;
+    try {
+      const res = await fetch("/api/platforms", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ connectionId, action: "update_handle", handle: newHandleValue }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setConnections((prev) =>
+          prev.map((c) =>
+            c.id === connectionId
+              ? { ...c, handle: data.handle, displayName: data.handle, avatarUrl: null, syncStatus: "idle" as const }
+              : c,
+          ),
+        );
+      } else {
+        alert(data.error || "Failed to update handle.");
+      }
+    } catch {
+      alert("Network error.");
+    }
+  };
+
   const handleDisconnect = async (connectionId: string) => {
     setConnections((prev) =>
       prev.map((c) => (c.id === connectionId ? { ...c, isConnected: false } : c)),
@@ -375,6 +403,13 @@ export default function PlatformsPage() {
                           className="h-8 px-3 bg-black/5 rounded-lg text-xs font-semibold hover:bg-black/10 disabled:opacity-50 transition"
                         >
                           {c.syncStatus === "syncing" ? "Syncing..." : "Sync"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateHandle(c.id, c.handle)}
+                          className="h-8 px-3 bg-black/5 rounded-lg text-xs font-semibold hover:bg-black/10 transition"
+                        >
+                          Edit handle
                         </button>
                         <button
                           type="button"

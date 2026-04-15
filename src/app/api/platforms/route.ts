@@ -210,6 +210,39 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ isConnected: false });
     }
 
+    if (action === "update_handle") {
+      const rawHandle = typeof body.handle === "string" ? body.handle.trim() : "";
+      if (!rawHandle) {
+        return NextResponse.json({ error: "Missing handle" }, { status: 400 });
+      }
+      if (!/^@?[a-zA-Z0-9_.-]+$/.test(rawHandle) || rawHandle.length > 128) {
+        return NextResponse.json({ error: "Invalid handle format" }, { status: 400 });
+      }
+      const cleanHandle = rawHandle.replace(/^@/, "");
+      // Prevent collision with another connection on the same site+platform
+      const collision = await db.query.platformConnections.findFirst({
+        where: and(
+          eq(platformConnections.siteId, conn.siteId),
+          eq(platformConnections.platform, conn.platform),
+          eq(platformConnections.handle, cleanHandle),
+        ),
+      });
+      if (collision && collision.id !== conn.id) {
+        return NextResponse.json({ error: "Another connection already uses that handle" }, { status: 409 });
+      }
+      await db.update(platformConnections)
+        .set({
+          handle: cleanHandle,
+          displayName: cleanHandle,
+          // Wipe fetched metadata so the next sync repopulates for the new handle
+          avatarUrl: null,
+          followerCount: null,
+          syncStatus: "idle",
+        })
+        .where(eq(platformConnections.id, connectionId));
+      return NextResponse.json({ handle: cleanHandle });
+    }
+
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (err) {
     console.error("[platforms] PATCH error:", err);

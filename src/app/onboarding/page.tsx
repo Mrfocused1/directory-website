@@ -48,6 +48,66 @@ function OnboardingContent() {
   };
 
   const [isBuilding, setIsBuilding] = useState(false);
+  const [currentSiteId, setCurrentSiteId] = useState<string | null>(null);
+
+  const retryPipeline = async () => {
+    if (!currentSiteId || isBuilding) return;
+    setIsBuilding(true);
+    setPipelineStatus({ step: "scrape", progress: 0, message: "Retrying..." });
+    try {
+      const res = await fetch(`/api/pipeline/retry?siteId=${currentSiteId}`, { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setPipelineStatus({ step: "error", progress: 0, message: data?.error || "Retry failed" });
+        setIsBuilding(false);
+        return;
+      }
+      // Re-poll the existing siteId — reuse the same polling shape
+      pollExistingSite(currentSiteId);
+    } catch {
+      setPipelineStatus({ step: "error", progress: 0, message: "Network error" });
+      setIsBuilding(false);
+    }
+  };
+
+  const pollExistingSite = (siteId: string) => {
+    let pollDelay = 2000;
+    const MAX_DELAY = 10000;
+    let consecutiveErrors = 0;
+    const MAX_ERRORS = 5;
+    const poll = async () => {
+      try {
+        const statusRes = await fetch(`/api/pipeline?siteId=${siteId}`);
+        const status = await statusRes.json();
+        consecutiveErrors = 0;
+        setPipelineStatus({
+          step: status.currentStep || "scrape",
+          progress: status.progress || 0,
+          message: status.message || "Processing...",
+        });
+        if (status.status === "completed") {
+          setStep("done");
+          setIsBuilding(false);
+          return;
+        }
+        if (status.status === "failed") {
+          setPipelineStatus({ step: "error", progress: 0, message: status.error || "Something went wrong" });
+          setIsBuilding(false);
+          return;
+        }
+      } catch {
+        consecutiveErrors++;
+        if (consecutiveErrors >= MAX_ERRORS) {
+          setPipelineStatus({ step: "error", progress: 0, message: "Lost connection. Please try again." });
+          setIsBuilding(false);
+          return;
+        }
+      }
+      pollDelay = Math.min(pollDelay * 1.5, MAX_DELAY);
+      pollRef.current = setTimeout(poll, pollDelay);
+    };
+    pollRef.current = setTimeout(poll, 2000);
+  };
 
   const handleStartBuild = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,6 +146,7 @@ function OnboardingContent() {
       }
 
       const data = await res.json();
+      setCurrentSiteId(data.siteId);
 
       // Poll with exponential backoff: 2s → 4s → 8s → 10s (capped)
       let pollDelay = 2000;
@@ -441,9 +502,14 @@ function OnboardingContent() {
                   <button
                     type="button"
                     onClick={() => {
-                      setIsBuilding(false);
-                      setPipelineStatus({ step: "scrape", progress: 0, message: "Starting..." });
-                      handleStartBuild({ preventDefault: () => {} } as React.FormEvent);
+                      if (currentSiteId) {
+                        // True retry — reuse the same site, just re-run the pipeline
+                        void retryPipeline();
+                      } else {
+                        setIsBuilding(false);
+                        setPipelineStatus({ step: "scrape", progress: 0, message: "Starting..." });
+                        handleStartBuild({ preventDefault: () => {} } as React.FormEvent);
+                      }
                     }}
                     className="flex-1 h-12 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold hover:opacity-90 transition"
                   >

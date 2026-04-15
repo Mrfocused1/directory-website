@@ -155,6 +155,24 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
+                      {!site.isPublished && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const res = await fetch(`/api/pipeline/retry?siteId=${site.id}`, { method: "POST" });
+                            if (res.ok) {
+                              alert("Pipeline restarted. Refresh in a minute.");
+                            } else {
+                              const data = await res.json().catch(() => ({}));
+                              alert(data.error || "Retry failed.");
+                            }
+                          }}
+                          className="h-9 px-4 bg-yellow-100 text-yellow-800 rounded-lg text-xs font-semibold hover:bg-yellow-200 transition"
+                          title="Re-run the build pipeline for this site"
+                        >
+                          Retry build
+                        </button>
+                      )}
                       <Link
                         href={`/d/${site.slug}`}
                         className="h-9 px-4 bg-black/5 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:bg-black/10 transition"

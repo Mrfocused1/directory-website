@@ -24,6 +24,7 @@ type ConnectedDomain = {
   status: "pending" | "verifying" | "active" | "failed";
   dnsVerified: boolean;
   sslProvisioned: boolean;
+  misconfigured?: boolean;
 };
 
 type Flow = null | "buy" | "connect";
@@ -224,16 +225,20 @@ function DomainsPageContent() {
     try {
       const res = await fetch(`/api/domains?action=status&domain=${encodeURIComponent(domain)}`);
       const data = await res.json();
-      if (data.dnsVerified) {
-        setDomains((prev) =>
-          prev.map((d) =>
-            d.domain === domain
-              ? { ...d, status: "active" as const, dnsVerified: true, sslProvisioned: true }
-              : d,
-          ),
-        );
-        setPendingDns(null);
-      }
+      setDomains((prev) =>
+        prev.map((d) =>
+          d.domain === domain
+            ? {
+                ...d,
+                status: data.dnsVerified && data.sslProvisioned ? "active" : "pending",
+                dnsVerified: !!data.dnsVerified,
+                sslProvisioned: !!data.sslProvisioned,
+                misconfigured: !!data.misconfigured,
+              }
+            : d,
+        ),
+      );
+      if (data.dnsVerified && data.sslProvisioned) setPendingDns(null);
     } finally {
       setVerifyingDomain(null);
     }
@@ -335,7 +340,13 @@ function DomainsPageContent() {
                   </div>
                   <div>
                     <p className="text-sm font-mono font-bold">{d.domain}</p>
-                    <p className="text-[11px] text-yellow-600 font-semibold">Waiting for DNS verification</p>
+                    <p className="text-[11px] text-yellow-600 font-semibold">
+                      {d.misconfigured
+                        ? "DNS records look incorrect"
+                        : d.dnsVerified && !d.sslProvisioned
+                          ? "DNS verified — provisioning SSL"
+                          : "Waiting for DNS verification"}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -348,6 +359,31 @@ function DomainsPageContent() {
                     {verifyingDomain === d.domain ? "Checking..." : "Re-check"}
                   </button>
                   <button type="button" onClick={() => handleRemove(d.id)} className="text-xs text-[color:var(--fg-subtle)] hover:text-red-600 transition">Remove</button>
+                </div>
+              </div>
+              {/* Detailed status indicators */}
+              <div className="mt-3 pt-3 border-t border-yellow-100 grid grid-cols-2 gap-3 text-[11px]">
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      d.dnsVerified ? "bg-green-500" : "bg-yellow-400"
+                    }`}
+                  />
+                  <span className="font-semibold">DNS:</span>
+                  <span className={d.dnsVerified ? "text-green-700" : "text-yellow-700"}>
+                    {d.dnsVerified ? "Verified" : "Propagating..."}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      d.sslProvisioned ? "bg-green-500" : "bg-gray-300"
+                    }`}
+                  />
+                  <span className="font-semibold">SSL:</span>
+                  <span className={d.sslProvisioned ? "text-green-700" : "text-[color:var(--fg-subtle)]"}>
+                    {d.sslProvisioned ? "Provisioned" : "Pending DNS"}
+                  </span>
                 </div>
               </div>
             </div>

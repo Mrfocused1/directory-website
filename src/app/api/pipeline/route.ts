@@ -248,6 +248,13 @@ export async function GET(request: NextRequest) {
       .slice(0, 300);
   };
 
+  // Prefer the dedicated `error` column, but fall back to the `message` of the
+  // failed job — older rows (pre-error-column-write) store the reason there.
+  const failedJob = anyFailed ? jobs.find((j) => j.status === "failed") : null;
+  const failureReason = failedJob
+    ? sanitizeError(failedJob.error) || sanitizeError(failedJob.message)
+    : null;
+
   return NextResponse.json({
     siteId,
     status: allCompleted ? "completed" : anyFailed ? "failed" : "processing",
@@ -256,9 +263,9 @@ export async function GET(request: NextRequest) {
     message: allCompleted
       ? "Your directory is ready!"
       : anyFailed
-        ? sanitizeError(latestJob.error) || "Something went wrong"
+        ? failureReason || "Something went wrong"
         : latestJob.message || "Processing...",
-    error: anyFailed ? sanitizeError(latestJob.error) : null,
+    error: anyFailed ? failureReason : null,
     steps: stepStatuses,
   });
 }

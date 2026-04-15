@@ -57,7 +57,7 @@ const PLANS: Record<PlanId, PlanConfig> = {
     id: "creator",
     name: "Creator",
     price: 19,
-    postLimit: 0,
+    postLimit: 100,
     siteLimit: 1,
     platformLimit: 3,
     accountsPerPlatform: { instagram: 1, tiktok: 1, youtube: 1 },
@@ -70,7 +70,7 @@ const PLANS: Record<PlanId, PlanConfig> = {
       "platforms_multi",
       "references",
       "transcription",
-      "unlimited_posts",
+      "custom_domain",
     ]),
   },
   pro: {

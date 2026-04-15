@@ -8,7 +8,7 @@ export default function MarketingFooter() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 pb-16 border-b border-white/10">
           <div>
             <Link href="/" aria-label="BuildMy.Directory home" className="inline-flex">
-              <Logo height={32} variant="white" />
+              <Logo height={48} variant="white" />
             </Link>
             <p className="mt-4 text-sm text-white/60 max-w-xs leading-relaxed">
               Turn your Instagram or TikTok content into a beautiful, searchable

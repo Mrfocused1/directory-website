@@ -52,7 +52,7 @@ export default function DashboardNav() {
       {/* Top nav bar */}
       <nav className="flex items-center justify-between gap-3 px-4 sm:px-6 h-16 max-w-7xl mx-auto border-b border-[color:var(--border)]">
         <Link href="/" aria-label="BuildMy.Directory home" className="flex items-center">
-          <Logo height={28} />
+          <Logo height={44} />
         </Link>
         <div className="flex items-center gap-2 min-w-0">
           {/* Desktop tabs — tighter padding so the nav has room for the

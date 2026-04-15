@@ -29,7 +29,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="col-span-2 sm:col-span-1">
             <Link href="/" aria-label="BuildMy.Directory home" className="inline-flex mb-3">
-              <Logo height={26} />
+              <Logo height={40} />
             </Link>
             <p className="text-xs text-[color:var(--fg-muted)] leading-relaxed max-w-[220px]">
               Turn your social media content into a searchable, shareable directory — without lifting a finger.

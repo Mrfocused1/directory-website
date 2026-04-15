@@ -23,7 +23,7 @@ export default function DashboardShell({
         <footer className="border-t border-[color:var(--border)] py-8 px-6 relative z-10">
           <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <span className="inline-flex">
-              <Logo height={22} />
+              <Logo height={32} />
             </span>
             <p className="text-xs text-[color:var(--fg-subtle)]">
               Signed in as {email}

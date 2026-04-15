@@ -101,7 +101,7 @@ export default function ResetPasswordPage() {
       <div className="relative z-10">
         <nav className="flex items-center justify-between px-6 sm:px-10 h-16 max-w-4xl mx-auto">
           <Link href="/" aria-label="BuildMy.Directory home" className="flex items-center">
-            <Logo height={28} />
+            <Logo height={44} />
           </Link>
         </nav>
         <main className="max-w-sm mx-auto px-6 pt-16 pb-20">

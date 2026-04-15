@@ -263,7 +263,7 @@ function OnboardingContent() {
         {/* Nav */}
         <nav className="flex items-center justify-between px-6 sm:px-10 h-16 max-w-4xl mx-auto">
           <Link href="/" aria-label="BuildMy.Directory home" className="flex items-center">
-            <Logo height={28} />
+            <Logo height={44} />
           </Link>
           <Link
             href="/"
@@ -607,7 +607,7 @@ function OnboardingContent() {
         <footer className="border-t border-[color:var(--border)] py-8 px-6">
           <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
             <span className="inline-flex">
-              <Logo height={22} />
+              <Logo height={32} />
             </span>
             <p className="text-xs text-[color:var(--fg-subtle)]">
               Built for creators who want their content to live beyond the feed.

@@ -46,7 +46,7 @@ export default function ReferencesDemo() {
       {/* Reading indicator */}
       <div className="flex items-center gap-2 mb-2 text-[9px] font-semibold uppercase tracking-wider text-[color:var(--bd-grey)]">
         <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--bd-lime)] bd-pulse-dot" />
-        {step <= 1 ? "Claude finding related sources…" : "Found 2 references"}
+        {step <= 1 ? "Finding related sources…" : "Found 2 references"}
       </div>
 
       {/* References */}

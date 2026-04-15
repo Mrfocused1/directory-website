@@ -65,24 +65,31 @@ export default function PrivacyPage() {
           policy and only receives the data necessary to perform its function:
         </p>
         <ul>
-          <li><strong>Supabase</strong> — authentication (email, password hash)</li>
-          <li><strong>Neon / Supabase Postgres</strong> — primary database hosting</li>
-          <li><strong>Vercel</strong> — hosting, Edge network, and Blob storage for media</li>
-          <li><strong>Stripe</strong> — payment processing</li>
-          <li><strong>Resend</strong> — transactional email delivery</li>
-          <li><strong>Apify</strong> — scraping Instagram and TikTok profiles</li>
-          <li><strong>Deepgram</strong> — video transcription</li>
-          <li><strong>Anthropic (Claude)</strong> — AI-powered content categorization</li>
-          <li><strong>Inngest</strong> — background job orchestration</li>
+          <li><strong>Authentication partner</strong> — stores your email and a hash of your password</li>
+          <li><strong>Database partner</strong> — primary database hosting for all account + content data</li>
+          <li><strong>Hosting partner</strong> — hosts the website, serves the Edge network, and stores media</li>
+          <li><strong>Payment processor</strong> — handles card details and subscriptions (we never see card numbers)</li>
+          <li><strong>Email delivery partner</strong> — sends confirmation, reset, and newsletter emails</li>
+          <li><strong>Content-scraping partner</strong> — pulls your posts from your linked social profiles</li>
+          <li><strong>Transcription partner</strong> — turns your video audio into searchable text</li>
+          <li><strong>AI categorization partner</strong> — detects topics and labels each post</li>
+          <li><strong>Background-job partner</strong> — orchestrates the long-running build and sync pipelines</li>
         </ul>
+        <p>
+          A current list of the specific vendors we use is available on request at{" "}
+          <a href="mailto:hello@buildmy.directory" className="underline text-[color:var(--fg)]">
+            hello@buildmy.directory
+          </a>
+          .
+        </p>
       </Section>
 
       <Section title="5. Cookies and session storage">
         <p>
-          We use strictly necessary cookies for authentication (Supabase sessions) and to prevent
-          spam. We also use <code>sessionStorage</code> for analytics (generating a temporary
-          session ID that resets when you close the tab). We do not use third-party advertising
-          cookies or cross-site trackers.
+          We use strictly necessary cookies for authentication and to prevent spam. We also use{" "}
+          <code>sessionStorage</code> for analytics (generating a temporary session ID that resets
+          when you close the tab). We do not use third-party advertising cookies or cross-site
+          trackers.
         </p>
       </Section>
 
@@ -110,10 +117,9 @@ export default function PrivacyPage() {
 
       <Section title="8. International transfers">
         <p>
-          Our primary services are hosted in the European Union (Supabase in Ireland, Vercel Edge
-          globally). Some third-party services (Apify, Deepgram, Anthropic, Stripe) may process
-          data in the United States. We rely on Standard Contractual Clauses and each provider&apos;s
-          compliance framework to protect transferred data.
+          Our primary services are hosted in the European Union. Some of our infrastructure
+          partners may process data in the United States. We rely on Standard Contractual Clauses
+          and each provider&apos;s compliance framework to protect transferred data.
         </p>
       </Section>
 

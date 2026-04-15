@@ -94,8 +94,8 @@ export default function TermsPage() {
       <Section title="9. Service availability">
         <p>
           We aim for high availability but do not guarantee uninterrupted service. Scheduled
-          maintenance, third-party outages (Stripe, Supabase, Vercel, Apify, etc.), and force
-          majeure events may cause downtime. We&apos;re not liable for service interruptions.
+          maintenance, third-party infrastructure outages, and force majeure events may cause
+          downtime. We&apos;re not liable for service interruptions.
         </p>
       </Section>
 

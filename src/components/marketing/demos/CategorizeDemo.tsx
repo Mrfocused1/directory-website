@@ -65,7 +65,7 @@ export default function CategorizeDemo() {
           <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--bd-lime)] bd-pulse-dot shrink-0" />
         </div>
         <div className="text-[9px] font-semibold uppercase tracking-wider text-[color:var(--bd-grey)] mt-1.5">
-          {sortedCount < POSTS.length ? "Claude reading…" : "Done"}
+          {sortedCount < POSTS.length ? "Reading…" : "Done"}
         </div>
       </div>
 

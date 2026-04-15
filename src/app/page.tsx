@@ -36,14 +36,14 @@ const FEATURES: {
     eyebrow: "AI transcription",
     accent: "#b0b0fe",
     title: "Your videos become searchable text.",
-    desc: "Whisper Large v3 transcribes every reel. Your audience can search what you SAID, not just your captions — and Google indexes it all.",
+    desc: "We transcribe every reel automatically. Your audience can search what you SAID, not just your captions — and Google indexes it all.",
     Demo: TranscriptionDemo,
   },
   {
     eyebrow: "Smart references",
     accent: "#92eedd",
     title: "We find the sources you'd have cited.",
-    desc: "Claude reads every post and pulls in related YouTube videos and articles. Credibility at scale, no manual sourcing.",
+    desc: "We read every post and pull in related YouTube videos and articles. Credibility at scale, no manual sourcing.",
     Demo: ReferencesDemo,
   },
   {

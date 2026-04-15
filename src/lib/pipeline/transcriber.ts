@@ -1,8 +1,12 @@
 /**
- * Video Transcription Module — powered by Deepgram
+ * Video Transcription Module — provider-agnostic.
  *
- * Transcribes video content using Deepgram's Nova-2 model.
- * Falls back to empty transcript if Deepgram is not configured.
+ * Reads TRANSCRIPTION_PROVIDER from env ("groq" | "deepgram"). Default
+ * is "groq" (Whisper Large v3 via Groq's OpenAI-compatible endpoint,
+ * ~7× cheaper than Deepgram for similar quality on short reels).
+ *
+ * Falls back to an empty transcript when the selected provider has no
+ * credentials configured, so a missing key never breaks the pipeline.
  */
 
 export type TranscriptResult = {
@@ -16,13 +20,103 @@ export type TranscriptResult = {
   }[];
 };
 
-export async function transcribeVideo(videoUrl: string): Promise<TranscriptResult> {
-  if (!process.env.DEEPGRAM_API_KEY || !videoUrl) {
-    return { text: "", duration: 0, language: "en", segments: [] };
+const EMPTY: TranscriptResult = { text: "", duration: 0, language: "en", segments: [] };
+
+// Groq's Whisper endpoint accepts audio/video files up to 25 MB (free
+// tier) / 100 MB (paid). Skip oversize files to avoid a guaranteed
+// rejection.
+const GROQ_MAX_BYTES = 25 * 1024 * 1024;
+
+async function transcribeWithGroq(videoUrl: string): Promise<TranscriptResult> {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) return EMPTY;
+
+  // Groq takes a multipart file upload, not a URL like Deepgram does.
+  // Download the bytes first (Vercel Blob URLs are public), then forward.
+  const srcController = new AbortController();
+  const srcTimeout = setTimeout(() => srcController.abort(), 90_000);
+  let videoBlob: Blob;
+  try {
+    const srcRes = await fetch(videoUrl, { signal: srcController.signal });
+    if (!srcRes.ok) throw new Error(`source fetch HTTP ${srcRes.status}`);
+    const len = Number(srcRes.headers.get("content-length") || 0);
+    if (len && len > GROQ_MAX_BYTES) {
+      throw new Error(
+        `video is ${(len / 1024 / 1024).toFixed(1)} MB, exceeds Groq's 25 MB cap`,
+      );
+    }
+    videoBlob = await srcRes.blob();
+    if (videoBlob.size > GROQ_MAX_BYTES) {
+      throw new Error(
+        `video is ${(videoBlob.size / 1024 / 1024).toFixed(1)} MB, exceeds Groq's 25 MB cap`,
+      );
+    }
+  } finally {
+    clearTimeout(srcTimeout);
   }
 
-  // Deepgram-by-URL takes a few minutes for long videos. Cap so a hung
-  // request doesn't burn the whole Vercel function budget.
+  const form = new FormData();
+  // Groq infers the mimetype from the filename extension; mp4 is safe
+  // for both Instagram reels and TikTok downloads.
+  form.append("file", videoBlob, "video.mp4");
+  form.append("model", "whisper-large-v3");
+  form.append("response_format", "verbose_json");
+  form.append("temperature", "0");
+
+  const uploadController = new AbortController();
+  const uploadTimeout = setTimeout(() => uploadController.abort(), 180_000);
+  let response: Response;
+  try {
+    response = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}` },
+      body: form,
+      signal: uploadController.signal,
+    });
+  } catch (err) {
+    clearTimeout(uploadTimeout);
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error("Groq request timed out after 3 minutes");
+    }
+    throw err;
+  }
+  clearTimeout(uploadTimeout);
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(
+      `Groq HTTP ${response.status}: ${body.slice(0, 200) || "(no body)"}`,
+    );
+  }
+
+  let data: {
+    text?: string;
+    language?: string;
+    duration?: number;
+    segments?: { start: number; end: number; text: string }[];
+  };
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error("Groq returned invalid JSON");
+  }
+
+  return {
+    text: data.text || "",
+    duration: data.duration || 0,
+    language: data.language || "en",
+    segments: (data.segments || []).map((s) => ({
+      start: s.start,
+      end: s.end,
+      text: s.text,
+    })),
+  };
+}
+
+async function transcribeWithDeepgram(videoUrl: string): Promise<TranscriptResult> {
+  const key = process.env.DEEPGRAM_API_KEY;
+  if (!key) return EMPTY;
+
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), 180_000);
   let response: Response;
@@ -32,7 +126,7 @@ export async function transcribeVideo(videoUrl: string): Promise<TranscriptResul
       {
         method: "POST",
         headers: {
-          Authorization: `Token ${process.env.DEEPGRAM_API_KEY}`,
+          Authorization: `Token ${key}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ url: videoUrl }),
@@ -50,9 +144,6 @@ export async function transcribeVideo(videoUrl: string): Promise<TranscriptResul
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    // Surface the underlying reason so the runner / job log shows
-    // what's actually wrong (REMOTE_CONTENT_ERROR for inaccessible
-    // URLs, INVALID_AUTH for bad keys, etc.) instead of swallowing.
     throw new Error(
       `Deepgram HTTP ${response.status}: ${body.slice(0, 200) || "(no body)"}`,
     );
@@ -71,12 +162,8 @@ export async function transcribeVideo(videoUrl: string): Promise<TranscriptResul
     throw new Error("Deepgram returned invalid JSON");
   }
   const result = data.results?.channels?.[0]?.alternatives?.[0];
+  if (!result) return EMPTY;
 
-  if (!result) {
-    return { text: "", duration: 0, language: "en", segments: [] };
-  }
-
-  // Build segments from utterances or paragraphs
   const segments = (data.results?.utterances || []).map((u) => ({
     start: u.start,
     end: u.end,
@@ -91,6 +178,13 @@ export async function transcribeVideo(videoUrl: string): Promise<TranscriptResul
   };
 }
 
+export async function transcribeVideo(videoUrl: string): Promise<TranscriptResult> {
+  if (!videoUrl) return EMPTY;
+  const provider = (process.env.TRANSCRIPTION_PROVIDER || "groq").toLowerCase();
+  if (provider === "deepgram") return transcribeWithDeepgram(videoUrl);
+  return transcribeWithGroq(videoUrl);
+}
+
 export async function transcribeBatch(
   videos: { postId: string; videoUrl: string }[],
   onProgress?: (completed: number, total: number) => void,
@@ -99,8 +193,19 @@ export async function transcribeBatch(
 
   for (let i = 0; i < videos.length; i++) {
     const { postId, videoUrl } = videos[i];
-    const result = await transcribeVideo(videoUrl);
-    results.set(postId, result);
+    try {
+      const result = await transcribeVideo(videoUrl);
+      results.set(postId, result);
+    } catch (err) {
+      // Log and continue — one failed transcript shouldn't kill the
+      // whole batch. Caller can count empty results to surface failures.
+      console.error(
+        `[transcriber] failed for post ${postId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      results.set(postId, EMPTY);
+    }
     onProgress?.(i + 1, videos.length);
   }
 

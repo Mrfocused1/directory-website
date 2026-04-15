@@ -252,13 +252,15 @@ export default function DashboardPage() {
                           className="h-9 px-4 bg-black/5 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:bg-black/10 disabled:opacity-50 transition"
                           title={
                             syncStatus.remaining <= 0
-                              ? `You've used all ${syncStatus.limit} syncs this month`
+                              ? `You've used all ${syncStatus.limit} syncs this month — resets on the 1st`
                               : `Re-pull latest posts — ${syncStatus.remaining} of ${syncStatus.limit} syncs left this month`
                           }
                         >
                           {syncingId === site.id
                             ? "Starting…"
-                            : `Sync now · ${syncStatus.remaining}/${syncStatus.limit}`}
+                            : syncStatus.remaining <= 0
+                              ? `No syncs left · resets 1st`
+                              : `Sync now · ${syncStatus.remaining}/${syncStatus.limit}`}
                         </button>
                       ) : (
                         <Link

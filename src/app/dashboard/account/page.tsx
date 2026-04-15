@@ -187,7 +187,7 @@ export default function AccountPage() {
         ) : (
           <div className="space-y-5">
             {/* Plan card */}
-            <div className="bg-white border border-[color:var(--border)] rounded-xl p-5">
+            <div id="plan" className="bg-white border border-[color:var(--border)] rounded-xl p-5 scroll-mt-20">
               <div className="flex items-center justify-between mb-1">
                 <h2 className="text-sm font-bold">Current plan</h2>
                 <span className="text-[10px] font-bold uppercase tracking-wider bg-black/5 px-2 py-0.5 rounded">

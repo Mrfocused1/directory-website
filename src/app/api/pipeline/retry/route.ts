@@ -42,11 +42,15 @@ async function countSyncsThisMonth(userId: string): Promise<number> {
         eq(pipelineJobs.step, "scrape"),
       ),
     );
-  // Subtract 1 for the initial build's own scrape row (created before
-  // the user ever clicked Sync). This is an approximation — if the
-  // user built multiple sites this month, the initial-build rows aren't
-  // syncs. Undercounts slightly, which is user-friendly.
-  return Math.max(0, jobs.length - 1);
+  // Every scrape row in the current month counts — including the
+  // initial build's row if the site was built this month. The older
+  // implementation subtracted 1 to try to ignore the initial-build
+  // row, but that only made sense for sites built in the SAME month
+  // as the current quota window. For sites built in prior months,
+  // there's nothing to subtract and users got an extra "free" sync
+  // per month per long-lived site. Treating every row equally is
+  // simpler and consistent.
+  return jobs.length;
 }
 
 /**

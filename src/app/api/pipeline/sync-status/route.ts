@@ -68,8 +68,10 @@ export async function GET() {
         eq(pipelineJobs.step, "scrape"),
       ),
     );
-  // Subtract 1 for the initial build's scrape row; see retry route.
-  const used = Math.max(0, jobs.length - 1);
+  // Every scrape row in the current month counts (same rule as the
+  // retry endpoint). See that route's comment for why we dropped the
+  // old -1 subtraction.
+  const used = jobs.length;
   return NextResponse.json({
     enabled: true,
     used,

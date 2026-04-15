@@ -129,6 +129,47 @@ html, body {
   line-height: 1;
 }
 
+/* ── Marketing demo animations ──────────────────────────────────────
+ * Pure CSS loops used inside the feature-section product tiles
+ * (AutoScrapeDemo, TranscriptionDemo, etc.). All animations honor
+ * `prefers-reduced-motion` via the existing media query below. */
+
+@keyframes bd-caret-blink {
+  0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; }
+}
+.bd-caret { animation: bd-caret-blink 1s step-end infinite; }
+
+@keyframes bd-pop-in {
+  0% { opacity: 0; transform: scale(0.85) translateY(8px); }
+  60% { opacity: 1; transform: scale(1.04) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.bd-pop-in { animation: bd-pop-in 0.5s cubic-bezier(0.2, 0.9, 0.4, 1.2) both; }
+
+@keyframes bd-slide-right {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.bd-slide-right { animation: bd-slide-right 0.4s ease-out both; }
+
+@keyframes bd-wave {
+  0%, 100% { transform: scaleY(0.35); }
+  50%      { transform: scaleY(1); }
+}
+.bd-wave-bar { animation: bd-wave 0.9s ease-in-out infinite; transform-origin: center; }
+
+@keyframes bd-pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.5); opacity: 0.6; }
+}
+.bd-pulse-dot { animation: bd-pulse-dot 1.4s ease-in-out infinite; }
+
+@keyframes bd-marquee-up {
+  from { transform: translateY(0); }
+  to   { transform: translateY(calc(-50%)); }
+}
+.bd-marquee-up { animation: bd-marquee-up 16s linear infinite; }
+
 /* Subtle inner-glow effect on the dark hero, centered behind content.
  * Nory uses a soft radial gradient + grain — recreated with
  * background-image + mix-blend-mode. */

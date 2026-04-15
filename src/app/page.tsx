@@ -4,6 +4,10 @@ import MarketingFooter from "@/components/marketing/MarketingFooter";
 import HowItWorks from "@/components/landing/HowItWorks";
 import PricingButton from "@/components/landing/PricingButton";
 import ContactForm from "@/components/landing/ContactForm";
+import AutoScrapeDemo from "@/components/marketing/demos/AutoScrapeDemo";
+import TranscriptionDemo from "@/components/marketing/demos/TranscriptionDemo";
+import ReferencesDemo from "@/components/marketing/demos/ReferencesDemo";
+import CategorizeDemo from "@/components/marketing/demos/CategorizeDemo";
 
 /**
  * Landing page — nory.ai-inspired aesthetic.
@@ -14,30 +18,40 @@ import ContactForm from "@/components/landing/ContactForm";
  * directories, admin, and dashboard keep their own theme.
  */
 
-const FEATURES = [
+const FEATURES: {
+  eyebrow: string;
+  accent: string;
+  title: string;
+  desc: string;
+  Demo: React.ComponentType;
+}[] = [
   {
     eyebrow: "Auto-scrape",
     accent: "#d3fd74",
     title: "We pull every post, reel and carousel.",
     desc: "Enter your Instagram or TikTok handle. We do the scraping, the uploading, and the thumbnail prep. You don't touch anything.",
+    Demo: AutoScrapeDemo,
   },
   {
     eyebrow: "AI transcription",
     accent: "#b0b0fe",
     title: "Your videos become searchable text.",
     desc: "Whisper Large v3 transcribes every reel. Your audience can search what you SAID, not just your captions — and Google indexes it all.",
+    Demo: TranscriptionDemo,
   },
   {
     eyebrow: "Smart references",
     accent: "#92eedd",
     title: "We find the sources you'd have cited.",
     desc: "Claude reads every post and pulls in related YouTube videos and articles. Credibility at scale, no manual sourcing.",
+    Demo: ReferencesDemo,
   },
   {
     eyebrow: "Auto-categorize",
     accent: "#ffc72d",
     title: "Niche-specific tabs, not generic junk.",
     desc: "We detect your niche first, then generate categories that fit. No 'General' or 'Updates' dumps — real tags your audience actually wants.",
+    Demo: CategorizeDemo,
   },
 ];
 
@@ -252,23 +266,8 @@ export default function LandingPage() {
                   {f.desc}
                 </p>
               </div>
-              <div
-                className={`aspect-[5/4] rounded-2xl flex items-center justify-center relative overflow-hidden ${
-                  i % 2 === 1 ? "md:order-1" : ""
-                }`}
-                style={{ backgroundColor: f.accent + "33" }}
-              >
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    backgroundImage: `radial-gradient(circle at 50% 50%, ${f.accent}60 0%, transparent 70%)`,
-                  }}
-                />
-                <span
-                  className="relative font-display-tight text-[color:var(--bd-dark)] text-[3rem] opacity-40"
-                >
-                  {String(i + 1).padStart(2, "0")}
-                </span>
+              <div className={i % 2 === 1 ? "md:order-1" : ""}>
+                <f.Demo />
               </div>
             </div>
           ))}

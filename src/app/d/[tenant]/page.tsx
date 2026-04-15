@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { getSiteData } from "@/lib/demo-data";
 import Directory from "@/components/directory/Directory";
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://buildmy.directory";
+
 export async function generateMetadata({
   params,
 }: {
@@ -11,18 +14,26 @@ export async function generateMetadata({
   const data = await getSiteData(tenant);
   if (!data) return { title: "Not Found" };
 
+  const description = data.site.bio || `Browse ${data.site.displayName}'s content directory`;
+  const url = `${SITE_URL}/d/${tenant}`;
+
   return {
     title: `${data.site.displayName} | BuildMy.Directory`,
-    description: data.site.bio || `Browse ${data.site.displayName}'s content directory`,
+    description,
+    alternates: {
+      canonical: url,
+      types: { "application/rss+xml": `${url}/feed.xml` },
+    },
     openGraph: {
       title: data.site.displayName,
-      description: data.site.bio || `Browse ${data.site.displayName}'s content directory`,
+      description,
       type: "website",
+      url,
     },
     twitter: {
       card: "summary_large_image",
       title: data.site.displayName,
-      description: data.site.bio || `Browse ${data.site.displayName}'s content directory`,
+      description,
     },
   };
 }
@@ -46,5 +57,36 @@ export default async function TenantDirectoryPage({
     );
   }
 
-  return <Directory site={data.site} posts={data.posts} siteId={data.siteId} branding={data.branding} />;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: data.site.displayName,
+    url: `${SITE_URL}/d/${tenant}`,
+    description: data.site.bio || undefined,
+    author: {
+      "@type": "Person",
+      name: data.site.displayName,
+    },
+    mainEntity: {
+      "@type": "ItemList",
+      numberOfItems: data.posts.length,
+      itemListElement: data.posts.slice(0, 20).map((p, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        url: `${SITE_URL}/d/${tenant}/p/${p.shortcode}`,
+        name: p.title || p.shortcode,
+      })),
+    },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <Directory site={data.site} posts={data.posts} siteId={data.siteId} branding={data.branding} />
+    </>
+  );
 }

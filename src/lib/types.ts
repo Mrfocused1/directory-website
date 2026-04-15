@@ -36,6 +36,7 @@ export type SitePost = {
   transcript: string | null;
   platformUrl: string | null;
   references: Reference[];
+  isFeatured?: boolean;
 };
 
 export type PlatformConnection = {

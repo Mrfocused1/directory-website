@@ -316,6 +316,11 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
                           </svg>
                         </span>
                       )}
+                      {p.isFeatured && (
+                        <span className="absolute top-2 left-2 text-[10px] font-bold uppercase tracking-wide bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded flex items-center gap-1">
+                          <span aria-hidden>★</span> Featured
+                        </span>
+                      )}
                       <div className="absolute bottom-2 left-2 flex items-center gap-1">
                         <span className="text-[10px] font-semibold uppercase tracking-wide bg-white/90 text-black px-1.5 py-0.5 rounded">
                           {p.category}

@@ -17,6 +17,7 @@ type Post = {
   platformUrl: string | null;
   takenAt: string | null;
   isVisible: boolean;
+  isFeatured: boolean;
   createdAt: string;
 };
 
@@ -27,6 +28,7 @@ export default function PostsPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Post | null>(null);
   const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!siteId) return;
@@ -57,6 +59,53 @@ export default function PostsPage() {
     if (!confirm(`Delete "${post.title || post.shortcode}"? This can't be undone.`)) return;
     const res = await fetch(`/api/dashboard/posts?id=${post.id}`, { method: "DELETE" });
     if (res.ok) setPosts((ps) => ps.filter((p) => p.id !== post.id));
+  }
+
+  async function toggleFeatured(post: Post) {
+    const next = !post.isFeatured;
+    await fetch(`/api/dashboard/posts?id=${post.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isFeatured: next }),
+    });
+    setPosts((ps) => ps.map((p) => (p.id === post.id ? { ...p, isFeatured: next } : p)));
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function runBulk(action: "hide" | "show" | "feature" | "unfeature" | "delete") {
+    const ids = Array.from(selected);
+    if (ids.length === 0) return;
+    if (action === "delete" && !confirm(`Delete ${ids.length} post(s)? This can't be undone.`)) return;
+    const res = await fetch("/api/dashboard/posts/bulk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids, action }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data.error || "Bulk action failed.");
+      return;
+    }
+    if (action === "delete") {
+      setPosts((ps) => ps.filter((p) => !selected.has(p.id)));
+    } else {
+      const map: Record<string, Partial<Post>> = {
+        hide: { isVisible: false },
+        show: { isVisible: true },
+        feature: { isFeatured: true },
+        unfeature: { isFeatured: false },
+      };
+      setPosts((ps) => ps.map((p) => (selected.has(p.id) ? { ...p, ...map[action] } : p)));
+    }
+    setSelected(new Set());
   }
 
   const filtered = search.trim()
@@ -93,6 +142,22 @@ export default function PostsPage() {
           )}
         </div>
 
+        {selected.size > 0 && (
+          <div className="sticky top-2 z-20 mb-4 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl px-4 py-3 flex items-center justify-between gap-3 flex-wrap shadow-lg">
+            <span className="text-xs font-semibold">
+              {selected.size} selected
+            </span>
+            <div className="flex gap-1 flex-wrap">
+              <button type="button" onClick={() => runBulk("feature")} className="h-8 px-3 text-xs font-semibold bg-white/15 rounded hover:bg-white/25 transition">Feature</button>
+              <button type="button" onClick={() => runBulk("unfeature")} className="h-8 px-3 text-xs font-semibold bg-white/15 rounded hover:bg-white/25 transition">Unfeature</button>
+              <button type="button" onClick={() => runBulk("hide")} className="h-8 px-3 text-xs font-semibold bg-white/15 rounded hover:bg-white/25 transition">Hide</button>
+              <button type="button" onClick={() => runBulk("show")} className="h-8 px-3 text-xs font-semibold bg-white/15 rounded hover:bg-white/25 transition">Show</button>
+              <button type="button" onClick={() => runBulk("delete")} className="h-8 px-3 text-xs font-semibold bg-red-500 rounded hover:bg-red-600 transition">Delete</button>
+              <button type="button" onClick={() => setSelected(new Set())} className="h-8 px-3 text-xs font-semibold bg-white/15 rounded hover:bg-white/25 transition">Clear</button>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-20">
             <div className="w-8 h-8 border-2 border-[color:var(--fg)] border-t-transparent rounded-full animate-spin mx-auto" />
@@ -114,11 +179,20 @@ export default function PostsPage() {
             {filtered.map((p) => (
               <div
                 key={p.id}
-                className={`bg-white border border-[color:var(--border)] rounded-xl overflow-hidden flex flex-col ${
-                  p.isVisible ? "" : "opacity-60"
-                }`}
+                className={`bg-white border rounded-xl overflow-hidden flex flex-col ${
+                  selected.has(p.id) ? "border-[color:var(--fg)] ring-2 ring-[color:var(--fg)]/20" : "border-[color:var(--border)]"
+                } ${p.isVisible ? "" : "opacity-60"}`}
               >
                 <div className="aspect-[4/5] bg-black/5 relative overflow-hidden">
+                  <label className="absolute top-2 right-2 z-10 w-6 h-6 bg-white rounded shadow cursor-pointer flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(p.id)}
+                      onChange={() => toggleSelect(p.id)}
+                      className="w-4 h-4 cursor-pointer"
+                      aria-label={`Select ${p.title || p.shortcode}`}
+                    />
+                  </label>
                   {p.thumbUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={p.thumbUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
@@ -127,8 +201,13 @@ export default function PostsPage() {
                       No preview
                     </div>
                   )}
+                  {p.isFeatured && (
+                    <div className="absolute top-2 left-2 text-[10px] font-bold uppercase bg-yellow-400 text-yellow-900 px-1.5 py-0.5 rounded flex items-center gap-1">
+                      <span>★</span> Featured
+                    </div>
+                  )}
                   {!p.isVisible && (
-                    <div className="absolute top-2 left-2 text-[10px] font-bold uppercase bg-black text-white px-1.5 py-0.5 rounded">
+                    <div className={`absolute ${p.isFeatured ? "top-8" : "top-2"} left-2 text-[10px] font-bold uppercase bg-black text-white px-1.5 py-0.5 rounded`}>
                       Hidden
                     </div>
                   )}
@@ -150,6 +229,18 @@ export default function PostsPage() {
                       className="flex-1 h-7 text-[11px] font-semibold bg-black/5 rounded hover:bg-black/10 transition"
                     >
                       Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleFeatured(p)}
+                      className={`h-7 px-2 text-[11px] font-semibold rounded transition ${
+                        p.isFeatured
+                          ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
+                          : "bg-black/5 hover:bg-black/10"
+                      }`}
+                      title={p.isFeatured ? "Remove from featured" : "Feature"}
+                    >
+                      ★
                     </button>
                     <button
                       type="button"

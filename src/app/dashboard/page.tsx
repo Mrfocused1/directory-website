@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import DashboardNav from "@/components/dashboard/DashboardNav";
 import EmptyState from "@/components/dashboard/EmptyState";
+import GettingStarted from "@/components/dashboard/GettingStarted";
 
 type SiteData = {
   id: string;
@@ -69,7 +70,9 @@ export default function DashboardPage() {
       <div className="relative z-10">
         <DashboardNav />
 
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-20">
+        <main id="main" className="max-w-4xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-20">
+          {!loading && sites.length > 0 && <GettingStarted sites={sites} />}
+
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-2xl font-extrabold tracking-tight">Your Directories</h1>

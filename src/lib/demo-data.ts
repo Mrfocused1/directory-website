@@ -68,10 +68,10 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
     syncStatus: c.syncStatus as PlatformConnection["syncStatus"],
   }));
 
-  // Fetch posts with references
+  // Fetch posts with references — featured posts bubble to the top
   const sitePosts = await db!.query.posts.findMany({
     where: eq(posts.siteId, site.id),
-    orderBy: (posts, { desc }) => [desc(posts.takenAt)],
+    orderBy: (posts, { desc }) => [desc(posts.isFeatured), desc(posts.takenAt)],
   });
 
   const postList: SitePost[] = await Promise.all(
@@ -102,6 +102,7 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
         transcript: p.transcript,
         platformUrl: p.platformUrl,
         references: mappedRefs,
+        isFeatured: p.isFeatured,
       };
     }),
   );

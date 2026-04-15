@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { getSiteData } from "@/lib/demo-data";
 import Directory from "@/components/directory/Directory";
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://buildmy.directory";
+
 export async function generateMetadata({
   params,
 }: {
@@ -16,11 +19,13 @@ export async function generateMetadata({
   const description = post
     ? post.caption.slice(0, 160)
     : data.site.bio || "Browse this content directory";
+  const url = `${SITE_URL}/d/${tenant}/p/${shortcode}`;
 
   return {
     title: `${title} | ${data.site.displayName}`,
     description,
-    openGraph: { title, description, type: "article" },
+    alternates: { canonical: url },
+    openGraph: { title, description, type: "article", url },
     twitter: { card: "summary_large_image", title, description },
   };
 }
@@ -44,5 +49,40 @@ export default async function TenantPostPage({
     );
   }
 
-  return <Directory site={data.site} posts={data.posts} siteId={data.siteId} initialShortcode={shortcode} branding={data.branding} />;
+  const post = data.posts.find((p) => p.shortcode === shortcode);
+  const jsonLd = post
+    ? {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        headline: post.title || data.site.displayName,
+        description: (post.caption || "").slice(0, 300) || undefined,
+        url: `${SITE_URL}/d/${tenant}/p/${shortcode}`,
+        image: post.thumbUrl || undefined,
+        datePublished: post.takenAt || undefined,
+        author: {
+          "@type": "Person",
+          name: data.site.displayName,
+        },
+        articleSection: post.category || undefined,
+      }
+    : null;
+
+  return (
+    <>
+      {jsonLd && (
+        <script
+          type="application/ld+json"
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      )}
+      <Directory
+        site={data.site}
+        posts={data.posts}
+        siteId={data.siteId}
+        initialShortcode={shortcode}
+        branding={data.branding}
+      />
+    </>
+  );
 }

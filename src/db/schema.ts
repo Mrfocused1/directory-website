@@ -89,11 +89,13 @@ export const posts = pgTable(
     >(),
     platformUrl: text("platform_url"), // original IG/TT url
     isVisible: boolean("is_visible").notNull().default(true),
+    isFeatured: boolean("is_featured").notNull().default(false),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
     index("posts_site_id_idx").on(table.siteId),
     uniqueIndex("posts_site_shortcode_idx").on(table.siteId, table.shortcode),
+    index("posts_featured_idx").on(table.siteId, table.isFeatured),
   ],
 );
 

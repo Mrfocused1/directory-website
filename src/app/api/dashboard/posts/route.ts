@@ -41,6 +41,7 @@ export async function GET(request: NextRequest) {
       platformUrl: p.platformUrl,
       takenAt: p.takenAt?.toISOString() ?? null,
       isVisible: p.isVisible,
+      isFeatured: p.isFeatured,
       createdAt: p.createdAt.toISOString(),
     })),
   });
@@ -110,6 +111,13 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "isVisible must be a boolean" }, { status: 400 });
     }
     updates.isVisible = body.isVisible;
+  }
+
+  if ("isFeatured" in body) {
+    if (typeof body.isFeatured !== "boolean") {
+      return NextResponse.json({ error: "isFeatured must be a boolean" }, { status: 400 });
+    }
+    updates.isFeatured = body.isFeatured;
   }
 
   if (Object.keys(updates).length === 0) {

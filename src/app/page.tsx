@@ -109,7 +109,7 @@ const PRICING = [
     period: "/month",
     tagline: "Everything in Creator, plus…",
     features: [
-      "Unlimited posts",
+      "Up to 500 posts",
       "Full SEO: sitemap, JSON-LD, canonicals",
       "Dynamic Open Graph preview images",
       "Search-term & audience insights",
@@ -126,6 +126,7 @@ const PRICING = [
     period: "/month",
     tagline: "Everything in Pro, plus…",
     features: [
+      "Unlimited posts",
       "Up to 10 directory sites",
       "5 accounts per platform (multi-creator)",
       "Full white-label footer branding",

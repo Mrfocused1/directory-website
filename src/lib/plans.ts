@@ -77,7 +77,7 @@ const PLANS: Record<PlanId, PlanConfig> = {
     id: "pro",
     name: "Pro",
     price: 39,
-    postLimit: 0,
+    postLimit: 500,
     siteLimit: 1,
     platformLimit: 3,
     accountsPerPlatform: { instagram: 1, tiktok: 1, youtube: 1 },
@@ -96,7 +96,6 @@ const PLANS: Record<PlanId, PlanConfig> = {
       "seo_meta",
       "remove_branding",
       "export_subscribers",
-      "unlimited_posts",
     ]),
   },
   agency: {

@@ -6,24 +6,6 @@ import { useSiteContext } from "@/components/dashboard/SiteContext";
 import { usePlan } from "@/components/plans/PlanProvider";
 import type { PlatformConnection, Platform } from "@/lib/types";
 
-const MOCK_CONNECTIONS: PlatformConnection[] = [
-  {
-    id: "pc-1", platform: "instagram", handle: "demo_creator", displayName: "Demo Creator",
-    avatarUrl: null, followerCount: 48200, postCount: 14, isConnected: true,
-    lastSyncAt: "2026-04-12T10:00:00Z", syncStatus: "completed",
-  },
-  {
-    id: "pc-2", platform: "tiktok", handle: "demo_creator", displayName: "Demo Creator",
-    avatarUrl: null, followerCount: 125000, postCount: 8, isConnected: true,
-    lastSyncAt: "2026-04-12T10:05:00Z", syncStatus: "completed",
-  },
-  {
-    id: "pc-3", platform: "youtube", handle: "demo_creator", displayName: "Demo Creator",
-    avatarUrl: null, followerCount: 12400, postCount: 6, isConnected: true,
-    lastSyncAt: "2026-04-11T18:00:00Z", syncStatus: "completed",
-  },
-];
-
 const PLATFORM_META: Record<Platform, { name: string; color: string; bgColor: string; icon: React.ReactNode }> = {
   instagram: {
     name: "Instagram",
@@ -61,7 +43,7 @@ const AVAILABLE_PLATFORMS: Platform[] = ["instagram", "tiktok", "youtube"];
 
 export default function PlatformsPage() {
   const { selectedSite } = useSiteContext();
-  const [connections, setConnections] = useState<PlatformConnection[]>(MOCK_CONNECTIONS);
+  const [connections, setConnections] = useState<PlatformConnection[]>([]);
   const [showConnect, setShowConnect] = useState(false);
   const [newPlatform, setNewPlatform] = useState<Platform>("instagram");
   const [newHandle, setNewHandle] = useState("");
@@ -70,16 +52,17 @@ export default function PlatformsPage() {
 
   // Fetch real platform connections for the selected site
   useEffect(() => {
-    if (!siteId) return;
+    if (!siteId) {
+      setConnections([]);
+      return;
+    }
     async function fetchConnections() {
       try {
         const res = await fetch(`/api/platforms?siteId=${siteId}`);
         const data = await res.json();
-        if (data.connections && data.connections.length > 0) {
-          setConnections(data.connections);
-        }
+        setConnections(data.connections || []);
       } catch {
-        // Keep mock data as fallback
+        setConnections([]);
       }
     }
     fetchConnections();

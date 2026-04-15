@@ -94,7 +94,37 @@ export async function DELETE() {
     columns: { stripeCustomerId: true },
   });
 
-  // Best-effort cancel any active Stripe subscriptions
+  // Deleting the Supabase auth user is REQUIRED. If we skip it and only
+  // delete the DB row, the user could sign back in and /auth/callback
+  // would silently recreate their app-side users row on the same UUID,
+  // effectively resurrecting the "deleted" account.
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!serviceKey || !supabaseUrl) {
+    console.error("[account/delete] SUPABASE_SERVICE_ROLE_KEY missing — cannot delete auth user");
+    return NextResponse.json(
+      { error: "Account deletion is temporarily unavailable. Please contact support." },
+      { status: 503 },
+    );
+  }
+
+  try {
+    const admin = createServiceRoleClient(supabaseUrl, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { error: adminErr } = await admin.auth.admin.deleteUser(user.id);
+    if (adminErr) throw adminErr;
+  } catch (err) {
+    console.error("[account/delete] Supabase deleteUser failed:", err);
+    return NextResponse.json(
+      { error: "Failed to delete your authentication record. Please try again or contact support." },
+      { status: 500 },
+    );
+  }
+
+  // Cancel any active Stripe subscriptions (best-effort — auth is already
+  // gone, so failures here can be cleaned up manually from Stripe and
+  // won't resurrect the account).
   if (stripe && row?.stripeCustomerId) {
     try {
       const subs = await stripe.subscriptions.list({
@@ -103,24 +133,12 @@ export async function DELETE() {
         limit: 10,
       });
       for (const sub of subs.data) {
-        await stripe.subscriptions.cancel(sub.id).catch(() => null);
+        await stripe.subscriptions.cancel(sub.id).catch((e) =>
+          console.error("[account/delete] Stripe cancel failed for sub:", sub.id, e),
+        );
       }
     } catch (err) {
-      console.error("[account/delete] Stripe cancel failed:", err);
-    }
-  }
-
-  // Delete the auth user (requires service role)
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (serviceKey && supabaseUrl) {
-    try {
-      const admin = createServiceRoleClient(supabaseUrl, serviceKey, {
-        auth: { autoRefreshToken: false, persistSession: false },
-      });
-      await admin.auth.admin.deleteUser(user.id);
-    } catch (err) {
-      console.error("[account/delete] Supabase deleteUser failed:", err);
+      console.error("[account/delete] Stripe list subs failed:", err);
     }
   }
 

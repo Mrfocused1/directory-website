@@ -15,6 +15,16 @@ export const runPipelineFunction = inngest.createFunction(
     id: "run-pipeline",
     retries: 1,
     triggers: [{ event: "pipeline/run" }],
+    // Apify's FREE tier has an 8 GB global actor-memory cap. With the
+    // 512 MB per-run we request (see scraper.ts), 4 concurrent pipeline
+    // runs use 2 GB, leaving headroom for references actor, sync jobs,
+    // and transient overlap. Bump to 6–8 on Apify Starter (32 GB cap).
+    //
+    // Without this cap, Inngest's default concurrency of 10 would
+    // stack up 10×1024MB=10.24 GB and Apify would reject the 5th run
+    // with "exceed the memory limit" — the exact outage we saw on
+    // 2026-04-15.
+    concurrency: { limit: 4 },
   },
   async ({ event }) => {
     const { siteId } = event.data as { siteId: string };

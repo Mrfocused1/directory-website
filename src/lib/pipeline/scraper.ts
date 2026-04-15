@@ -54,9 +54,14 @@ async function runApifyActor(
   // Actor IDs contain a "/" when sent by the SDK; the REST API uses "~"
   // to separate username and actor name.
   const actorPath = actorId.replace("/", "~");
+  // Request 512 MB per run. Apify's default for instagram-scraper is
+  // 1024 MB; halving it doubles our concurrent capacity within the
+  // same Apify memory budget without any quality hit on small
+  // profiles (<100 posts). Combined with the Inngest concurrency:4
+  // cap above, 4 × 512 = 2048 MB — comfortably under the 8 GB ceiling.
   const url =
     `https://api.apify.com/v2/acts/${actorPath}/run-sync-get-dataset-items` +
-    `?token=${encodeURIComponent(APIFY_TOKEN)}`;
+    `?token=${encodeURIComponent(APIFY_TOKEN)}&memory=512`;
 
   const controller = new AbortController();
   const abortTimer = setTimeout(() => controller.abort(), timeoutMs);

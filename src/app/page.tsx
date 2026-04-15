@@ -66,12 +66,16 @@ const PRICING = [
     name: "Free",
     price: "$0",
     period: "",
+    tagline: "Try it out.",
     features: [
       "1 directory site",
       "Up to 9 posts",
-      "1 platform (Instagram or TikTok)",
-      "AI transcription",
-      "Auto-categorization",
+      "1 Instagram or TikTok account",
+      "AI transcription (Deepgram)",
+      "Auto-categorization (Claude)",
+      "Search, filters, post modal",
+      "Featured posts & bulk actions",
+      "RSS feed + embed widget",
       "buildmy.directory/yourname URL",
     ],
     cta: "Start Free",
@@ -82,16 +86,18 @@ const PRICING = [
     name: "Creator",
     price: "$19",
     period: "/month",
+    tagline: "Everything in Free, plus…",
     features: [
-      "1 directory site",
       "Unlimited posts",
-      "All platforms (IG + TikTok + YouTube)",
-      "AI transcription + references",
+      "Instagram + TikTok + YouTube",
       "Full analytics dashboard",
       "Email newsletter & subscribers",
-      "Content request board",
+      "Scheduled weekly digests",
+      "Subscriber preference center",
+      "Content request board + voting",
       "Visitor bookmark collections",
-      "buildmy.directory/yourname URL",
+      "Public shareable collection links",
+      "Smart references (articles + YouTube)",
     ],
     cta: "Get Started",
     planId: "creator" as string | null,
@@ -101,13 +107,14 @@ const PRICING = [
     name: "Pro",
     price: "$39",
     period: "/month",
+    tagline: "Everything in Creator, plus…",
     features: [
-      "Everything in Creator",
       "Custom domain (buy or connect)",
-      "SEO meta tags & Open Graph",
-      "Priority content processing",
-      "AI insights & recommendations",
-      "Export subscriber list",
+      "DNS + SSL auto-provisioning",
+      "Full SEO: sitemap, JSON-LD, canonicals",
+      "Dynamic Open Graph preview images",
+      "Search-term & audience insights",
+      "Export subscriber list as CSV",
       "Remove BuildMy.Directory branding",
     ],
     cta: "Go Pro",
@@ -118,16 +125,16 @@ const PRICING = [
     name: "Agency",
     price: "$99",
     period: "/month",
+    tagline: "Everything in Pro, plus…",
     features: [
-      "Everything in Pro",
       "Up to 10 directory sites",
-      "Manage multiple creators",
-      "White-label option",
-      "API access",
-      "Dedicated support",
-      "Bulk domain purchasing",
+      "5 accounts per platform (multi-creator)",
+      "Full white-label footer branding",
+      "Public API — sites, posts, subscribers",
+      "API keys with sha256-hashed auth",
+      "Priority email support",
     ],
-    cta: "Pay Now",
+    cta: "Get Agency",
     planId: "agency" as string | null,
     highlight: false,
   },
@@ -311,10 +318,15 @@ export default function LandingPage() {
                   </span>
                 )}
                 <h3 className="text-lg font-bold mb-1">{p.name}</h3>
-                <div className="mb-4">
+                <div className="mb-1">
                   <span className="text-4xl font-extrabold">{p.price}</span>
                   <span className="text-sm text-[color:var(--fg-muted)]">{p.period}</span>
                 </div>
+                {p.tagline && (
+                  <p className="text-xs font-semibold text-[color:var(--fg-muted)] mb-4">
+                    {p.tagline}
+                  </p>
+                )}
                 <ul className="space-y-2.5 mb-8 flex-1">
                   {p.features.map((f) => (
                     <li key={f} className="flex items-start gap-2 text-sm">

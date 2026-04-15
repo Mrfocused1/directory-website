@@ -20,12 +20,32 @@ type SiteData = {
   accentColor?: string;
 };
 
+type SyncStatus = {
+  enabled: boolean;
+  used: number;
+  limit: number;
+  remaining: number;
+  requiredPlan?: string;
+};
+
 export default function DashboardPage() {
   const [sites, setSites] = useState<SiteData[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [editingProfile, setEditingProfile] = useState<SiteData | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
+
+  const refreshSyncStatus = async () => {
+    try {
+      const res = await fetch("/api/pipeline/sync-status");
+      if (res.ok) setSyncStatus(await res.json());
+    } catch {
+      // ignore — UI falls back to hiding the counter
+    }
+  };
+
+  useEffect(() => { refreshSyncStatus(); }, []);
 
   const handleSync = async (site: SiteData) => {
     if (syncingId) return;
@@ -37,8 +57,15 @@ export default function DashboardPage() {
         window.location.href = `/dashboard/build/${site.id}`;
       } else {
         const data = await res.json().catch(() => ({}));
-        alert(data.error || "Sync failed.");
+        if (res.status === 403 && data.reason === "plan_feature_missing") {
+          alert("Sync is a Creator-plan feature. Upgrade from Account → Plan to enable syncing.");
+        } else if (res.status === 429 && data.reason === "quota_exceeded") {
+          alert(`You've used all ${data.limit} syncs this month. Resets on the 1st of next month.`);
+        } else {
+          alert(data.error || "Sync failed.");
+        }
         setSyncingId(null);
+        refreshSyncStatus();
       }
     } catch {
       alert("Network error.");
@@ -207,15 +234,35 @@ export default function DashboardPage() {
                           <path d="M7 17L17 7M17 7H9M17 7v8" />
                         </svg>
                       </Link>
-                      <button
-                        type="button"
-                        onClick={() => handleSync(site)}
-                        disabled={syncingId === site.id}
-                        className="h-9 px-4 bg-black/5 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:bg-black/10 disabled:opacity-50 transition"
-                        title="Re-pull latest posts from the source platform"
-                      >
-                        {syncingId === site.id ? "Starting…" : "Sync now"}
-                      </button>
+                      {syncStatus?.enabled ? (
+                        <button
+                          type="button"
+                          onClick={() => handleSync(site)}
+                          disabled={syncingId === site.id || syncStatus.remaining <= 0}
+                          className="h-9 px-4 bg-black/5 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:bg-black/10 disabled:opacity-50 transition"
+                          title={
+                            syncStatus.remaining <= 0
+                              ? `You've used all ${syncStatus.limit} syncs this month`
+                              : `Re-pull latest posts — ${syncStatus.remaining} of ${syncStatus.limit} syncs left this month`
+                          }
+                        >
+                          {syncingId === site.id
+                            ? "Starting…"
+                            : `Sync now · ${syncStatus.remaining}/${syncStatus.limit}`}
+                        </button>
+                      ) : (
+                        <Link
+                          href="/dashboard/account#plan"
+                          className="h-9 px-4 bg-purple-50 text-purple-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:bg-purple-100 transition"
+                          title="Sync is a Creator-plan feature"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+                            <rect width="18" height="11" x="3" y="11" rx="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                          </svg>
+                          Sync — upgrade
+                        </Link>
+                      )}
                       <button
                         type="button"
                         onClick={() => setEditingProfile(site)}

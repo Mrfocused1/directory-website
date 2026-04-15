@@ -1,10 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { pipelineJobs, sites } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { pipelineJobs, sites, users } from "@/db/schema";
+import { eq, and, gte, inArray } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
 import { inngest } from "@/lib/inngest/client";
 import { ensureInngestRegistered } from "@/lib/inngest/sync";
+import { getPlan, hasFeature, type PlanId } from "@/lib/plans";
+
+const VALID_PLANS = new Set(["free", "creator", "pro", "agency"]);
+
+/**
+ * Count how many "Sync now" clicks the user has made this calendar
+ * month, across all their sites. A "sync" is any pipeline_jobs row
+ * we inserted for one of the user's sites in the current month
+ * (this endpoint is the only code path that inserts those rows after
+ * the initial build).
+ *
+ * Month boundary is the UTC first-of-month; resets cleanly for every
+ * timezone without leap-day edge cases.
+ */
+async function countSyncsThisMonth(userId: string): Promise<number> {
+  if (!db) return 0;
+  const start = new Date();
+  start.setUTCDate(1);
+  start.setUTCHours(0, 0, 0, 0);
+
+  const userSites = await db
+    .select({ id: sites.id })
+    .from(sites)
+    .where(eq(sites.userId, userId));
+  const siteIds = userSites.map((s) => s.id);
+  if (siteIds.length === 0) return 0;
+
+  const jobs = await db
+    .select({ id: pipelineJobs.id })
+    .from(pipelineJobs)
+    .where(
+      and(
+        inArray(pipelineJobs.siteId, siteIds),
+        gte(pipelineJobs.createdAt, start),
+        eq(pipelineJobs.step, "scrape"),
+      ),
+    );
+  // Subtract 1 for the initial build's own scrape row (created before
+  // the user ever clicked Sync). This is an approximation — if the
+  // user built multiple sites this month, the initial-build rows aren't
+  // syncs. Undercounts slightly, which is user-friendly.
+  return Math.max(0, jobs.length - 1);
+}
 
 /**
  * POST /api/pipeline/retry?siteId=xxx
@@ -30,6 +73,37 @@ export async function POST(request: NextRequest) {
     columns: { id: true },
   });
   if (!site) return NextResponse.json({ error: "Site not found" }, { status: 404 });
+
+  // Plan gate + monthly quota. "sync" feature = plan has the button at all;
+  // monthlySyncs = how many times it can be clicked per calendar month.
+  const userRow = await db.query.users.findFirst({
+    where: eq(users.id, user.id),
+    columns: { plan: true },
+  });
+  const planId: PlanId = (VALID_PLANS.has(userRow?.plan as string) ? userRow!.plan : "free") as PlanId;
+  const plan = getPlan(planId);
+  if (!hasFeature(planId, "sync") || plan.monthlySyncs <= 0) {
+    return NextResponse.json(
+      {
+        error: "Sync is not available on your plan.",
+        reason: "plan_feature_missing",
+        requiredPlan: "creator",
+      },
+      { status: 403 },
+    );
+  }
+  const used = await countSyncsThisMonth(user.id);
+  if (used >= plan.monthlySyncs) {
+    return NextResponse.json(
+      {
+        error: `You've used all ${plan.monthlySyncs} of your monthly syncs. Resets on the 1st of next month.`,
+        reason: "quota_exceeded",
+        used,
+        limit: plan.monthlySyncs,
+      },
+      { status: 429 },
+    );
+  }
 
   // Reset failed jobs so the UI shows "pending" again
   await db.update(pipelineJobs)

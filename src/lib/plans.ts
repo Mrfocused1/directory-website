@@ -23,7 +23,8 @@ export type FeatureKey =
   | "white_label"
   | "api_access"
   | "export_subscribers"
-  | "unlimited_posts";
+  | "unlimited_posts"
+  | "sync";
 
 type PlatformLimits = {
   instagram: number; // max accounts per platform
@@ -40,6 +41,10 @@ type PlanConfig = {
   siteLimit: number;
   platformLimit: number; // total platforms allowed
   accountsPerPlatform: PlatformLimits; // max accounts per platform type
+  // Max number of "Sync now" clicks per calendar month, per user.
+  // 0 = sync not available on this plan. Counted across all sites
+  // owned by the user. Resets at the start of each UTC month.
+  monthlySyncs: number;
 };
 
 const PLANS: Record<PlanId, PlanConfig> = {
@@ -52,11 +57,15 @@ const PLANS: Record<PlanId, PlanConfig> = {
     platformLimit: 1,
     accountsPerPlatform: { instagram: 1, tiktok: 0, youtube: 0 },
     // Free includes auto-categorization (Claude, ~$0.0003/post) and
-    // transcription (Deepgram, ~$0.002/post for a 30s reel). At the
-    // 9-post cap that's ~$0.02 of Deepgram spend per free build —
+    // transcription (Groq, ~$0.0003/post for a 30s reel). At the
+    // 9-post cap that's ~$0.003 of Groq spend per free build —
     // acceptable acquisition cost vs. the UX win of shipping videos
     // that are searchable by what's actually SAID in them.
+    //
+    // Sync is NOT available on free — the initial build is a one-shot.
+    // Upgrade to Creator+ for ongoing syncs.
     features: new Set(["auto_categorization", "transcription"]),
+    monthlySyncs: 0,
   },
   creator: {
     id: "creator",
@@ -77,7 +86,14 @@ const PLANS: Record<PlanId, PlanConfig> = {
       "transcription",
       "auto_categorization",
       "custom_domain",
+      "sync",
     ]),
+    // ~1 sync/day. Most creators post once every day or two — this
+    // matches the real cadence without burning money on constant
+    // re-scrapes. Incremental sync logic means an empty sync costs
+    // only the Apify scrape call (~$0.015), so 30/month worst case is
+    // ~$0.45 in overhead per active creator.
+    monthlySyncs: 30,
   },
   pro: {
     id: "pro",
@@ -102,7 +118,10 @@ const PLANS: Record<PlanId, PlanConfig> = {
       "seo_meta",
       "remove_branding",
       "export_subscribers",
+      "sync",
     ]),
+    // ~3 syncs/day — serious creators who post multiple times a day.
+    monthlySyncs: 100,
   },
   agency: {
     id: "agency",
@@ -131,7 +150,10 @@ const PLANS: Record<PlanId, PlanConfig> = {
       "unlimited_posts",
       "white_label",
       "api_access",
+      "sync",
     ]),
+    // ~10 syncs/day across potentially 10 sites — agency workflow.
+    monthlySyncs: 500,
   },
 };
 
@@ -199,4 +221,5 @@ export const UPGRADE_PROMPTS: Record<FeatureKey, { title: string; desc: string; 
   api_access: { title: "API Access", desc: "Programmatic access to manage sites, posts, and subscribers.", benefit: "Integrate with your existing tools" },
   export_subscribers: { title: "Export Subscribers", desc: "Download your subscriber list as CSV at any time.", benefit: "Your data, your list, no lock-in" },
   unlimited_posts: { title: "Unlimited Posts", desc: "No cap on how many posts your directory can hold.", benefit: "Grow without limits" },
+  sync: { title: "Sync Your Content", desc: "Pull in your latest posts on demand. Creator plans include 30 syncs per month, Pro 100, Agency 500.", benefit: "Keep your directory fresh automatically" },
 };

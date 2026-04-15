@@ -333,6 +333,9 @@ async function test_liveSitesHaveContent() {
 // ── test 4: syncNowActuallySyncs ─────────────────────────────────────
 async function test_syncNowActuallySyncs(browser) {
   const u = await createThrowawayUser("sync");
+  // Sync is a Creator+ feature. Upgrade the throwaway to Creator so
+  // we exercise the positive flow; a separate test covers the free 403.
+  await sql`UPDATE users SET plan = 'creator' WHERE id = ${u.id}`;
   let siteId = null;
   const page = await newPage(browser);
   try {
@@ -347,10 +350,11 @@ async function test_syncNowActuallySyncs(browser) {
 
     await signInViaForm(page, u.email, u.password, "/dashboard");
     await page.goto(`${BASE}/dashboard`, { waitUntil: "networkidle2" });
-    // Wait for the site card to render then click "Sync now"
+    // Button label on paid plans now reads "Sync now · N/M". Match any
+    // button whose trimmed text starts with "Sync now".
     const clicked = await page.evaluate(() => {
       const btn = [...document.querySelectorAll("button")].find(
-        (b) => /^sync now$/i.test((b.textContent || "").trim()),
+        (b) => /^sync now/i.test((b.textContent || "").trim()),
       );
       if (!btn) return false;
       btn.click();
@@ -381,6 +385,58 @@ async function test_syncNowActuallySyncs(browser) {
       await new Promise((r) => setTimeout(r, 300));
     }
     if (jobCount === 0) return { pass: false, reason: "no pipeline_jobs row appeared within 5s" };
+    return { pass: true };
+  } finally {
+    await page.close();
+    if (siteId) { try { await sql`DELETE FROM sites WHERE id = ${siteId}`; } catch {} }
+    await deleteThrowawayUser(u.id);
+  }
+}
+
+// ── test 4b: syncBlockedOnFreePlan ───────────────────────────────────
+async function test_syncBlockedOnFreePlan(browser) {
+  const u = await createThrowawayUser("sync-free");
+  // Default plan is "free" — leave as-is.
+  let siteId = null;
+  const page = await newPage(browser);
+  try {
+    const slug = `qa-syncfree-${Date.now().toString(36)}`;
+    const [siteRow] = await sql`
+      INSERT INTO sites (user_id, slug, platform, handle, display_name, is_published)
+      VALUES (${u.id}, ${slug}, 'instagram', 'qa', 'QA Sync Free', true)
+      RETURNING id
+    `;
+    siteId = siteRow.id;
+    await signInViaForm(page, u.email, u.password, "/dashboard");
+
+    // Direct API call: must 403 with reason=plan_feature_missing
+    const { status, body } = await page.evaluate(async (sid) => {
+      const r = await fetch(`/api/pipeline/retry?siteId=${sid}`, { method: "POST" });
+      return { status: r.status, body: await r.text() };
+    }, siteId);
+    if (status !== 403) {
+      return { pass: false, reason: `free-plan sync returned ${status}, expected 403` };
+    }
+    let reason = "";
+    try { reason = JSON.parse(body).reason; } catch {}
+    if (reason !== "plan_feature_missing") {
+      return { pass: false, reason: `403 body missing reason=plan_feature_missing (got "${reason}")` };
+    }
+
+    // Dashboard UI should show "Sync — upgrade" link, not a sync button
+    await page.goto(`${BASE}/dashboard`, { waitUntil: "networkidle2" });
+    const hasUpgradeLink = await page.evaluate(() => {
+      return [...document.querySelectorAll("a")].some((a) =>
+        /sync.*upgrade/i.test(a.textContent || ""),
+      );
+    });
+    const hasSyncButton = await page.evaluate(() => {
+      return [...document.querySelectorAll("button")].some((b) =>
+        /^sync now/i.test((b.textContent || "").trim()),
+      );
+    });
+    if (hasSyncButton) return { pass: false, reason: "free plan shouldn't see Sync now button" };
+    if (!hasUpgradeLink) return { pass: false, reason: "free plan missing 'Sync — upgrade' link" };
     return { pass: true };
   } finally {
     await page.close();
@@ -1263,6 +1319,9 @@ async function test_keyboardFlow(browser) {
 // ── test J: pipelineRetryAfterFailure ────────────────────────────────
 async function test_pipelineRetryAfterFailure(browser) {
   const u = await createThrowawayUser("retry");
+  // Retry is gated by the sync feature; upgrade to Creator so the
+  // test exercises retry semantics rather than the plan gate.
+  await sql`UPDATE users SET plan = 'creator' WHERE id = ${u.id}`;
   let siteId = null;
   const page = await newPage(browser);
   try {
@@ -2142,6 +2201,7 @@ async function main() {
     await run("passwordResetSnifferHomepageFallback", () => test_passwordResetSnifferHomepageFallback(browser));
     await run("liveSitesHaveContent", () => test_liveSitesHaveContent());
     await run("syncNowActuallySyncs", () => test_syncNowActuallySyncs(browser));
+    await run("syncBlockedOnFreePlan", () => test_syncBlockedOnFreePlan(browser));
     await run("dragReorderPersists", () => test_dragReorderPersists(browser));
     await run("profileEditorPersists", () => test_profileEditorPersists(browser));
     await run("mobileLayoutTogglePersists", () => test_mobileLayoutTogglePersists(browser));

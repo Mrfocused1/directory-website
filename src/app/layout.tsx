@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import RecoverySniffer from "@/components/auth/RecoverySniffer";
+import PostHogProvider from "@/components/analytics/PostHogProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -68,6 +69,7 @@ export default function RootLayout({
           Skip to content
         </a>
         <RecoverySniffer />
+        <PostHogProvider />
         {children}
       </body>
     </html>

@@ -4,6 +4,7 @@ import { resend } from "@/lib/email/resend";
 import { signupConfirmEmail } from "@/lib/email/templates";
 import { db } from "@/db";
 import { users } from "@/db/schema";
+import { captureServer } from "@/lib/analytics/posthog-server";
 
 /**
  * POST /api/auth/signup
@@ -135,6 +136,12 @@ export async function POST(request: NextRequest) {
     // No Resend configured — still allow signup in dev, but warn in logs.
     console.warn("[auth/signup] Resend not configured; confirmation email not sent");
   }
+
+  // Conversion event for A/B analysis. No-op until PostHog is
+  // configured; never blocks the signup response.
+  captureServer(created.user.id, "signup_completed", {
+    email_domain: email.split("@")[1] || null,
+  }).catch(() => {});
 
   return NextResponse.json({ ok: true });
 }

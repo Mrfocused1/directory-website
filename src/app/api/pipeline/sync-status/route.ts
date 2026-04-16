@@ -25,10 +25,13 @@ export async function GET() {
 
   const row = await db.query.users.findFirst({
     where: eq(users.id, user.id),
-    columns: { plan: true },
+    columns: { plan: true, freeBuildUsedAt: true },
   });
   const planId: PlanId = (VALID_PLANS.has(row?.plan as string) ? row!.plan : "free") as PlanId;
   const plan = getPlan(planId);
+
+  // Can this user create more directories?
+  const canBuildMore = planId !== "free" || !row?.freeBuildUsedAt;
 
   if (!hasFeature(planId, "sync") || plan.monthlySyncs <= 0) {
     return NextResponse.json({
@@ -37,6 +40,7 @@ export async function GET() {
       limit: 0,
       remaining: 0,
       requiredPlan: "creator",
+      canBuildMore,
     });
   }
 
@@ -55,6 +59,7 @@ export async function GET() {
       used: 0,
       limit: plan.monthlySyncs,
       remaining: plan.monthlySyncs,
+      canBuildMore,
     });
   }
 
@@ -77,5 +82,6 @@ export async function GET() {
     used,
     limit: plan.monthlySyncs,
     remaining: Math.max(0, plan.monthlySyncs - used),
+    canBuildMore,
   });
 }

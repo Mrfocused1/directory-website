@@ -35,11 +35,16 @@ export default function DashboardPage() {
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [editingProfile, setEditingProfile] = useState<SiteData | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
+  const [canBuildMore, setCanBuildMore] = useState(true);
 
   const refreshSyncStatus = async () => {
     try {
       const res = await fetch("/api/pipeline/sync-status");
-      if (res.ok) setSyncStatus(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setSyncStatus(data);
+        setCanBuildMore(data.canBuildMore !== false);
+      }
     } catch {
       // ignore — UI falls back to hiding the counter
     }
@@ -141,15 +146,28 @@ export default function DashboardPage() {
                 Manage your content directories
               </p>
             </div>
-            <Link
-              href="/onboarding"
-              className="h-10 px-5 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold flex items-center gap-2 hover:opacity-90 transition"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              New Directory
-            </Link>
+            {canBuildMore ? (
+              <Link
+                href="/onboarding"
+                className="h-10 px-5 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold flex items-center gap-2 hover:opacity-90 transition"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                New Directory
+              </Link>
+            ) : (
+              <Link
+                href="/dashboard/account#plan"
+                className="relative h-10 px-5 rounded-xl text-sm font-semibold flex items-center gap-2 transition overflow-hidden bg-purple-50 text-purple-700 hover:bg-purple-100"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+                  <rect width="18" height="11" x="3" y="11" rx="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                Upgrade to build more
+              </Link>
+            )}
           </div>
 
           {loading ? (

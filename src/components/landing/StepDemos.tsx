@@ -9,7 +9,7 @@ export function DemoHandleInput() {
   const [platform, setPlatform] = useState(0);
   const full = "@creativemind";
   const platforms = ["instagram", "tiktok", "youtube"];
-  const platformAccents = ["#ff6b9d", "#d3fd74", "#ff4444"];
+  const platformColors = ["#e1306c", "#1a0a2e", "#ff0000"];
 
   useEffect(() => {
     let i = 0;
@@ -33,15 +33,15 @@ export function DemoHandleInput() {
   }, []);
 
   return (
-    <div className="bg-[color:var(--bd-dark)] rounded-2xl p-4 h-full overflow-hidden border border-white/[0.06]">
+    <div className="bg-white rounded-2xl p-4 shadow-lg shadow-black/10 h-full overflow-hidden">
       <div className="flex gap-1.5 mb-3">
         {platforms.map((p, idx) => (
           <div
             key={p}
             className="text-[9px] font-bold uppercase px-2.5 py-1 rounded-full transition-all duration-300"
             style={{
-              backgroundColor: platform === idx ? platformAccents[idx] : "rgba(255,255,255,0.06)",
-              color: platform === idx ? "#1a0a2e" : "rgba(255,255,255,0.4)",
+              backgroundColor: platform === idx ? platformColors[idx] : "#f3f3f5",
+              color: platform === idx ? "#fff" : "#9a9a9a",
             }}
           >
             {p}
@@ -49,20 +49,20 @@ export function DemoHandleInput() {
         ))}
       </div>
       <div className="flex items-center gap-2">
-        <div className="flex-1 h-9 bg-white/[0.06] rounded-xl flex items-center px-3 border border-white/[0.08]">
+        <div className="flex-1 h-9 bg-[#f6f6f8] rounded-xl flex items-center px-3 border border-[#e8e8ec]">
           <span
             className="text-xs font-mono font-bold transition-colors"
-            style={{ color: platformAccents[platform] }}
+            style={{ color: platformColors[platform] }}
           >
             {text}
           </span>
-          <span className="w-px h-4 bg-white/60 animate-pulse ml-px" />
+          <span className="w-px h-4 bg-[#1a0a2e]/60 animate-pulse ml-px" />
         </div>
         <div
           className="h-9 px-4 rounded-xl text-[10px] font-bold flex items-center transition-all duration-300"
           style={{
-            backgroundColor: text.length >= full.length ? "#d3fd74" : "rgba(255,255,255,0.1)",
-            color: text.length >= full.length ? "#1a0a2e" : "rgba(255,255,255,0.5)",
+            backgroundColor: text.length >= full.length ? "#d3fd74" : "#f3f3f5",
+            color: text.length >= full.length ? "#1a0a2e" : "#aaa",
             transform: text.length >= full.length ? "scale(1.05)" : "scale(1)",
           }}
         >
@@ -77,10 +77,10 @@ export function DemoHandleInput() {
 export function DemoPipeline() {
   const [step, setStep] = useState(0);
   const steps = [
-    { label: "Scraping posts", count: "24 posts found", accent: "#d3fd74" },
-    { label: "Transcribing videos", count: "12 videos done", accent: "#b0b0fe" },
-    { label: "Categorizing content", count: "5 categories", accent: "#ffc72d" },
-    { label: "Finding references", count: "38 sources", accent: "#92eedd" },
+    { label: "Scraping posts", count: "24 posts found", accent: "#7c3aed" },
+    { label: "Transcribing videos", count: "12 videos done", accent: "#6366f1" },
+    { label: "Categorizing content", count: "5 categories", accent: "#d97706" },
+    { label: "Finding references", count: "38 sources", accent: "#059669" },
   ];
 
   useEffect(() => {
@@ -91,7 +91,7 @@ export function DemoPipeline() {
   }, [steps.length]);
 
   return (
-    <div className="bg-[color:var(--bd-dark)] rounded-2xl p-4 h-full overflow-hidden border border-white/[0.06]">
+    <div className="bg-white rounded-2xl p-4 shadow-lg shadow-black/10 h-full overflow-hidden">
       <div className="space-y-2">
         {steps.map((s, i) => {
           const isDone = i < step;
@@ -107,7 +107,7 @@ export function DemoPipeline() {
               <div
                 className="w-5 h-5 rounded-full flex items-center justify-center transition-all duration-300"
                 style={{
-                  backgroundColor: isDone ? s.accent : isCurrent ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.06)",
+                  backgroundColor: isDone ? "#d3fd74" : isCurrent ? s.accent : "#f3f3f5",
                 }}
               >
                 {isDone ? (
@@ -116,7 +116,7 @@ export function DemoPipeline() {
                   <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" className="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
                 ) : null}
               </div>
-              <span className={`text-[10px] font-semibold flex-1 ${isDone ? "text-white/90" : isCurrent ? "text-white/70" : "text-white/30"}`}>
+              <span className={`text-[10px] font-semibold flex-1 ${isDone ? "text-[#1a0a2e]" : isCurrent ? "text-[#1a0a2e]/80" : "text-[#1a0a2e]/30"}`}>
                 {s.label}
               </span>
               <span
@@ -129,10 +129,10 @@ export function DemoPipeline() {
           );
         })}
       </div>
-      <div className="mt-3 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+      <div className="mt-3 h-1.5 bg-[#f3f3f5] rounded-full overflow-hidden">
         <motion.div
           className="h-full rounded-full"
-          style={{ background: "linear-gradient(90deg, #b0b0fe, #d3fd74)" }}
+          style={{ background: "linear-gradient(90deg, #7c3aed, #d3fd74)" }}
           animate={{ width: `${Math.min((step / steps.length) * 100, 100)}%` }}
           transition={{ duration: 0.5 }}
         />
@@ -145,7 +145,8 @@ export function DemoPipeline() {
 export function DemoDirectoryGrid() {
   const [visible, setVisible] = useState(0);
   const categories = ["BUSINESS", "ECONOMICS", "AFRICA", "POLITICS", "BUSINESS", "ECONOMICS"];
-  const colors = ["#d3fd74", "#b0b0fe", "#92eedd", "#ffc72d", "#ff6b9d", "#b0b0fe"];
+  const cardColors = ["#f3eeff", "#edffd6", "#e8fdf6", "#fff6de", "#ffe8f0", "#eef0ff"];
+  const badgeColors = ["#7c3aed", "#4d7c0f", "#059669", "#d97706", "#e1306c", "#6366f1"];
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -155,12 +156,12 @@ export function DemoDirectoryGrid() {
   }, []);
 
   return (
-    <div className="bg-[color:var(--bd-dark)] rounded-2xl p-4 h-full overflow-hidden border border-white/[0.06]">
-      <div className="h-6 bg-white/[0.06] rounded-full mb-3 flex items-center px-2.5 border border-white/[0.06]">
-        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white/40">
+    <div className="bg-white rounded-2xl p-4 shadow-lg shadow-black/10 h-full overflow-hidden">
+      <div className="h-6 bg-[#f6f6f8] rounded-full mb-3 flex items-center px-2.5 border border-[#e8e8ec]">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-[#999]">
           <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
         </svg>
-        <span className="text-[8px] text-white/40 ml-1.5 font-medium">Search posts...</span>
+        <span className="text-[8px] text-[#999] ml-1.5 font-medium">Search posts...</span>
       </div>
       <div className="grid grid-cols-3 gap-1.5">
         {Array.from({ length: 6 }).map((_, i) => (
@@ -169,16 +170,12 @@ export function DemoDirectoryGrid() {
             className="aspect-[4/5] rounded-lg relative overflow-hidden"
             initial={{ scale: 0.6 }}
             animate={{ scale: i < visible ? 1 : 0.6 }}
-            style={{ visibility: i < visible ? "visible" : "hidden", backgroundColor: `${colors[i]}15` }}
+            style={{ visibility: i < visible ? "visible" : "hidden", backgroundColor: cardColors[i] }}
             transition={{ duration: 0.3, delay: i * 0.05 }}
           >
-            <div
-              className="absolute inset-0 opacity-30"
-              style={{ background: `linear-gradient(135deg, ${colors[i]}40, transparent)` }}
-            />
             <span
-              className="absolute bottom-1 left-1 text-[5px] font-bold px-1 py-0.5 rounded"
-              style={{ backgroundColor: colors[i], color: "#1a0a2e" }}
+              className="absolute bottom-1 left-1 text-[5px] font-bold px-1 py-0.5 rounded text-white"
+              style={{ backgroundColor: badgeColors[i] }}
             >
               {categories[i]}
             </span>
@@ -201,23 +198,23 @@ export function DemoDomainSetup() {
   }, []);
 
   return (
-    <div className="bg-[color:var(--bd-dark)] rounded-2xl p-4 h-full overflow-hidden relative border border-white/[0.06]">
+    <div className="bg-white rounded-2xl p-4 shadow-lg shadow-black/10 h-full overflow-hidden relative">
       <AnimatePresence mode="wait">
         {phase === 0 && (
           <motion.div key="search" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-4">
             <div className="flex items-center gap-2 mb-3">
-              <div className="h-7 flex-1 bg-white/[0.06] rounded-lg flex items-center px-2.5 border border-white/[0.06]">
-                <span className="text-[9px] font-mono font-bold text-white/80">yourdomain.com</span>
+              <div className="h-7 flex-1 bg-[#f6f6f8] rounded-lg flex items-center px-2.5 border border-[#e8e8ec]">
+                <span className="text-[9px] font-mono font-bold text-[#1a0a2e]">yourdomain.com</span>
               </div>
-              <div className="h-7 px-3 rounded-lg text-[8px] font-bold flex items-center" style={{ backgroundColor: "#b0b0fe", color: "#1a0a2e" }}>
+              <div className="h-7 px-3 rounded-lg text-[8px] font-bold flex items-center bg-[#7c3aed] text-white">
                 Connect
               </div>
             </div>
             <div className="space-y-1.5">
               {["CNAME", "A", "TXT"].map((type) => (
                 <div key={type} className="flex items-center gap-2 h-5">
-                  <span className="text-[7px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(176,176,254,0.15)", color: "#b0b0fe" }}>{type}</span>
-                  <span className="text-[7px] text-white/40 font-mono flex-1 truncate">cname.vercel-dns.com</span>
+                  <span className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-[#7c3aed]/10 text-[#7c3aed]">{type}</span>
+                  <span className="text-[7px] text-[#999] font-mono flex-1 truncate">cname.vercel-dns.com</span>
                 </div>
               ))}
             </div>
@@ -225,7 +222,7 @@ export function DemoDomainSetup() {
         )}
         {phase === 1 && (
           <motion.div key="dns" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-4">
-            <p className="text-[9px] font-bold mb-3" style={{ color: "#ffc72d" }}>Verifying DNS records...</p>
+            <p className="text-[9px] font-bold text-[#d97706] mb-3">Verifying DNS records...</p>
             {["CNAME", "A", "TXT"].map((type, i) => (
               <motion.div
                 key={type}
@@ -234,18 +231,17 @@ export function DemoDomainSetup() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.3 }}
               >
-                <span className="text-[7px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(255,199,45,0.15)", color: "#ffc72d" }}>{type}</span>
-                <div className="flex-1 h-1 bg-white/[0.06] rounded-full overflow-hidden">
+                <span className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-[#fef3c7] text-[#d97706]">{type}</span>
+                <div className="flex-1 h-1 bg-[#f3f3f5] rounded-full overflow-hidden">
                   <motion.div
-                    className="h-full rounded-full"
-                    style={{ backgroundColor: "#ffc72d" }}
+                    className="h-full bg-[#d97706] rounded-full"
                     initial={{ width: 0 }}
                     animate={{ width: "100%" }}
                     transition={{ delay: i * 0.3 + 0.2, duration: 0.5 }}
                   />
                 </div>
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.3 + 0.7 }}>
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#d3fd74" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
                 </motion.div>
               </motion.div>
             ))}
@@ -254,11 +250,11 @@ export function DemoDomainSetup() {
         {phase === 2 && (
           <motion.div key="done" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="absolute inset-4 flex items-center justify-center">
             <div className="text-center">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2" style={{ backgroundColor: "rgba(211,253,116,0.15)" }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d3fd74" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
+              <div className="w-12 h-12 rounded-full bg-[#d3fd74]/30 flex items-center justify-center mx-auto mb-2">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
               </div>
-              <p className="text-[11px] font-bold text-white">yourdomain.com is live!</p>
-              <p className="text-[8px] font-semibold mt-0.5" style={{ color: "#d3fd74" }}>SSL secured</p>
+              <p className="text-[11px] font-bold text-[#1a0a2e]">yourdomain.com is live!</p>
+              <p className="text-[8px] font-semibold text-[#059669] mt-0.5">SSL secured</p>
             </div>
           </motion.div>
         )}
@@ -285,25 +281,24 @@ export function DemoEmailGrowth() {
   }, []);
 
   return (
-    <div className="bg-[color:var(--bd-dark)] rounded-2xl p-4 h-full overflow-hidden border border-white/[0.06]">
+    <div className="bg-white rounded-2xl p-4 shadow-lg shadow-black/10 h-full overflow-hidden">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[9px] font-bold text-white/40 uppercase tracking-wider">Subscribers</span>
+        <span className="text-[9px] font-bold text-[#999] uppercase tracking-wider">Subscribers</span>
         <motion.span
           key={count}
           initial={{ y: -8, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="text-sm font-extrabold tabular-nums"
-          style={{ color: "#d3fd74" }}
+          className="text-sm font-extrabold tabular-nums text-[#7c3aed]"
         >
           {count}
         </motion.span>
       </div>
-      <div className="h-8 bg-white/[0.04] rounded-lg mb-3 flex items-end px-1 gap-0.5">
+      <div className="h-8 bg-[#f6f6f8] rounded-lg mb-3 flex items-end px-1 gap-0.5">
         {Array.from({ length: 12 }).map((_, i) => (
           <motion.div
             key={i}
             className="flex-1 rounded-t-sm"
-            style={{ background: `linear-gradient(180deg, #d3fd74, #b0b0fe)` }}
+            style={{ background: "linear-gradient(180deg, #7c3aed, #d3fd74)" }}
             initial={{ height: 0 }}
             animate={{ height: `${20 + i * 5 + Math.sin(i) * 8}%` }}
             transition={{ duration: 0.5, delay: i * 0.05 }}
@@ -318,14 +313,14 @@ export function DemoEmailGrowth() {
             style={{ visibility: i === 0 ? "visible" : "hidden" }}
             className="flex items-center gap-2 h-5"
           >
-            <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: "rgba(211,253,116,0.15)" }}>
-              <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="#d3fd74" strokeWidth="3"><path d="M12 5v14M5 12h14" /></svg>
+            <div className="w-4 h-4 rounded-full bg-[#d3fd74]/40 flex items-center justify-center shrink-0">
+              <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="3"><path d="M12 5v14M5 12h14" /></svg>
             </div>
             <motion.span
               key={email}
               initial={{ opacity: 0, x: -5 }}
               animate={{ opacity: 1, x: 0 }}
-              className="text-[8px] text-white/60 font-medium truncate"
+              className="text-[8px] text-[#1a0a2e]/60 font-medium truncate"
             >
               {email} subscribed
             </motion.span>
@@ -340,7 +335,7 @@ export function DemoEmailGrowth() {
 export function DemoDashboard() {
   const [activeTab, setActiveTab] = useState(0);
   const tabs = ["Views", "Clicks", "Search"];
-  const tabAccents = ["#d3fd74", "#b0b0fe", "#ffc72d"];
+  const tabColors = ["#7c3aed", "#059669", "#d97706"];
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -356,16 +351,16 @@ export function DemoDashboard() {
   ];
 
   return (
-    <div className="bg-[color:var(--bd-dark)] rounded-2xl p-4 h-full overflow-hidden border border-white/[0.06]">
+    <div className="bg-white rounded-2xl p-4 shadow-lg shadow-black/10 h-full overflow-hidden">
       <div className="grid grid-cols-3 gap-1.5 mb-3">
         {[
-          { label: "Views", value: "4.4K", accent: "#d3fd74" },
-          { label: "Clicks", value: "1.9K", accent: "#b0b0fe" },
-          { label: "CTR", value: "43%", accent: "#ffc72d" },
+          { label: "Views", value: "4.4K", color: "#7c3aed" },
+          { label: "Clicks", value: "1.9K", color: "#059669" },
+          { label: "CTR", value: "43%", color: "#d97706" },
         ].map((s) => (
-          <div key={s.label} className="bg-white/[0.04] rounded-lg p-2 text-center">
-            <p className="text-[11px] font-extrabold" style={{ color: s.accent }}>{s.value}</p>
-            <p className="text-[6px] text-white/30 font-semibold uppercase tracking-wider">{s.label}</p>
+          <div key={s.label} className="bg-[#f6f6f8] rounded-lg p-2 text-center">
+            <p className="text-[11px] font-extrabold" style={{ color: s.color }}>{s.value}</p>
+            <p className="text-[6px] text-[#999] font-semibold uppercase tracking-wider">{s.label}</p>
           </div>
         ))}
       </div>
@@ -375,8 +370,8 @@ export function DemoDashboard() {
             key={t}
             className="text-[7px] font-bold px-2 py-0.5 rounded-full transition-all duration-300"
             style={{
-              backgroundColor: activeTab === i ? tabAccents[i] : "rgba(255,255,255,0.06)",
-              color: activeTab === i ? "#1a0a2e" : "rgba(255,255,255,0.4)",
+              backgroundColor: activeTab === i ? tabColors[i] : "#f3f3f5",
+              color: activeTab === i ? "#fff" : "#999",
             }}
           >
             {t}
@@ -388,7 +383,7 @@ export function DemoDashboard() {
           <motion.div
             key={`${activeTab}-${i}`}
             className="flex-1 rounded-t-sm"
-            style={{ backgroundColor: tabAccents[activeTab] }}
+            style={{ backgroundColor: tabColors[activeTab] }}
             initial={{ height: 0 }}
             animate={{ height: `${val}%` }}
             transition={{ duration: 0.4, delay: i * 0.03 }}

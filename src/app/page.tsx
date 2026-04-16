@@ -261,10 +261,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── How it works (existing component reused inside theme) ─── */}
-      <section className="bg-[color:var(--bd-cream)]">
-        <HowItWorks />
-      </section>
+      {/* ── How it works ─── */}
+      <HowItWorks />
 
       {/* ── Pricing ───────────────────────────────────────────────── */}
       <section id="pricing" className="bg-[color:var(--bd-dark)] text-white py-24">

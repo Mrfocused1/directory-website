@@ -18,9 +18,9 @@ const STEPS = [
     desc: "Paste your Instagram, TikTok, or YouTube username. You can connect multiple platforms to merge all your content into one directory.",
     detail: null,
     tags: [
-      { label: "Instagram", color: "bg-pink-100 text-pink-700" },
-      { label: "TikTok", color: "bg-[color:var(--bd-dark)]/10 text-[color:var(--bd-dark)]" },
-      { label: "YouTube", color: "bg-red-100 text-red-700" },
+      { label: "Instagram", color: "bg-pink-500/15 text-pink-300" },
+      { label: "TikTok", color: "bg-white/10 text-white/70" },
+      { label: "YouTube", color: "bg-red-500/15 text-red-300" },
     ],
     Demo: DemoHandleInput,
   },
@@ -78,66 +78,68 @@ const STEPS = [
 
 export default function HowItWorks() {
   return (
-    <section className="px-6 sm:px-10 pb-24 pt-12 max-w-[90rem] mx-auto">
-      <div className="text-center mb-16">
-        <div className="eyebrow text-[color:var(--bd-dark)] justify-center mb-4 inline-flex">
-          <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--bd-lime)]" />
-          How it works
-        </div>
-        <h2 className="font-display-tight text-[color:var(--bd-dark)] text-[2.75rem] sm:text-[4rem] lg:text-[5rem]">
-          From sign-up to live
-          <br />
-          in 5 minutes.
-        </h2>
-      </div>
-
-      <div className="space-y-6">
-        {STEPS.map((s, i) => (
-          <div
-            key={s.num}
-            className="bg-white rounded-[2rem] p-8 sm:p-12 grid md:grid-cols-[1fr_1fr] gap-10 items-center"
-          >
-            <div className={i % 2 === 1 ? "md:order-2" : ""}>
-              <div className="eyebrow text-[color:var(--bd-dark)] mb-4">
-                <span
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: s.accent }}
-                />
-                Step {s.num} — {s.eyebrow}
-              </div>
-              <h3 className="font-display-tight text-[color:var(--bd-dark)] text-[1.75rem] sm:text-[2.25rem] mb-4">
-                {s.title}
-              </h3>
-              <p className="text-[color:var(--bd-grey)] leading-relaxed text-base max-w-md mb-3">
-                {s.desc}
-              </p>
-              {s.detail && (
-                <p className="text-sm text-[color:var(--bd-grey)]/70 bg-[color:var(--bd-cream)] px-4 py-2.5 rounded-xl mb-3">
-                  {s.detail}
-                </p>
-              )}
-              {s.tags && (
-                <div className="flex items-center gap-2 mt-2">
-                  {s.tags.map((tag) => (
-                    <span
-                      key={tag.label}
-                      className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${tag.color}`}
-                    >
-                      {tag.label}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div
-              className={`${i % 2 === 1 ? "md:order-1" : ""} w-full h-[180px] sm:h-[200px]`}
-              aria-hidden="true"
-            >
-              <s.Demo />
-            </div>
+    <section className="bg-[color:var(--bd-dark)] px-6 sm:px-10 pb-24 pt-20 -mx-6 sm:-mx-10">
+      <div className="max-w-[90rem] mx-auto">
+        <div className="text-center mb-16">
+          <div className="eyebrow text-white/60 justify-center mb-4 inline-flex">
+            <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--bd-lime)]" />
+            How it works
           </div>
-        ))}
+          <h2 className="font-display-tight text-white text-[2.75rem] sm:text-[4rem] lg:text-[5rem]">
+            From sign-up to live
+            <br />
+            in 5 minutes.
+          </h2>
+        </div>
+
+        <div className="space-y-6">
+          {STEPS.map((s, i) => (
+            <div
+              key={s.num}
+              className="bg-white/[0.04] border border-white/[0.06] rounded-[2rem] p-8 sm:p-12 grid md:grid-cols-[1fr_1fr] gap-10 items-center"
+            >
+              <div className={i % 2 === 1 ? "md:order-2" : ""}>
+                <div className="eyebrow text-white/60 mb-4">
+                  <span
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: s.accent }}
+                  />
+                  Step {s.num} — {s.eyebrow}
+                </div>
+                <h3 className="font-display-tight text-white text-[1.75rem] sm:text-[2.25rem] mb-4">
+                  {s.title}
+                </h3>
+                <p className="text-white/55 leading-relaxed text-base max-w-md mb-3">
+                  {s.desc}
+                </p>
+                {s.detail && (
+                  <p className="text-sm text-white/40 bg-white/[0.04] px-4 py-2.5 rounded-xl mb-3 border border-white/[0.06]">
+                    {s.detail}
+                  </p>
+                )}
+                {s.tags && (
+                  <div className="flex items-center gap-2 mt-2">
+                    {s.tags.map((tag) => (
+                      <span
+                        key={tag.label}
+                        className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${tag.color}`}
+                      >
+                        {tag.label}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div
+                className={`${i % 2 === 1 ? "md:order-1" : ""} w-full h-[180px] sm:h-[200px]`}
+                aria-hidden="true"
+              >
+                <s.Demo />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );

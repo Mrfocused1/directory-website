@@ -130,12 +130,25 @@ export default function HeroDemo() {
                           className={`rounded-lg relative overflow-hidden ${phase === "filtered" ? "aspect-[3/4]" : "aspect-square"}`}
                           style={{ backgroundColor: `${card.color}30` }}
                         >
-                          <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${card.color}50, ${card.color}15)` }} />
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-6 h-6 rounded-full bg-white/70 flex items-center justify-center">
-                              <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" className="text-[color:var(--bd-dark)] ml-0.5"><path d="M8 5v14l11-7z" /></svg>
-                            </div>
-                          </div>
+                          {card.title === "Morning Routine" ? (
+                            <video
+                              src="/hero-demo.mp4"
+                              autoPlay
+                              muted
+                              loop
+                              playsInline
+                              className="absolute inset-0 w-full h-full object-cover"
+                            />
+                          ) : (
+                            <>
+                              <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${card.color}50, ${card.color}15)` }} />
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="w-6 h-6 rounded-full bg-white/70 flex items-center justify-center">
+                                  <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" className="text-[color:var(--bd-dark)] ml-0.5"><path d="M8 5v14l11-7z" /></svg>
+                                </div>
+                              </div>
+                            </>
+                          )}
                           <span className="absolute bottom-1 left-1 text-[5px] font-bold px-1 py-0.5 rounded text-white" style={{ backgroundColor: card.color }}>{card.cat}</span>
                         </motion.div>
                       ))}

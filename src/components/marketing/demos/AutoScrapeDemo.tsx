@@ -43,7 +43,8 @@ const VIDEOS: { src: string; bg: string; label: string; darkText?: boolean }[] =
 
 export default function AutoScrapeDemo() {
   const [typed, setTyped] = useState(0);
-  const [filled, setFilled] = useState(0);
+  const [filled, setFilled] = useState(0); // cards shown (0-6)
+  const [postCount, setPostCount] = useState(0); // counter display (0-150)
 
   useEffect(() => {
     let t = 0;
@@ -54,12 +55,16 @@ export default function AutoScrapeDemo() {
       } else if (t > 1400 && t <= 2000) {
         setTyped(HANDLE.length);
         setFilled(0);
+        setPostCount(0);
       } else if (t > 2000 && t <= 5000) {
-        setFilled(Math.min(VIDEOS.length, Math.floor((t - 2000) / 500) + 1));
+        const elapsed = t - 2000;
+        setFilled(Math.min(VIDEOS.length, Math.floor(elapsed / 500) + 1));
+        setPostCount(Math.min(150, Math.floor((elapsed / 3000) * 150)));
       } else if (t > 5000 && t <= 10000) {
         setFilled(VIDEOS.length);
+        setPostCount(150);
       } else {
-        t = 0; setTyped(0); setFilled(0);
+        t = 0; setTyped(0); setFilled(0); setPostCount(0);
       }
     };
     const id = setInterval(tick, 100);
@@ -83,11 +88,11 @@ export default function AutoScrapeDemo() {
 
       <div className="flex items-center gap-2 mb-3 text-[10px] font-semibold uppercase tracking-wider text-[color:var(--bd-grey)]">
         <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--bd-lime)] bd-pulse-dot" />
-        {filled === 0
+        {postCount === 0
           ? "Connecting…"
-          : filled < VIDEOS.length
-          ? `Pulling posts… ${filled}/${VIDEOS.length}`
-          : `${VIDEOS.length} posts found`}
+          : postCount < 150
+          ? `Pulling posts… ${postCount}/150`
+          : "150 posts found"}
       </div>
 
       <div className="flex-1 grid grid-cols-3 gap-2">

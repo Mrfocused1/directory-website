@@ -86,6 +86,7 @@ export default async function TenantPostPage({
         siteId={data.siteId}
         initialShortcode={shortcode}
         branding={data.branding}
+        features={data.features}
       />
     </>
   );

@@ -167,13 +167,10 @@ export default function LandingPage() {
                   Start free
                 </Link>
                 <Link
-                  href="/demo"
+                  href="/#how"
                   className="inline-flex items-center gap-2 h-12 px-6 rounded-full border border-white/20 text-white text-base font-medium hover:bg-white/5 transition"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                  Watch demo
+                  See how it works
                 </Link>
               </div>
 

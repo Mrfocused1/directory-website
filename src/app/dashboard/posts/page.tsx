@@ -523,6 +523,12 @@ function EditModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (saving) return;
@@ -605,6 +611,7 @@ function EditModal({
               required
               className="w-full h-10 px-3 bg-white border-2 border-[color:var(--border)] rounded-lg text-sm focus:outline-none focus:border-[color:var(--fg)] transition"
             />
+            <p className="text-[10px] text-[color:var(--fg-subtle)] mt-1 text-right">{category.length}/64</p>
           </div>
           <div>
             <label htmlFor="p-cap" className="text-xs font-semibold mb-1.5 block">

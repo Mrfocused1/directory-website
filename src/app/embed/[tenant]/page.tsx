@@ -54,13 +54,12 @@ export default async function EmbedPage({
           siteId={data.siteId}
           branding={{
             ...data.branding,
-            // Always show a small back-link in embed mode so visitors can
-            // reach the full directory, even on white-label Agency plans.
             customBrandName: data.branding.customBrandName || data.site.displayName,
             customBrandUrl:
               data.branding.customBrandUrl || `${SITE_URL}/${tenant}`,
             showPoweredBy: true,
           }}
+          features={data.features}
         />
       </div>
     </>

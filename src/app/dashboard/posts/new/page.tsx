@@ -269,6 +269,9 @@ export default function NewPostPage() {
                   placeholder="e.g. Business strategy"
                   className="w-full h-10 px-3 bg-white border-2 border-[color:var(--border)] rounded-lg text-sm focus:outline-none focus:border-[color:var(--fg)] transition"
                 />
+                {category.length > 0 && (
+                  <p className="text-[10px] text-[color:var(--fg-subtle)] mt-1 text-right">{category.length}/64</p>
+                )}
               </Section>
             </div>
 

@@ -140,9 +140,6 @@ function VideoTile({
           }}
         />
       )}
-      <span className="relative z-10 truncate drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">
-        {video.label}
-      </span>
     </div>
   );
 }

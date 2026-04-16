@@ -1,21 +1,10 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import DashboardNav from "@/components/dashboard/DashboardNav";
 import { useSiteContext } from "@/components/dashboard/SiteContext";
 import FeatureGate from "@/components/plans/FeatureGate";
-
-type DomainResult = {
-  domain: string;
-  tld: string;
-  available: boolean;
-  price: number;
-  renewal: number;
-  priceFormatted: string;
-  renewalFormatted: string;
-};
 
 type ConnectedDomain = {
   id: string;
@@ -27,13 +16,6 @@ type ConnectedDomain = {
   misconfigured?: boolean;
 };
 
-type Flow = null | "buy" | "connect";
-
-const POPULAR_TLD_SUGGESTIONS = [
-  ".com", ".co", ".io", ".directory", ".me", ".xyz", ".app", ".dev",
-  ".store", ".online", ".tech", ".site", ".shop", ".org", ".net",
-];
-
 export default function DomainsPage() {
   return (
     <Suspense fallback={null}>
@@ -43,47 +25,16 @@ export default function DomainsPage() {
 }
 
 function DomainsPageContent() {
-  const searchParams = useSearchParams();
   const [domains, setDomains] = useState<ConnectedDomain[]>([]);
-  const [flow, setFlow] = useState<Flow>(null);
-  const [purchaseSuccess, setPurchaseSuccess] = useState<string | null>(null);
-
-  // Handle return from Stripe checkout
-  useEffect(() => {
-    const purchased = searchParams.get("purchased");
-    if (purchased) {
-      setPurchaseSuccess(purchased);
-      setDomains((prev) => [
-        ...prev,
-        {
-          id: `dom-${Date.now()}`,
-          domain: purchased,
-          type: "purchased",
-          status: "active",
-          dnsVerified: true,
-          sslProvisioned: true,
-        },
-      ]);
-      // Clean URL
-      window.history.replaceState({}, "", "/dashboard/domains");
-    }
-  }, [searchParams]);
+  const [showConnect, setShowConnect] = useState(false);
 
   const { selectedSite } = useSiteContext();
   const siteId = selectedSite?.id;
 
-  // Buy flow
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<DomainResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [purchasingDomain, setPurchasingDomain] = useState<string | null>(null);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [customTld, setCustomTld] = useState("");
-  const [showAllTlds, setShowAllTlds] = useState(false);
-
   // Connect flow
   const [connectDomain, setConnectDomain] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
   const [pendingDns, setPendingDns] = useState<{
     domain: string;
     records: { type: string; name: string; value: string; purpose: string }[];
@@ -91,96 +42,6 @@ function DomainsPageContent() {
 
   // Verification
   const [verifyingDomain, setVerifyingDomain] = useState<string | null>(null);
-
-  const handleSearch = async (e: React.FormEvent, extraTlds?: string[]) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-    setIsSearching(true);
-    setSearchError(null);
-    setSearchResults([]);
-    try {
-      let url = `/api/domains?action=search&q=${encodeURIComponent(searchQuery)}`;
-      if (extraTlds?.length) {
-        url += `&tlds=${extraTlds.map((t) => t.replace(/^\./, "")).join(",")}`;
-      }
-      const res = await fetch(url);
-      const data = await res.json();
-      if (!res.ok) {
-        setSearchError(data.error || "Search failed");
-        return;
-      }
-      setSearchResults(data.results || []);
-    } catch {
-      setSearchError("Network error. Please try again.");
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const handleSearchCustomTld = async (tldOverride?: string) => {
-    const tldToUse = tldOverride || customTld;
-    if (!tldToUse.trim() || !searchQuery.trim()) return;
-    const tld = tldToUse.replace(/^\./, "").toLowerCase();
-    setIsSearching(true);
-    setSearchError(null);
-    try {
-      const res = await fetch(
-        `/api/domains?action=search&q=${encodeURIComponent(searchQuery)}&tlds=${tld}`,
-      );
-      const data = await res.json();
-      if (!res.ok) {
-        setSearchError(data.error || "Search failed");
-        return;
-      }
-      // Merge with existing results (avoid duplicates)
-      setSearchResults((prev) => {
-        const existingDomains = new Set(prev.map((r) => r.domain));
-        const newResults = (data.results || []).filter(
-          (r: DomainResult) => !existingDomains.has(r.domain),
-        );
-        return [...prev, ...newResults].sort((a, b) => {
-          if (a.available !== b.available) return a.available ? -1 : 1;
-          return a.price - b.price;
-        });
-      });
-      setCustomTld("");
-    } catch {
-      setSearchError("Network error. Please try again.");
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const handlePurchase = async (result: DomainResult) => {
-    if (!siteId) {
-      alert("Please select a site first.");
-      return;
-    }
-    setPurchasingDomain(result.domain);
-    try {
-      const res = await fetch("/api/domains/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          domain: result.domain,
-          siteId,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.url) {
-          window.location.href = data.url;
-        }
-      } else {
-        const data = await res.json().catch(() => ({ error: "Failed to start checkout." }));
-        setSearchError(data.error || "Failed to start checkout. Please try again.");
-      }
-    } catch {
-      setSearchError("Network error. Please check your connection and try again.");
-    } finally {
-      setPurchasingDomain(null);
-    }
-  };
 
   const validateDomain = (domain: string): boolean => {
     return /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z]{2,})+$/.test(domain);
@@ -190,15 +51,15 @@ function DomainsPageContent() {
     e.preventDefault();
     if (!connectDomain.trim()) return;
     if (!validateDomain(connectDomain.trim())) {
-      setSearchError("Please enter a valid domain name (e.g. yourdomain.com)");
+      setConnectError("Please enter a valid domain name (e.g. yourdomain.com)");
       return;
     }
     if (!siteId) {
-      setSearchError("Please select a site first.");
+      setConnectError("Please select a site first.");
       return;
     }
     setIsConnecting(true);
-    setSearchError(null);
+    setConnectError(null);
     try {
       const res = await fetch("/api/domains", {
         method: "POST",
@@ -211,10 +72,10 @@ function DomainsPageContent() {
         setPendingDns({ domain: data.domain.domain, records: data.dnsRecords });
         setConnectDomain("");
       } else {
-        setSearchError("Failed to connect domain. Please try again.");
+        setConnectError("Failed to connect domain. Please try again.");
       }
     } catch {
-      setSearchError("Network error. Please check your connection.");
+      setConnectError("Network error. Please check your connection.");
     } finally {
       setIsConnecting(false);
     }
@@ -283,26 +144,6 @@ function DomainsPageContent() {
               Make your directory truly yours with a custom domain. We handle all the technical stuff.
             </p>
           </div>
-
-          {/* Purchase success banner */}
-          {purchaseSuccess && (
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-5 mb-6 animate-fade-in">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-green-100 text-green-600 flex items-center justify-center shrink-0">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-green-800">Domain purchased!</h3>
-                  <p className="text-xs text-green-700 mt-0.5">
-                    <strong>{purchaseSuccess}</strong> is being configured. It will be live within a few minutes.
-                  </p>
-                </div>
-                <button type="button" onClick={() => setPurchaseSuccess(null)} className="ml-auto text-green-600 hover:text-green-800 transition">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Current URL card */}
           <div className="bg-white border border-[color:var(--border)] rounded-2xl p-5 mb-6 animate-fade-in">
@@ -456,42 +297,12 @@ function DomainsPageContent() {
             )}
           </AnimatePresence>
 
-          {/* Option picker (when no flow selected) */}
-          {!flow && (
+          {/* Connect your domain — entry card */}
+          {!showConnect && (
             <div className="space-y-3 animate-fade-in">
-              {/* Buy option */}
               <button
                 type="button"
-                onClick={() => setFlow("buy")}
-                className="w-full bg-white border-2 border-[color:var(--border)] hover:border-[color:var(--fg)] rounded-2xl p-5 sm:p-6 text-left transition-all hover:shadow-lg hover:shadow-black/5 group"
-              >
-                <div className="flex items-start gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-100 to-purple-100 text-purple-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" /><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
-                    </svg>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-base font-bold mb-1">Buy a new domain</h3>
-                    <p className="text-sm text-[color:var(--fg-muted)] leading-relaxed">
-                      Search and register a fresh domain. We handle everything &mdash; registration, DNS, SSL. Your directory is live instantly.
-                    </p>
-                    <div className="flex items-center gap-3 mt-3">
-                      <span className="text-[11px] font-semibold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">500+ TLDs</span>
-                      <span className="text-[11px] font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Zero setup</span>
-                      <span className="text-[11px] font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Instant</span>
-                    </div>
-                  </div>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[color:var(--fg-subtle)] group-hover:text-[color:var(--fg)] shrink-0 mt-1 transition-colors">
-                    <path d="M9 18l6-6-6-6" />
-                  </svg>
-                </div>
-              </button>
-
-              {/* Connect option */}
-              <button
-                type="button"
-                onClick={() => setFlow("connect")}
+                onClick={() => setShowConnect(true)}
                 className="w-full bg-white border-2 border-[color:var(--border)] hover:border-[color:var(--fg)] rounded-2xl p-5 sm:p-6 text-left transition-all hover:shadow-lg hover:shadow-black/5 group"
               >
                 <div className="flex items-start gap-4">
@@ -502,14 +313,14 @@ function DomainsPageContent() {
                     </svg>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-base font-bold mb-1">I already have a domain</h3>
+                    <h3 className="text-base font-bold mb-1">Connect your domain</h3>
                     <p className="text-sm text-[color:var(--fg-muted)] leading-relaxed">
-                      Connect a domain you own. We&apos;ll guide you through adding 3 simple DNS records &mdash; takes about 5 minutes.
+                      Already have a domain? Connect it to your directory. We&apos;ll guide you through adding 3 simple DNS records — takes about 5 minutes. We handle SSL automatically.
                     </p>
                     <div className="flex items-center gap-3 mt-3">
                       <span className="text-[11px] font-semibold bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full">Free</span>
                       <span className="text-[11px] font-semibold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">3 DNS records</span>
-                      <span className="text-[11px] font-semibold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">~5 min</span>
+                      <span className="text-[11px] font-semibold bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">Auto SSL</span>
                     </div>
                   </div>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[color:var(--fg-subtle)] group-hover:text-[color:var(--fg)] shrink-0 mt-1 transition-colors">
@@ -520,166 +331,12 @@ function DomainsPageContent() {
             </div>
           )}
 
-          {/* Buy flow */}
-          {flow === "buy" && (
-            <div className="bg-white border-2 border-[color:var(--border)] rounded-2xl p-5 sm:p-6 animate-fade-in">
-              <button type="button" onClick={() => { setFlow(null); setSearchResults([]); setSearchQuery(""); setSearchError(null); }} className="text-xs font-semibold text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] mb-4 flex items-center gap-1 transition">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6" /></svg>
-                Back to options
-              </button>
-
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-100 to-purple-100 text-purple-600 flex items-center justify-center shrink-0">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" /><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" /></svg>
-                </div>
-                <div>
-                  <h3 className="text-base font-bold">Find your perfect domain</h3>
-                  <p className="text-xs text-[color:var(--fg-muted)]">Search 500+ extensions — we handle registration, DNS, and SSL</p>
-                </div>
-              </div>
-
-              <form onSubmit={handleSearch} className="flex gap-2 mb-4">
-                <div className="flex-1 relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[color:var(--fg-subtle)] text-sm">www.</span>
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="yourname"
-                    aria-label="Domain name search"
-                    autoFocus
-                    className="w-full h-12 pl-12 pr-4 bg-white border-2 border-[color:var(--border)] rounded-xl text-sm font-mono font-bold placeholder:font-normal placeholder:text-[color:var(--fg-subtle)] focus:outline-none focus:border-purple-400 transition"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={isSearching || !searchQuery.trim()}
-                  className="h-12 px-6 bg-gradient-to-r from-purple-600 to-violet-600 text-white rounded-xl text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition whitespace-nowrap shadow-md shadow-purple-200"
-                >
-                  {isSearching ? "Searching..." : "Search"}
-                </button>
-              </form>
-
-              {/* Error message */}
-              {searchError && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-                  {searchError}
-                </div>
-              )}
-
-              {/* Search results */}
-              {searchResults.length > 0 && (
-                <div className="space-y-2 mb-4">
-                  {searchResults.map((r) => (
-                    <div
-                      key={r.domain}
-                      className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition ${
-                        r.available
-                          ? "border-[color:var(--border)] hover:border-purple-300 hover:bg-purple-50/30"
-                          : "border-dashed border-[color:var(--border)] opacity-40"
-                      }`}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm font-mono font-bold">{r.domain}</span>
-                        {r.available && <span className="ml-2 text-[10px] font-bold text-green-600">Available</span>}
-                      </div>
-                      {r.available ? (
-                        <div className="flex items-center gap-3 shrink-0">
-                          <div className="text-right">
-                            <p className="text-sm font-extrabold">{r.priceFormatted}<span className="text-xs text-[color:var(--fg-muted)] font-normal">/yr</span></p>
-                            <p className="text-[10px] text-[color:var(--fg-subtle)]">renews {r.renewalFormatted}</p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handlePurchase(r)}
-                            disabled={purchasingDomain === r.domain}
-                            className="h-10 px-5 bg-gradient-to-r from-purple-600 to-violet-600 text-white rounded-lg text-xs font-bold hover:opacity-90 disabled:opacity-50 transition shadow-sm"
-                          >
-                            {purchasingDomain === r.domain ? "Redirecting..." : "Get it"}
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-xs font-semibold text-[color:var(--fg-subtle)]">Taken</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Search more TLDs */}
-              {searchResults.length > 0 && (
-                <div className="border-t border-[color:var(--border)] pt-4">
-                  <button
-                    type="button"
-                    onClick={() => setShowAllTlds(!showAllTlds)}
-                    className="text-xs font-semibold text-purple-600 hover:text-purple-800 transition flex items-center gap-1 mb-3"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className={`transition-transform ${showAllTlds ? "rotate-90" : ""}`}>
-                      <path d="M9 18l6-6-6-6" />
-                    </svg>
-                    Search a specific extension
-                  </button>
-
-                  {showAllTlds && (
-                    <div className="space-y-3 animate-fade-in">
-                      <div className="flex gap-2">
-                        <div className="flex-1 relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--fg-subtle)] text-xs">.</span>
-                          <input
-                            type="text"
-                            value={customTld}
-                            onChange={(e) => setCustomTld(e.target.value.toLowerCase().replace(/[^a-z]/g, ""))}
-                            placeholder="photography"
-                            aria-label="Custom TLD"
-                            className="w-full h-10 pl-6 pr-3 bg-white border-2 border-[color:var(--border)] rounded-lg text-sm font-mono placeholder:text-[color:var(--fg-subtle)] focus:outline-none focus:border-purple-400 transition"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleSearchCustomTld()}
-                          disabled={isSearching || !customTld.trim()}
-                          className="h-10 px-4 bg-purple-100 text-purple-700 rounded-lg text-xs font-semibold hover:bg-purple-200 disabled:opacity-50 transition"
-                        >
-                          Check
-                        </button>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {POPULAR_TLD_SUGGESTIONS
-                          .filter((tld) => !searchResults.some((r) => r.tld === tld))
-                          .slice(0, 10)
-                          .map((tld) => (
-                            <button
-                              key={tld}
-                              type="button"
-                              disabled={isSearching}
-                              onClick={() => {
-                                handleSearchCustomTld(tld);
-                              }}
-                              className="text-[11px] font-mono font-semibold px-2.5 py-1 bg-gray-100 hover:bg-purple-100 hover:text-purple-700 rounded-md transition disabled:opacity-50"
-                            >
-                              {tld}
-                            </button>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {searchResults.length === 0 && !isSearching && !searchError && (
-                <div className="text-center py-6 text-sm text-[color:var(--fg-subtle)]">
-                  Type a name above and hit search to see available domains
-                </div>
-              )}
-            </div>
-          )}
-
           {/* Connect flow */}
-          {flow === "connect" && (
+          {showConnect && (
             <div className="bg-white border-2 border-[color:var(--border)] rounded-2xl p-5 sm:p-6 animate-fade-in">
-              <button type="button" onClick={() => { setFlow(null); setConnectDomain(""); }} className="text-xs font-semibold text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] mb-4 flex items-center gap-1 transition">
+              <button type="button" onClick={() => { setShowConnect(false); setConnectDomain(""); setConnectError(null); }} className="text-xs font-semibold text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] mb-4 flex items-center gap-1 transition">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6" /></svg>
-                Back to options
+                Back
               </button>
 
               <div className="flex items-center gap-3 mb-5">
@@ -691,6 +348,12 @@ function DomainsPageContent() {
                   <p className="text-xs text-[color:var(--fg-muted)]">Just 3 DNS records and you&apos;re all set</p>
                 </div>
               </div>
+
+              {connectError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                  {connectError}
+                </div>
+              )}
 
               <form onSubmit={handleConnect} className="flex gap-2 mb-6">
                 <input

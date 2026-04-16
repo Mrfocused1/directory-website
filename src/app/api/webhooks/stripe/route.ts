@@ -3,11 +3,6 @@ import { stripe } from "@/lib/stripe";
 import { db } from "@/db";
 import { users, stripeEvents } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import {
-  purchaseDomain,
-  addDomainToProject,
-} from "@/lib/vercel-domains";
-import { inngest } from "@/lib/inngest/client";
 
 // Plan ID mapping from Stripe price amounts (cents) to plan IDs
 const PRICE_TO_PLAN: Record<number, string> = {
@@ -67,27 +62,6 @@ export async function POST(request: NextRequest) {
         const session = event.data.object;
         const metadata = session.metadata ?? {};
 
-        // Handle domain purchase
-        if (metadata.type === "domain_purchase" && metadata.domain) {
-          const domain = metadata.domain;
-
-          try {
-            await purchaseDomain(domain);
-            await addDomainToProject(domain);
-          } catch (domainErr) {
-            console.error(`Failed to register domain ${domain}:`, domainErr);
-            // Queue for background retry — Inngest will retry up to 5 times with backoff
-            try {
-              await inngest.send({
-                name: "domain/register-retry",
-                data: { domain },
-              });
-            } catch (sendErr) {
-              console.error(`Failed to queue domain retry for ${domain}:`, sendErr);
-            }
-          }
-        }
-
         // Handle plan subscription checkout
         if (metadata.type === "subscription" && metadata.plan) {
           const plan = metadata.plan;
@@ -123,15 +97,6 @@ export async function POST(request: NextRequest) {
           console.log(`[SUBSCRIPTION] User ${userId || "unknown"} upgraded to ${plan} (customer: ${customerId})`);
         }
 
-        break;
-      }
-
-      case "checkout.session.expired": {
-        const session = event.data.object;
-        const metadata = session.metadata ?? {};
-        if (metadata.type === "domain_purchase") {
-          console.log(`[DOMAIN] Checkout expired for ${metadata.domain}`);
-        }
         break;
       }
 

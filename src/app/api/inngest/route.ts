@@ -3,7 +3,6 @@ import { inngest } from "@/lib/inngest/client";
 import {
   runPipelineFunction,
   syncPlatformFunction,
-  retryDomainRegistrationFunction,
   scheduledDigestFunction,
   pruneAnalyticsFunction,
 } from "@/lib/inngest/functions";
@@ -17,7 +16,6 @@ export const { GET, POST, PUT } = serve({
   functions: [
     runPipelineFunction,
     syncPlatformFunction,
-    retryDomainRegistrationFunction,
     scheduledDigestFunction,
     pruneAnalyticsFunction,
   ],

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  searchDomains,
   addDomainToProject,
   removeDomainFromProject,
   getDomainConfig,
@@ -16,46 +15,9 @@ function generateToken(): string {
   return token;
 }
 
-// GET /api/domains?action=search&q=yourname — Search domain availability
-// GET /api/domains?action=search&q=yourname&tlds=com,io,xyz — Search specific TLDs
 // GET /api/domains?action=status&domain=yourdomain.com — Check verification status
 export async function GET(request: NextRequest) {
   const action = request.nextUrl.searchParams.get("action");
-
-  if (action === "search") {
-    const query = request.nextUrl.searchParams.get("q")?.trim().toLowerCase();
-    if (!query) {
-      return NextResponse.json({ error: "Missing search query" }, { status: 400 });
-    }
-
-    const baseName = query.replace(/\.[a-z]+$/, "").replace(/[^a-z0-9-]/g, "");
-    if (!baseName || baseName.length < 2) {
-      return NextResponse.json({ error: "Invalid domain name" }, { status: 400 });
-    }
-
-    if (!isConfigured()) {
-      return NextResponse.json(
-        { error: "Domain service is not configured. Please add Vercel API credentials." },
-        { status: 503 },
-      );
-    }
-
-    const tldsParam = request.nextUrl.searchParams.get("tlds");
-    const tlds = tldsParam
-      ? tldsParam.split(",").map((t) => t.replace(/^\./, ""))
-      : undefined;
-
-    try {
-      const results = await searchDomains(baseName, tlds);
-      return NextResponse.json({ results, query: baseName });
-    } catch (err) {
-      console.error("Domain search error:", err);
-      return NextResponse.json(
-        { error: "Failed to check domain availability. Please try again." },
-        { status: 502 },
-      );
-    }
-  }
 
   if (action === "status") {
     const domain = request.nextUrl.searchParams.get("domain");
@@ -148,7 +110,7 @@ export async function POST(request: NextRequest) {
       }, { status: 201 });
     }
 
-    return NextResponse.json({ error: "Unknown action. Use /api/domains/checkout for purchases." }, { status: 400 });
+    return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }

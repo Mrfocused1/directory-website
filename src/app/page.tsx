@@ -66,6 +66,7 @@ const PRICING = [
       "Up to 9 posts (one-shot build)",
       "1 Instagram or TikTok account",
       "AI transcription",
+      "Smart references (articles + YouTube)",
       "Auto-categorization",
       "Search, filters, post modal",
       "RSS feed + embed widget",

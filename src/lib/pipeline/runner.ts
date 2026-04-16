@@ -190,7 +190,7 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
           } else {
             transcribeErrors++;
             console.warn(
-              `[runner] transcription empty for ${vp.shortcode} (Deepgram returned no text)`,
+              `[runner] transcription empty for ${vp.shortcode} (all providers returned no text — likely music-only reel). url=${(vp.mediaUrl as string).slice(0, 100)}`,
             );
           }
         } catch (err) {

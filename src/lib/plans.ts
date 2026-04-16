@@ -64,7 +64,7 @@ const PLANS: Record<PlanId, PlanConfig> = {
     //
     // Sync is NOT available on free — the initial build is a one-shot.
     // Upgrade to Creator+ for ongoing syncs.
-    features: new Set(["auto_categorization", "transcription"]),
+    features: new Set(["auto_categorization", "transcription", "references"]),
     monthlySyncs: 0,
   },
   creator: {

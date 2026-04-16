@@ -76,7 +76,7 @@ const GENERIC_CATEGORIES = new Set(
 );
 
 const FEATURE_BY_PLAN = {
-  free: new Set(["auto_categorization", "transcription"]),
+  free: new Set(["auto_categorization", "transcription", "references"]),
   creator: new Set([
     "analytics_basic","analytics_full","newsletter","requests","bookmarks",
     "platforms_multi","references","transcription","auto_categorization","custom_domain",

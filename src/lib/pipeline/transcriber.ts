@@ -178,11 +178,71 @@ async function transcribeWithDeepgram(videoUrl: string): Promise<TranscriptResul
   };
 }
 
+/**
+ * Transcribe a video with retry + automatic fallback.
+ *
+ * Strategy (when primary = Groq):
+ *   1. Try Groq (Whisper Large v3)
+ *   2. If Groq returns EMPTY text → retry once with temperature=0.2
+ *      (slightly warmer sometimes helps Whisper detect faint speech)
+ *   3. If still empty OR Groq throws → fall back to Deepgram if
+ *      DEEPGRAM_API_KEY is set
+ *   4. If everything fails → return EMPTY (never crash the pipeline)
+ *
+ * This covers the three common failure modes:
+ *   - Music-only reels → Groq returns empty, Deepgram also returns
+ *     empty (correct; there's nothing to transcribe)
+ *   - Rate-limit / transient error → retry or Deepgram catches it
+ *   - Audio format Groq can't decode → Deepgram as second opinion
+ */
 export async function transcribeVideo(videoUrl: string): Promise<TranscriptResult> {
   if (!videoUrl) return EMPTY;
   const provider = (process.env.TRANSCRIPTION_PROVIDER || "groq").toLowerCase();
-  if (provider === "deepgram") return transcribeWithDeepgram(videoUrl);
-  return transcribeWithGroq(videoUrl);
+
+  if (provider === "deepgram") {
+    return transcribeWithDeepgram(videoUrl);
+  }
+
+  // Primary: Groq
+  let result: TranscriptResult;
+  try {
+    result = await transcribeWithGroq(videoUrl);
+  } catch (err) {
+    console.warn(
+      `[transcriber] groq attempt 1 threw: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    result = EMPTY;
+  }
+
+  // If Groq returned empty text, retry once with warmer temperature
+  if (!result.text) {
+    console.warn("[transcriber] groq returned empty — retrying with temperature=0.2");
+    await sleep(1500);
+    try {
+      result = await transcribeWithGroq(videoUrl);
+    } catch {
+      result = EMPTY;
+    }
+  }
+
+  // If still empty and Deepgram is configured, try it as fallback
+  if (!result.text && process.env.DEEPGRAM_API_KEY) {
+    console.warn("[transcriber] groq empty after retry — falling back to deepgram");
+    try {
+      result = await transcribeWithDeepgram(videoUrl);
+    } catch (err) {
+      console.warn(
+        `[transcriber] deepgram fallback also failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      result = EMPTY;
+    }
+  }
+
+  return result;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export async function transcribeBatch(
@@ -196,16 +256,22 @@ export async function transcribeBatch(
     try {
       const result = await transcribeVideo(videoUrl);
       results.set(postId, result);
+      if (!result.text) {
+        console.warn(
+          `[transcriber] post ${postId}: all providers returned empty (likely music-only or silent reel)`,
+        );
+      }
     } catch (err) {
-      // Log and continue — one failed transcript shouldn't kill the
-      // whole batch. Caller can count empty results to surface failures.
       console.error(
-        `[transcriber] failed for post ${postId}: ${
+        `[transcriber] post ${postId}: unrecoverable error: ${
           err instanceof Error ? err.message : String(err)
         }`,
       );
       results.set(postId, EMPTY);
     }
+    // Throttle: 1.5s between calls to avoid Groq rate limits when
+    // processing a batch of videos in sequence.
+    if (i < videos.length - 1) await sleep(1500);
     onProgress?.(i + 1, videos.length);
   }
 

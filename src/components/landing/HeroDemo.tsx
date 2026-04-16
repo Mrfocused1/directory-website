@@ -176,7 +176,6 @@ export default function HeroDemo() {
                               </div>
                             </>
                           )}
-                          <span className="absolute bottom-1 left-1 text-[5px] font-bold px-1 py-0.5 rounded text-white" style={{ backgroundColor: card.color }}>{card.cat}</span>
                         </motion.div>
                       ))}
                     </AnimatePresence>

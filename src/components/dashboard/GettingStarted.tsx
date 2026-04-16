@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { usePlan } from "@/components/plans/PlanProvider";
 
 type Site = {
   id: string;
@@ -24,6 +25,7 @@ const STORAGE_KEY = "bmd_checklist_dismissed";
  * in localStorage so it doesn't come back once the user waves it away.
  */
 export default function GettingStarted({ sites }: { sites: Site[] }) {
+  const { can } = usePlan();
   const [dismissed, setDismissed] = useState(false);
   const [subscriberCount, setSubscriberCount] = useState<number | null>(null);
 
@@ -69,12 +71,14 @@ export default function GettingStarted({ sites }: { sites: Site[] }) {
       href: "/dashboard",
       done: primarySite.isPublished,
     },
-    {
-      id: "subscribers",
-      label: "Get your first newsletter subscriber",
-      href: "/dashboard/newsletter",
-      done: (subscriberCount ?? 0) > 0,
-    },
+    ...(can("newsletter")
+      ? [{
+          id: "subscribers",
+          label: "Get your first newsletter subscriber",
+          href: "/dashboard/newsletter",
+          done: (subscriberCount ?? 0) > 0,
+        }]
+      : []),
     {
       id: "account",
       label: "Complete your account profile",

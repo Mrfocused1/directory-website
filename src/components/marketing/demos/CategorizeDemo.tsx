@@ -80,15 +80,14 @@ export default function CategorizeDemo() {
               color: cat.light ? "white" : "var(--bd-dark)",
             }}
           >
-            <div>
-              <div className="text-[9px] font-bold uppercase tracking-wide opacity-80">
+            <div className="min-w-0 flex-1">
+              <div className="text-[8px] font-bold uppercase tracking-wide opacity-80">
                 Category
               </div>
-              <div className="text-xs font-bold leading-tight">{cat.label}</div>
+              <div className="text-[10px] font-bold leading-tight truncate">{cat.label}</div>
             </div>
             <div
-              className="font-display-tight text-2xl leading-none"
-              style={{ minWidth: "1.5em", textAlign: "right" }}
+              className="font-display-tight text-lg leading-none shrink-0"
               key={`${i}-${countByCat[i]}`}
             >
               <span className="bd-pop-in inline-block">{countByCat[i]}</span>

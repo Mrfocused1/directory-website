@@ -59,9 +59,10 @@ function UnsubscribeContent() {
                 <button
                   type="button"
                   onClick={handleUnsubscribe}
-                  className="h-12 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition"
+                  disabled={status !== "confirm"}
+                  className="h-12 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Yes, unsubscribe me
+                  {status === "confirm" ? "Yes, unsubscribe me" : "Unsubscribing…"}
                 </button>
                 <Link
                   href={`/${tenant}`}

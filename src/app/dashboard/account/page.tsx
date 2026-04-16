@@ -197,9 +197,9 @@ export default function AccountPage() {
               <p className="text-xs text-[color:var(--fg-subtle)] mb-4">
                 {account.hasBilling
                   ? "Manage your subscription, update payment method, download invoices, or cancel."
-                  : "You’re on the Free plan. Upgrade from the homepage to unlock more features."}
+                  : "Upgrade to Creator for syncing, analytics, newsletter, custom domains, and more."}
               </p>
-              {account.hasBilling && (
+              {account.hasBilling ? (
                 <button
                   type="button"
                   onClick={openPortal}
@@ -208,6 +208,13 @@ export default function AccountPage() {
                 >
                   {portalLoading ? "Opening..." : "Open billing portal"}
                 </button>
+              ) : (
+                <a
+                  href="/#pricing"
+                  className="inline-flex h-10 px-4 bg-purple-600 text-white rounded-lg text-xs font-semibold items-center hover:bg-purple-700 transition"
+                >
+                  View plans & upgrade
+                </a>
               )}
             </div>
 

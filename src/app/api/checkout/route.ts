@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
   try {
     if (!stripe) {
       return NextResponse.json(
-        { error: "Stripe is not configured" },
+        { error: "Checkout is currently unavailable. Please try again later." },
         { status: 500 },
       );
     }

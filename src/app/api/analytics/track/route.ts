@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { pageViews, postClicks, searchEvents, categoryClicks } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { resolveSiteId } from "@/db/utils";
+import { apiLimiter, checkRateLimit } from "@/lib/rate-limit-middleware";
 
 const MAX_PAYLOAD_SIZE = 10_000; // 10KB limit for analytics payloads
 
@@ -13,6 +14,8 @@ const MAX_PAYLOAD_SIZE = 10_000; // 10KB limit for analytics payloads
  * Writes to the database tables for persistence.
  */
 export async function POST(request: NextRequest) {
+  const limited = checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   try {
     // Content-length guard against oversized payloads
     const contentLength = request.headers.get("content-length");

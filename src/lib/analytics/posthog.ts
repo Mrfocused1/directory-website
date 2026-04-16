@@ -31,6 +31,8 @@ export function initPostHog() {
     capture_pageleave: true,
     autocapture: false, // only track events we explicitly send
     disable_session_recording: true, // save quota for flags + events
+    persistence: "memory", // no cookies until user consents
+    opt_out_capturing_by_default: true, // respect consent — opted in via CookieConsent
     loaded: () => {
       initialized = true;
     },

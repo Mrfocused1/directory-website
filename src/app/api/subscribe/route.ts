@@ -7,9 +7,13 @@ import { resend } from "@/lib/email/resend";
 import { verificationEmail } from "@/lib/email/templates";
 import { getApiUser } from "@/lib/supabase/api";
 import crypto from "crypto";
+import { emailLimiter, checkRateLimit } from "@/lib/rate-limit-middleware";
 
 // POST /api/subscribe — Subscribe to a directory
 export async function POST(request: NextRequest) {
+  const limited = checkRateLimit(request, emailLimiter);
+  if (limited) return limited;
+
   try {
     const body = await request.json();
     const { siteId, email, name, categories, frequency } = body;

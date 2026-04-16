@@ -4,6 +4,7 @@ import { contentRequests, requestVotes, sites } from "@/db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { resolveSiteId } from "@/db/utils";
 import { getApiUser } from "@/lib/supabase/api";
+import { apiLimiter, checkRateLimit } from "@/lib/rate-limit-middleware";
 
 // GET /api/requests?siteId=xxx&sort=votes|newest|status&sessionId=xxx
 export async function GET(request: NextRequest) {
@@ -72,6 +73,9 @@ export async function GET(request: NextRequest) {
 
 // POST /api/requests — Submit a new content request
 export async function POST(request: NextRequest) {
+  const limited = checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
+
   try {
     const body = await request.json();
     const { siteId, title, description, authorName } = body;

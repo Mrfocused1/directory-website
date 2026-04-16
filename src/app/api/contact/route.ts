@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resend } from "@/lib/email/resend";
 import { contactInquiryEmail } from "@/lib/email/templates";
+import { emailLimiter, checkRateLimit } from "@/lib/rate-limit-middleware";
 
 const VALID_TOPICS = ["general", "sales", "support", "feedback", "press"];
 
@@ -12,6 +13,8 @@ const VALID_TOPICS = ["general", "sales", "support", "feedback", "press"];
  * Body: { name: string; email: string; topic: string; message: string }
  */
 export async function POST(request: NextRequest) {
+  const limited = checkRateLimit(request, emailLimiter);
+  if (limited) return limited;
   try {
     const body = await request.json();
     const { name, email, topic, message } = body;

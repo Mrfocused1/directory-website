@@ -4,7 +4,7 @@ import { posts, sites, users } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
 import { revalidateTenantBySiteId } from "@/lib/cache";
-import { uploadBuffer } from "@/lib/pipeline/storage";
+import { uploadBuffer, deleteFile } from "@/lib/pipeline/storage";
 import { getPlan, type PlanId } from "@/lib/plans";
 import crypto from "node:crypto";
 
@@ -359,7 +359,7 @@ export async function DELETE(request: NextRequest) {
 
   const existing = await db.query.posts.findFirst({
     where: eq(posts.id, id),
-    columns: { id: true, siteId: true },
+    columns: { id: true, siteId: true, thumbUrl: true, mediaUrl: true },
   });
   if (!existing) return NextResponse.json({ error: "Post not found" }, { status: 404 });
 
@@ -368,6 +368,12 @@ export async function DELETE(request: NextRequest) {
     columns: { id: true },
   });
   if (!site) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  // Best-effort cleanup of stored media before removing the DB row.
+  await Promise.all([
+    existing.thumbUrl ? deleteFile(existing.thumbUrl) : Promise.resolve(),
+    existing.mediaUrl ? deleteFile(existing.mediaUrl) : Promise.resolve(),
+  ]);
 
   await db.delete(posts).where(eq(posts.id, id));
   await revalidateTenantBySiteId(existing.siteId);

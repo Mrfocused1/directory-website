@@ -9,6 +9,8 @@
  * credentials configured, so a missing key never breaks the pipeline.
  */
 
+import { captureError } from "@/lib/error";
+
 export type TranscriptResult = {
   text: string;
   duration: number;
@@ -262,11 +264,7 @@ export async function transcribeBatch(
         );
       }
     } catch (err) {
-      console.error(
-        `[transcriber] post ${postId}: unrecoverable error: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
+      captureError(err, { context: "transcriber-batch", postId, videoUrl });
       results.set(postId, EMPTY);
     }
     // Throttle: 1.5s between calls to avoid Groq rate limits when

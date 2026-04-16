@@ -20,8 +20,8 @@
  * storage hiccup.
  */
 
-import { put } from "@vercel/blob";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { put, del } from "@vercel/blob";
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
 type StorageProvider = "r2" | "blob";
 
@@ -156,4 +156,41 @@ export async function uploadMedia(
   if (!mediaUrl) return "";
   const ext = type === "video" ? "mp4" : "jpg";
   return uploadFromUrl(mediaUrl, `sites/${siteSlug}/media/${shortcode}.${ext}`);
+}
+
+/**
+ * Best-effort deletion of a file from the active storage provider.
+ * Failures are logged but never thrown — callers should not let a
+ * storage cleanup error block a database operation.
+ */
+export async function deleteFile(url: string): Promise<void> {
+  if (!url) return;
+
+  const provider = activeProvider();
+  try {
+    if (provider === "r2") {
+      const client = r2Client();
+      const bucket = process.env.R2_BUCKET;
+      if (!client || !bucket) return;
+
+      // Extract the object key from the public URL.
+      // R2_PUBLIC_URL is the base (e.g. https://cdn.example.com) — strip
+      // it to get the key.  If the URL doesn't match, skip silently.
+      const publicBase = process.env.R2_PUBLIC_URL?.replace(/\/$/, "");
+      if (!publicBase || !url.startsWith(publicBase)) return;
+      const key = url.slice(publicBase.length).replace(/^\//, "");
+      if (!key) return;
+
+      await client.send(
+        new DeleteObjectCommand({ Bucket: bucket, Key: key }),
+      );
+      return;
+    }
+
+    // Vercel Blob path
+    if (!process.env.BLOB_READ_WRITE_TOKEN) return;
+    await del(url);
+  } catch (error) {
+    console.error(`[storage:${provider}] delete failed for ${url}:`, error);
+  }
 }

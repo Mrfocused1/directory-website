@@ -3,6 +3,7 @@ import { stripe } from "@/lib/stripe";
 import { db } from "@/db";
 import { users, stripeEvents } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { captureError } from "@/lib/error";
 
 // Plan ID mapping from Stripe price amounts (cents) to plan IDs
 const PRICE_TO_PLAN: Record<number, string> = {
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
       process.env.STRIPE_WEBHOOK_SECRET,
     );
   } catch (err) {
-    console.error("Webhook signature verification failed:", err);
+    captureError(err, { context: "stripe-webhook-signature" });
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
@@ -135,7 +136,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error("Stripe webhook error:", error);
+    captureError(error, { context: "stripe-webhook-handler", eventType: event.type });
     return NextResponse.json(
       { error: "Webhook handler failed" },
       { status: 500 },

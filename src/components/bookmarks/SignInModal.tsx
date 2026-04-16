@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useBookmarks } from "./BookmarkProvider";
 
@@ -9,6 +9,50 @@ export default function SignInModal() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!showSignIn) return;
+    returnFocusRef.current = (document.activeElement as HTMLElement) ?? null;
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setShowSignIn(false);
+        return;
+      }
+      if (e.key === "Tab" && dialogRef.current) {
+        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), [tabindex="0"], input:not([disabled]), textarea:not([disabled]), select:not([disabled])',
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const active = document.activeElement;
+        if (e.shiftKey && active === first) {
+          last.focus();
+          e.preventDefault();
+        } else if (!e.shiftKey && active === last) {
+          first.focus();
+          e.preventDefault();
+        }
+      }
+    };
+    document.addEventListener("keydown", onKey);
+
+    // Focus the first input on mount
+    const t = setTimeout(() => {
+      const firstInput = dialogRef.current?.querySelector<HTMLElement>("input");
+      firstInput?.focus();
+    }, 50);
+
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      clearTimeout(t);
+      returnFocusRef.current?.focus?.();
+    };
+  }, [showSignIn, setShowSignIn]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +78,10 @@ export default function SignInModal() {
           onClick={() => setShowSignIn(false)}
         >
           <motion.div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Sign in"
             className="relative w-full sm:max-w-md bg-[color:var(--bg)] rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-2xl"
             initial={{ y: 40, opacity: 0, scale: 0.98 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}

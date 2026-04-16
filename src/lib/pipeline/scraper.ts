@@ -14,6 +14,8 @@
  * - TikTok:    clockworks/tiktok-profile-scraper
  */
 
+import { captureError } from "@/lib/error";
+
 const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
 
 export type ScrapedPost = {
@@ -220,8 +222,8 @@ async function scrapeInstagram(handle: string, maxPosts: number): Promise<Scrape
       addParentData: false,
     });
   } catch (error) {
+    captureError(error, { context: "scraper-instagram", handle: cleanHandle });
     const detail = error instanceof Error ? error.message : String(error);
-    console.error("[scraper] Apify Instagram error:", detail);
     throw new Error(
       `Instagram scrape failed for @${cleanHandle}: ${detail.slice(0, 180)}`,
     );
@@ -272,8 +274,8 @@ async function scrapeTikTok(handle: string, maxPosts: number): Promise<ScrapedPo
       resultsPerPage: maxPosts,
     });
   } catch (error) {
+    captureError(error, { context: "scraper-tiktok", handle: cleanHandle });
     const detail = error instanceof Error ? error.message : String(error);
-    console.error("[scraper] Apify TikTok error:", detail);
     throw new Error(
       `TikTok scrape failed for @${cleanHandle}: ${detail.slice(0, 180)}`,
     );

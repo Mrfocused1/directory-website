@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServiceRoleClient } from "@supabase/supabase-js";
 import { resend } from "@/lib/email/resend";
 import { passwordResetEmail } from "@/lib/email/templates";
+import { authLimiter, checkRateLimit } from "@/lib/rate-limit-middleware";
 
 /**
  * POST /api/auth/reset-password
@@ -16,6 +17,8 @@ import { passwordResetEmail } from "@/lib/email/templates";
  * account existence).
  */
 export async function POST(request: NextRequest) {
+  const limited = checkRateLimit(request, authLimiter);
+  if (limited) return limited;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {

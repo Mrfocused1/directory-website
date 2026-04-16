@@ -5,6 +5,7 @@ import { signupConfirmEmail } from "@/lib/email/templates";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { captureServer } from "@/lib/analytics/posthog-server";
+import { authLimiter, checkRateLimit } from "@/lib/rate-limit-middleware";
 
 /**
  * POST /api/auth/signup
@@ -22,6 +23,8 @@ import { captureServer } from "@/lib/analytics/posthog-server";
  * Returns: { ok: true } on success or { error } on failure.
  */
 export async function POST(request: NextRequest) {
+  const limited = checkRateLimit(request, authLimiter);
+  if (limited) return limited;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {

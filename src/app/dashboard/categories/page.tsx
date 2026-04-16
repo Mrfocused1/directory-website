@@ -221,6 +221,7 @@ export default function CategoriesPage() {
               onChange={(e) => setAddingName(e.target.value)}
               maxLength={64}
               placeholder="New category name"
+              aria-label="New category name"
               className="flex-1 h-9 px-3 bg-white border-2 border-[color:var(--border)] rounded-lg text-sm focus:outline-none focus:border-[color:var(--fg)] transition"
               onKeyDown={(e) => {
                 if (e.key === "Enter") addCategory();
@@ -294,6 +295,7 @@ export default function CategoriesPage() {
                           onChange={(e) => setNewName(e.target.value)}
                           maxLength={64}
                           autoFocus
+                          aria-label="Rename category"
                           className="flex-1 h-9 px-3 bg-white border-2 border-[color:var(--border)] rounded-lg text-sm focus:outline-none focus:border-[color:var(--fg)] transition"
                           onKeyDown={(e) => {
                             if (e.key === "Enter") rename(c.name);

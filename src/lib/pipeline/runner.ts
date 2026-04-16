@@ -16,6 +16,7 @@ import { categorizeBatchWithLLM, detectCategories, categorizeByKeywords } from "
 import { extractReferencesForPosts } from "./references";
 import { references as referencesTable } from "@/db/schema";
 import { hasFeature, getPlan, type PlanId } from "@/lib/plans";
+import { captureError } from "@/lib/error";
 
 type ProgressCallback = (step: string, progress: number, message: string) => Promise<void>;
 
@@ -195,10 +196,7 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
           }
         } catch (err) {
           transcribeErrors++;
-          console.error(
-            `[runner] transcription failed for ${vp.shortcode}:`,
-            err instanceof Error ? err.message : err,
-          );
+          captureError(err, { step: "transcribe", shortcode: vp.shortcode, siteId });
         }
         const pct = Math.round(
           40 + ((transcribed + transcribeErrors) / Math.max(videoPosts.length, 1)) * 20,
@@ -303,7 +301,7 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
       } catch (err) {
         // If the entire batch call fails, leave posts as "Uncategorized"
         // and continue — one slow Claude call shouldn't break the run.
-        console.error(`[runner] Batch categorize failed (${batch.length} posts):`, err);
+        captureError(err, { step: "categorize", batchSize: batch.length, siteId });
       }
       categorized += batch.length;
       const pct = Math.round(60 + (categorized / dbPosts.length) * 25);
@@ -399,7 +397,7 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
           }
         }
       } catch (err) {
-        console.error("[runner] references step failed (non-fatal):", err);
+        captureError(err, { step: "references", siteId });
       }
     }
 
@@ -462,10 +460,10 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
         }
       }
     } catch (notifyErr) {
-      console.error("[pipeline] Owner completion notification failed:", notifyErr);
+      captureError(notifyErr, { step: "notify", siteId });
     }
   } catch (error) {
-    console.error(`[pipeline] Error in ${currentStep}:`, error);
+    captureError(error, { step: currentStep, siteId });
     const message = error instanceof Error ? error.message : "Pipeline failed";
     await updateJob(siteId, currentStep, "failed", 0, message);
     throw error;

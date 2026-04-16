@@ -1,3 +1,4 @@
+import { captureError } from "@/lib/error";
 import { inngest } from "./client";
 import { runPipeline } from "@/lib/pipeline/runner";
 import { db } from "@/db";
@@ -164,7 +165,7 @@ export const scheduledDigestFunction = inngest.createFunction(
           });
           if (!sendError) sentCount++;
         } catch (err) {
-          console.error(`[cron] Failed to send to ${sub.email}:`, err);
+          captureError(err, { context: "digest-cron", subscriberEmail: sub.email, siteId: site.id });
         }
       }
 

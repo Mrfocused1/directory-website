@@ -128,7 +128,6 @@ const PRICING = [
       "Up to 10 directory sites",
       "5 accounts per platform (multi-creator)",
       "Full white-label branding",
-      "Public API — sites, posts, subscribers",
       "Priority email support",
     ],
     cta: "Get Agency",

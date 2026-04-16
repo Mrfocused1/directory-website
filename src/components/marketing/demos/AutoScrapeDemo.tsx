@@ -24,7 +24,7 @@ const VIDEOS: { src: string; bg: string; label: string; darkText?: boolean }[] =
     darkText: true,
   },
   {
-    src: "",
+    src: "/demo-scrape-4.mp4",
     bg: "var(--bd-green)",
     label: "Morning routine",
   },

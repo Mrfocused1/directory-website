@@ -9,7 +9,7 @@ export function DemoHandleInput() {
   const [platform, setPlatform] = useState(0);
   const full = "@creativemind";
   const platforms = ["instagram", "tiktok", "youtube"];
-  const platformColors = ["text-pink-700", "text-black", "text-red-700"];
+  const platformAccents = ["#ff6b9d", "#d3fd74", "#ff4444"];
 
   useEffect(() => {
     let i = 0;
@@ -33,31 +33,39 @@ export function DemoHandleInput() {
   }, []);
 
   return (
-    <div className="bg-white rounded-xl border border-[color:var(--border)] p-3 shadow-sm h-full overflow-hidden">
-      {/* Platform tabs */}
-      <div className="flex gap-1 mb-2">
+    <div className="bg-[color:var(--bd-dark)] rounded-2xl p-4 h-full overflow-hidden border border-white/[0.06]">
+      <div className="flex gap-1.5 mb-3">
         {platforms.map((p, idx) => (
           <div
             key={p}
-            className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full transition-all duration-300 ${
-              platform === idx ? "bg-black text-white" : "bg-black/5 text-[color:var(--fg-muted)]"
-            }`}
+            className="text-[9px] font-bold uppercase px-2.5 py-1 rounded-full transition-all duration-300"
+            style={{
+              backgroundColor: platform === idx ? platformAccents[idx] : "rgba(255,255,255,0.06)",
+              color: platform === idx ? "#1a0a2e" : "rgba(255,255,255,0.4)",
+            }}
           >
             {p}
           </div>
         ))}
       </div>
-      {/* Input */}
       <div className="flex items-center gap-2">
-        <div className="flex-1 h-8 bg-black/[0.03] rounded-lg flex items-center px-2.5">
-          <span className={`text-xs font-mono font-bold ${platformColors[platform]} transition-colors`}>
+        <div className="flex-1 h-9 bg-white/[0.06] rounded-xl flex items-center px-3 border border-white/[0.08]">
+          <span
+            className="text-xs font-mono font-bold transition-colors"
+            style={{ color: platformAccents[platform] }}
+          >
             {text}
           </span>
-          <span className="w-px h-3.5 bg-black/60 animate-pulse ml-px" />
+          <span className="w-px h-4 bg-white/60 animate-pulse ml-px" />
         </div>
-        <div className={`h-8 px-3 rounded-lg text-[10px] font-bold text-white flex items-center transition-all duration-300 ${
-          text.length >= full.length ? "bg-green-700 scale-105" : "bg-black/60"
-        }`}>
+        <div
+          className="h-9 px-4 rounded-xl text-[10px] font-bold flex items-center transition-all duration-300"
+          style={{
+            backgroundColor: text.length >= full.length ? "#d3fd74" : "rgba(255,255,255,0.1)",
+            color: text.length >= full.length ? "#1a0a2e" : "rgba(255,255,255,0.5)",
+            transform: text.length >= full.length ? "scale(1.05)" : "scale(1)",
+          }}
+        >
           Go
         </div>
       </div>
@@ -69,10 +77,10 @@ export function DemoHandleInput() {
 export function DemoPipeline() {
   const [step, setStep] = useState(0);
   const steps = [
-    { label: "Scraping posts", icon: "download", count: "24 posts found" },
-    { label: "Transcribing videos", icon: "mic", count: "12 videos done" },
-    { label: "Categorizing content", icon: "tag", count: "5 categories" },
-    { label: "Finding references", icon: "search", count: "38 sources" },
+    { label: "Scraping posts", count: "24 posts found", accent: "#d3fd74" },
+    { label: "Transcribing videos", count: "12 videos done", accent: "#b0b0fe" },
+    { label: "Categorizing content", count: "5 categories", accent: "#ffc72d" },
+    { label: "Finding references", count: "38 sources", accent: "#92eedd" },
   ];
 
   useEffect(() => {
@@ -83,44 +91,48 @@ export function DemoPipeline() {
   }, [steps.length]);
 
   return (
-    <div className="bg-white rounded-xl border border-[color:var(--border)] p-3 shadow-sm h-full overflow-hidden">
-      <div className="space-y-1.5">
+    <div className="bg-[color:var(--bd-dark)] rounded-2xl p-4 h-full overflow-hidden border border-white/[0.06]">
+      <div className="space-y-2">
         {steps.map((s, i) => {
           const isDone = i < step;
           const isCurrent = i === step;
           return (
             <motion.div
               key={s.label}
-              className="flex items-center gap-2 h-6"
-              // Use visibility instead of opacity for not-yet-active steps so axe
-              // doesn't flag transient low-contrast animation states.
+              className="flex items-center gap-2.5 h-7"
               animate={{ opacity: i <= step ? 1 : 0 }}
               style={{ visibility: i <= step ? "visible" : "hidden" }}
               transition={{ duration: 0.3 }}
             >
-              <div className={`w-4 h-4 rounded-full flex items-center justify-center transition-all duration-300 ${
-                isDone ? "bg-green-500" : isCurrent ? "bg-black" : "bg-black/10"
-              }`}>
+              <div
+                className="w-5 h-5 rounded-full flex items-center justify-center transition-all duration-300"
+                style={{
+                  backgroundColor: isDone ? s.accent : isCurrent ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.06)",
+                }}
+              >
                 {isDone ? (
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4"><path d="M20 6L9 17l-5-5" /></svg>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#1a0a2e" strokeWidth="4"><path d="M20 6L9 17l-5-5" /></svg>
                 ) : isCurrent ? (
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" className="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" className="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
                 ) : null}
               </div>
-              <span className={`text-[10px] font-semibold flex-1 ${isDone ? "text-green-700" : isCurrent ? "text-black" : "text-black/60"}`}>
+              <span className={`text-[10px] font-semibold flex-1 ${isDone ? "text-white/90" : isCurrent ? "text-white/70" : "text-white/30"}`}>
                 {s.label}
               </span>
-              <span className={`text-[9px] font-bold min-w-[60px] text-right transition-opacity duration-300 ${isDone ? "text-green-600 opacity-100" : "opacity-0"}`}>
+              <span
+                className="text-[9px] font-bold min-w-[65px] text-right transition-opacity duration-300"
+                style={{ color: s.accent, opacity: isDone ? 1 : 0 }}
+              >
                 {s.count}
               </span>
             </motion.div>
           );
         })}
       </div>
-      {/* Progress bar */}
-      <div className="mt-2 h-1 bg-black/5 rounded-full overflow-hidden">
+      <div className="mt-3 h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
         <motion.div
-          className="h-full bg-black rounded-full"
+          className="h-full rounded-full"
+          style={{ background: "linear-gradient(90deg, #b0b0fe, #d3fd74)" }}
           animate={{ width: `${Math.min((step / steps.length) * 100, 100)}%` }}
           transition={{ duration: 0.5 }}
         />
@@ -133,7 +145,7 @@ export function DemoPipeline() {
 export function DemoDirectoryGrid() {
   const [visible, setVisible] = useState(0);
   const categories = ["BUSINESS", "ECONOMICS", "AFRICA", "POLITICS", "BUSINESS", "ECONOMICS"];
-  const colors = ["bg-rose-100", "bg-sky-100", "bg-amber-100", "bg-violet-100", "bg-emerald-100", "bg-orange-100"];
+  const colors = ["#d3fd74", "#b0b0fe", "#92eedd", "#ffc72d", "#ff6b9d", "#b0b0fe"];
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -143,26 +155,31 @@ export function DemoDirectoryGrid() {
   }, []);
 
   return (
-    <div className="bg-white rounded-xl border border-[color:var(--border)] p-3 shadow-sm h-full overflow-hidden">
-      {/* Mini search bar */}
-      <div className="h-5 bg-black/[0.03] rounded-full mb-2 flex items-center px-2">
-        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-black/60">
+    <div className="bg-[color:var(--bd-dark)] rounded-2xl p-4 h-full overflow-hidden border border-white/[0.06]">
+      <div className="h-6 bg-white/[0.06] rounded-full mb-3 flex items-center px-2.5 border border-white/[0.06]">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-white/40">
           <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
         </svg>
-        <span className="text-[8px] text-black/60 ml-1">Search posts...</span>
+        <span className="text-[8px] text-white/40 ml-1.5 font-medium">Search posts...</span>
       </div>
-      {/* Grid */}
-      <div className="grid grid-cols-3 gap-1">
+      <div className="grid grid-cols-3 gap-1.5">
         {Array.from({ length: 6 }).map((_, i) => (
           <motion.div
             key={i}
-            className={`aspect-[4/5] rounded-md relative overflow-hidden ${colors[i]}`}
+            className="aspect-[4/5] rounded-lg relative overflow-hidden"
             initial={{ scale: 0.6 }}
             animate={{ scale: i < visible ? 1 : 0.6 }}
-            style={{ visibility: i < visible ? "visible" : "hidden" }}
+            style={{ visibility: i < visible ? "visible" : "hidden", backgroundColor: `${colors[i]}15` }}
             transition={{ duration: 0.3, delay: i * 0.05 }}
           >
-            <span className="absolute bottom-0.5 left-0.5 text-[5px] font-bold bg-white text-black/90 px-1 rounded">
+            <div
+              className="absolute inset-0 opacity-30"
+              style={{ background: `linear-gradient(135deg, ${colors[i]}40, transparent)` }}
+            />
+            <span
+              className="absolute bottom-1 left-1 text-[5px] font-bold px-1 py-0.5 rounded"
+              style={{ backgroundColor: colors[i], color: "#1a0a2e" }}
+            >
               {categories[i]}
             </span>
           </motion.div>
@@ -175,7 +192,6 @@ export function DemoDirectoryGrid() {
 // ─── Step 4: Domain setup ────────────────────────────────────────────
 export function DemoDomainSetup() {
   const [phase, setPhase] = useState(0);
-  // 0: searching, 1: found, 2: configured
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -185,62 +201,64 @@ export function DemoDomainSetup() {
   }, []);
 
   return (
-    <div className="bg-white rounded-xl border border-[color:var(--border)] p-3 shadow-sm h-full overflow-hidden relative">
+    <div className="bg-[color:var(--bd-dark)] rounded-2xl p-4 h-full overflow-hidden relative border border-white/[0.06]">
       <AnimatePresence mode="wait">
         {phase === 0 && (
-          <motion.div key="search" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-3">
-            <div className="flex items-center gap-1.5 mb-2">
-              <div className="h-6 flex-1 bg-black/[0.03] rounded-md flex items-center px-2">
-                <span className="text-[9px] font-mono font-bold">www.mysite</span>
-                <span className="w-px h-2.5 bg-black/60 animate-pulse ml-px" />
+          <motion.div key="search" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-7 flex-1 bg-white/[0.06] rounded-lg flex items-center px-2.5 border border-white/[0.06]">
+                <span className="text-[9px] font-mono font-bold text-white/80">yourdomain.com</span>
               </div>
-              <div className="h-6 px-2 bg-purple-600 rounded-md text-[8px] text-white font-bold flex items-center">Search</div>
+              <div className="h-7 px-3 rounded-lg text-[8px] font-bold flex items-center" style={{ backgroundColor: "#b0b0fe", color: "#1a0a2e" }}>
+                Connect
+              </div>
             </div>
-            <div className="space-y-1">
-              {[".com", ".co", ".io"].map((tld) => (
-                <div key={tld} className="flex items-center justify-between h-5 px-1.5 rounded bg-black/[0.02]">
-                  <span className="text-[8px] font-mono font-bold">mysite{tld}</span>
-                  <span className="text-[8px] font-bold text-green-700">Available</span>
+            <div className="space-y-1.5">
+              {["CNAME", "A", "TXT"].map((type) => (
+                <div key={type} className="flex items-center gap-2 h-5">
+                  <span className="text-[7px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(176,176,254,0.15)", color: "#b0b0fe" }}>{type}</span>
+                  <span className="text-[7px] text-white/40 font-mono flex-1 truncate">cname.vercel-dns.com</span>
                 </div>
               ))}
             </div>
           </motion.div>
         )}
         {phase === 1 && (
-          <motion.div key="dns" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-3">
-            <p className="text-[9px] font-bold text-amber-600 mb-2">Adding DNS records...</p>
+          <motion.div key="dns" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-4">
+            <p className="text-[9px] font-bold mb-3" style={{ color: "#ffc72d" }}>Verifying DNS records...</p>
             {["CNAME", "A", "TXT"].map((type, i) => (
               <motion.div
                 key={type}
-                className="flex items-center gap-1.5 h-6 mb-1"
+                className="flex items-center gap-2 h-7 mb-1"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.3 }}
               >
-                <span className="text-[7px] font-bold bg-amber-100 text-amber-700 px-1 rounded">{type}</span>
-                <div className="flex-1 h-1 bg-amber-200 rounded-full overflow-hidden">
+                <span className="text-[7px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: "rgba(255,199,45,0.15)", color: "#ffc72d" }}>{type}</span>
+                <div className="flex-1 h-1 bg-white/[0.06] rounded-full overflow-hidden">
                   <motion.div
-                    className="h-full bg-amber-500 rounded-full"
+                    className="h-full rounded-full"
+                    style={{ backgroundColor: "#ffc72d" }}
                     initial={{ width: 0 }}
                     animate={{ width: "100%" }}
                     transition={{ delay: i * 0.3 + 0.2, duration: 0.5 }}
                   />
                 </div>
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.3 + 0.7 }}>
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-green-700"><path d="M20 6L9 17l-5-5" /></svg>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#d3fd74" strokeWidth="3"><path d="M20 6L9 17l-5-5" /></svg>
                 </motion.div>
               </motion.div>
             ))}
           </motion.div>
         )}
         {phase === 2 && (
-          <motion.div key="done" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="absolute inset-3 flex items-center justify-center">
+          <motion.div key="done" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="absolute inset-4 flex items-center justify-center">
             <div className="text-center">
-              <div className="w-10 h-10 rounded-full bg-green-100 text-green-700 flex items-center justify-center mx-auto mb-1.5">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2" style={{ backgroundColor: "rgba(211,253,116,0.15)" }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d3fd74" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
               </div>
-              <p className="text-[10px] font-bold">mysite.com is live!</p>
-              <p className="text-[8px] text-green-600 font-semibold mt-0.5">SSL secured</p>
+              <p className="text-[11px] font-bold text-white">yourdomain.com is live!</p>
+              <p className="text-[8px] font-semibold mt-0.5" style={{ color: "#d3fd74" }}>SSL secured</p>
             </div>
           </motion.div>
         )}
@@ -267,50 +285,47 @@ export function DemoEmailGrowth() {
   }, []);
 
   return (
-    <div className="bg-white rounded-xl border border-[color:var(--border)] p-3 shadow-sm h-full overflow-hidden">
-      {/* Counter */}
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[9px] font-bold text-[color:var(--fg-subtle)] uppercase">Subscribers</span>
+    <div className="bg-[color:var(--bd-dark)] rounded-2xl p-4 h-full overflow-hidden border border-white/[0.06]">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[9px] font-bold text-white/40 uppercase tracking-wider">Subscribers</span>
         <motion.span
           key={count}
           initial={{ y: -8, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           className="text-sm font-extrabold tabular-nums"
+          style={{ color: "#d3fd74" }}
         >
           {count}
         </motion.span>
       </div>
-      {/* Growth bar */}
-      <div className="h-6 bg-black/[0.03] rounded-md mb-2 flex items-end px-0.5 gap-px">
+      <div className="h-8 bg-white/[0.04] rounded-lg mb-3 flex items-end px-1 gap-0.5">
         {Array.from({ length: 12 }).map((_, i) => (
           <motion.div
             key={i}
-            className="flex-1 bg-black/80 rounded-t-sm"
+            className="flex-1 rounded-t-sm"
+            style={{ background: `linear-gradient(180deg, #d3fd74, #b0b0fe)` }}
             initial={{ height: 0 }}
             animate={{ height: `${20 + i * 5 + Math.sin(i) * 8}%` }}
             transition={{ duration: 0.5, delay: i * 0.05 }}
           />
         ))}
       </div>
-      {/* New subscriber notifications — fixed 3 slots */}
-      <div className="space-y-1">
+      <div className="space-y-1.5">
         {emails.slice(0, 3).map((email, i) => (
           <motion.div
             key={`slot-${i}`}
-            // Only render the most recent notification; older ones fade visually
-            // but are hidden from a11y tree via visibility
             animate={{ opacity: i === 0 ? 1 : 0 }}
             style={{ visibility: i === 0 ? "visible" : "hidden" }}
-            className="flex items-center gap-1.5 h-4"
+            className="flex items-center gap-2 h-5"
           >
-            <div className="w-3.5 h-3.5 rounded-full bg-green-100 text-green-700 flex items-center justify-center shrink-0">
-              <svg width="6" height="6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5v14M5 12h14" /></svg>
+            <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: "rgba(211,253,116,0.15)" }}>
+              <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="#d3fd74" strokeWidth="3"><path d="M12 5v14M5 12h14" /></svg>
             </div>
             <motion.span
               key={email}
               initial={{ opacity: 0, x: -5 }}
               animate={{ opacity: 1, x: 0 }}
-              className="text-[8px] text-black/75 font-medium truncate"
+              className="text-[8px] text-white/60 font-medium truncate"
             >
               {email} subscribed
             </motion.span>
@@ -325,6 +340,7 @@ export function DemoEmailGrowth() {
 export function DemoDashboard() {
   const [activeTab, setActiveTab] = useState(0);
   const tabs = ["Views", "Clicks", "Search"];
+  const tabAccents = ["#d3fd74", "#b0b0fe", "#ffc72d"];
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -340,39 +356,39 @@ export function DemoDashboard() {
   ];
 
   return (
-    <div className="bg-white rounded-xl border border-[color:var(--border)] p-3 shadow-sm h-full overflow-hidden">
-      {/* Mini stat cards */}
-      <div className="grid grid-cols-3 gap-1 mb-2">
+    <div className="bg-[color:var(--bd-dark)] rounded-2xl p-4 h-full overflow-hidden border border-white/[0.06]">
+      <div className="grid grid-cols-3 gap-1.5 mb-3">
         {[
-          { label: "Views", value: "4.4K" },
-          { label: "Clicks", value: "1.9K" },
-          { label: "CTR", value: "43%" },
+          { label: "Views", value: "4.4K", accent: "#d3fd74" },
+          { label: "Clicks", value: "1.9K", accent: "#b0b0fe" },
+          { label: "CTR", value: "43%", accent: "#ffc72d" },
         ].map((s) => (
-          <div key={s.label} className="bg-black/[0.03] rounded-md p-1.5 text-center">
-            <p className="text-[10px] font-extrabold">{s.value}</p>
-            <p className="text-[6px] text-[color:var(--fg-subtle)] font-semibold uppercase">{s.label}</p>
+          <div key={s.label} className="bg-white/[0.04] rounded-lg p-2 text-center">
+            <p className="text-[11px] font-extrabold" style={{ color: s.accent }}>{s.value}</p>
+            <p className="text-[6px] text-white/30 font-semibold uppercase tracking-wider">{s.label}</p>
           </div>
         ))}
       </div>
-      {/* Tab selector (decorative — auto-cycles) */}
-      <div className="flex gap-1 mb-1.5" aria-hidden>
+      <div className="flex gap-1 mb-2" aria-hidden>
         {tabs.map((t, i) => (
           <span
             key={t}
-            className={`text-[7px] font-bold px-1.5 py-0.5 rounded transition-all ${
-              activeTab === i ? "bg-black text-white" : "bg-black/10 text-black/70"
-            }`}
+            className="text-[7px] font-bold px-2 py-0.5 rounded-full transition-all duration-300"
+            style={{
+              backgroundColor: activeTab === i ? tabAccents[i] : "rgba(255,255,255,0.06)",
+              color: activeTab === i ? "#1a0a2e" : "rgba(255,255,255,0.4)",
+            }}
           >
             {t}
           </span>
         ))}
       </div>
-      {/* Mini chart */}
-      <div className="h-10 flex items-end gap-px">
+      <div className="h-12 flex items-end gap-0.5">
         {chartData[activeTab].map((val, i) => (
           <motion.div
             key={`${activeTab}-${i}`}
-            className="flex-1 bg-black/70 rounded-t-sm"
+            className="flex-1 rounded-t-sm"
+            style={{ backgroundColor: tabAccents[activeTab] }}
             initial={{ height: 0 }}
             animate={{ height: `${val}%` }}
             transition={{ duration: 0.4, delay: i * 0.03 }}

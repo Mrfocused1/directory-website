@@ -21,6 +21,7 @@ export const users = pgTable("users", {
   avatarUrl: text("avatar_url"),
   stripeCustomerId: text("stripe_customer_id"),
   plan: varchar("plan", { length: 32 }).notNull().default("free"), // free | creator | pro | agency
+  freeBuildUsedAt: timestamp("free_build_used_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

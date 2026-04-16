@@ -386,6 +386,14 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
       .set({ isPublished: true, lastSyncAt: new Date() })
       .where(eq(sites.id, siteId));
 
+    // Stamp the user's free-build-used flag so they can't delete + re-create
+    // on the free plan. Paid plans ignore this field entirely.
+    if (userPlan === "free") {
+      await database.update(users)
+        .set({ freeBuildUsedAt: new Date() })
+        .where(eq(users.id, site.userId));
+    }
+
     // Blow away the 5-minute CDN cache on the public tenant root so
     // visitors see the freshly-synced posts immediately instead of
     // up to 5 minutes of stale HTML.

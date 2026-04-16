@@ -117,6 +117,10 @@ export default function AnalyticsDashboard() {
             </p>
           </div>
 
+          {/* Everything below is gated behind analytics_basic so free
+              users don't see partial stats then hit a lock on charts. */}
+          <FeatureGate feature="analytics_basic">
+
           {/* Summary stat cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 mb-6 sm:mb-8">
             <StatCard label="Total Views" value={summary.totalViews.toLocaleString()} change={summary.viewsChange} />
@@ -234,6 +238,7 @@ export default function AnalyticsDashboard() {
               </li>
             </ul>
           </div>
+          </FeatureGate>
           </FeatureGate>
         </main>
       </div>

@@ -112,9 +112,27 @@ export default function NewsletterDashboard() {
             </div>
             <div className="flex items-center gap-2 self-start">
               {siteId && (
-                <a
-                  href={`/api/newsletter/export?siteId=${encodeURIComponent(siteId)}`}
-                  download
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const r = await fetch(`/api/newsletter/export?siteId=${encodeURIComponent(siteId)}`);
+                      if (!r.ok) {
+                        const msg = r.status === 403 ? "Export requires a Pro plan or higher." : "Export failed. Please try again.";
+                        alert(msg);
+                        return;
+                      }
+                      const blob = await r.blob();
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = r.headers.get("content-disposition")?.match(/filename="?([^"]+)"?/)?.[1] || "subscribers.csv";
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    } catch {
+                      alert("Export failed — check your connection and try again.");
+                    }
+                  }}
                   className="h-9 px-3 bg-black/5 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:bg-black/10 transition"
                   title="Download subscribers as CSV"
                 >
@@ -122,7 +140,7 @@ export default function NewsletterDashboard() {
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
                   </svg>
                   Export CSV
-                </a>
+                </button>
               )}
               <button
                 type="button"

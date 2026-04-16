@@ -90,14 +90,15 @@ export default function SharePage() {
 }
 
 function CopyCard({ title, description, value }: { title: string; description: string; value: string }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"idle" | "copied" | "failed">("idle");
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
+      setCopied("copied");
+      setTimeout(() => setCopied("idle"), 1800);
     } catch {
-      // ignore
+      setCopied("failed");
+      setTimeout(() => setCopied("idle"), 2500);
     }
   };
   return (
@@ -111,7 +112,7 @@ function CopyCard({ title, description, value }: { title: string; description: s
           onClick={copy}
           className="shrink-0 h-9 px-3 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-lg text-xs font-semibold hover:opacity-90 transition"
         >
-          {copied ? "Copied!" : "Copy"}
+          {copied === "copied" ? "Copied!" : copied === "failed" ? "Failed — try ⌘C" : "Copy"}
         </button>
       </div>
     </div>
@@ -119,14 +120,15 @@ function CopyCard({ title, description, value }: { title: string; description: s
 }
 
 function CodeBlock({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"idle" | "copied" | "failed">("idle");
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
+      setCopied("copied");
+      setTimeout(() => setCopied("idle"), 1800);
     } catch {
-      // ignore
+      setCopied("failed");
+      setTimeout(() => setCopied("idle"), 2500);
     }
   };
   return (
@@ -139,7 +141,7 @@ function CodeBlock({ value }: { value: string }) {
         onClick={copy}
         className="absolute top-2 right-2 h-7 px-2.5 bg-white/10 text-white rounded text-[11px] font-semibold hover:bg-white/20 transition"
       >
-        {copied ? "Copied!" : "Copy"}
+        {copied === "copied" ? "Copied!" : copied === "failed" ? "Failed" : "Copy"}
       </button>
     </div>
   );

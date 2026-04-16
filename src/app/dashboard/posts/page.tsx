@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import DashboardNav from "@/components/dashboard/DashboardNav";
 import { useSiteContext } from "@/components/dashboard/SiteContext";
+import { usePlan } from "@/components/plans/PlanProvider";
 import EmptyState from "@/components/dashboard/EmptyState";
 
 type Post = {
@@ -25,6 +26,7 @@ type Post = {
 
 export default function PostsPage() {
   const { selectedSite, refresh: refreshSites } = useSiteContext();
+  const { postLimit } = usePlan();
   const siteId = selectedSite?.id;
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -240,15 +242,28 @@ export default function PostsPage() {
             </p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <Link
-              href="/dashboard/posts/new"
-              className="h-9 px-4 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:opacity-90 transition"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-              New post
-            </Link>
+            {postLimit > 0 && posts.length >= postLimit ? (
+              <Link
+                href="/dashboard/account#plan"
+                className="h-9 px-4 bg-purple-50 text-purple-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:bg-purple-100 transition"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+                  <rect width="18" height="11" x="3" y="11" rx="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                {posts.length}/{postLimit} posts — upgrade
+              </Link>
+            ) : (
+              <Link
+                href="/dashboard/posts/new"
+                className="h-9 px-4 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:opacity-90 transition"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                New post{postLimit > 0 ? ` · ${posts.length}/${postLimit}` : ""}
+              </Link>
+            )}
             {/* Mobile-only layout toggle. Desktop keeps its natural
                 responsive flow (3-up at sm, 4-up at lg) regardless. */}
             <div className="flex items-center gap-2">

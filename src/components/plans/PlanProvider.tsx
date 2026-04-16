@@ -16,6 +16,7 @@ import {
 type PlanContextValue = {
   planId: PlanId;
   planName: string;
+  postLimit: number; // 0 = unlimited
   can: (feature: FeatureKey) => boolean;
   requiredPlan: (feature: FeatureKey) => string;
   requiredPlanId: (feature: FeatureKey) => PlanId;
@@ -45,6 +46,7 @@ export default function PlanProvider({
   const value: PlanContextValue = {
     planId,
     planName: plan.name,
+    postLimit: plan.postLimit,
     can: (feature) => hasFeature(planId, feature),
     requiredPlan: (feature) => requiredPlanFor(feature).name,
     requiredPlanId: (feature) => requiredPlanFor(feature).id,

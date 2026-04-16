@@ -129,8 +129,6 @@ function OnboardingContent() {
       clearTimeout(pollRef.current);
       pollRef.current = null;
     }
-    setStep("processing");
-
     try {
       const cleanHandle = handle.replace(/^@/, "").trim();
 
@@ -196,6 +194,10 @@ function OnboardingContent() {
         siteId = data.siteId;
         setCurrentSiteId(data.siteId);
       }
+
+      // Only show the processing spinner AFTER the API accepted the build.
+      // This avoids a false-progress state when the API rejects with 403.
+      setStep("processing");
 
       const data = { siteId };
 

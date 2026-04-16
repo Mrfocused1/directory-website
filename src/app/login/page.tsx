@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -40,6 +40,15 @@ function LoginContent() {
   const [message, setMessage] = useState<string | null>(null);
 
   const supabase = createClient();
+
+  // Redirect already-logged-in users straight to the dashboard
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        router.replace(nextPath);
+      }
+    });
+  }, [supabase, router, nextPath]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

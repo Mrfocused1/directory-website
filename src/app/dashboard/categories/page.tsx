@@ -377,7 +377,8 @@ export default function CategoriesPage() {
                         <button
                           type="button"
                           onClick={() => deleteCategory(c.name)}
-                          className="h-8 px-2 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-lg transition"
+                          disabled={c.name.toLowerCase() === "uncategorized"}
+                          className="h-8 px-2 text-xs font-semibold text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                           aria-label={`Delete ${c.name}`}
                         >
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

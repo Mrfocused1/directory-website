@@ -90,6 +90,7 @@ export default function BuildProgressClient({
     try {
       const res = await fetch(`/api/pipeline/retry?siteId=${siteId}`, { method: "POST" });
       if (res.ok) {
+        if (pollRef.current) clearTimeout(pollRef.current);
         setStatus({
           step: "scrape",
           progress: 0,

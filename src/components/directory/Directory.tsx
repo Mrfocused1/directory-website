@@ -40,11 +40,11 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
   const analyticsId = siteId || site.slug;
   const allCategories = ["All", ...site.categories];
 
-  type SortOption = "newest" | "oldest" | "title-az" | "title-za";
+  type SortOption = "default" | "newest" | "oldest" | "title-az" | "title-za";
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
   const [platformFilter, setPlatformFilter] = useState<Platform | "all">("all");
-  const [sortBy, setSortBy] = useState<SortOption>("newest");
+  const [sortBy, setSortBy] = useState<SortOption>("default");
   const [selected, setSelected] = useState<SitePost | null>(
     initialShortcode ? posts.find((p) => p.shortcode === initialShortcode) ?? null : null,
   );
@@ -80,9 +80,11 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
           (p.transcript && p.transcript.toLowerCase().includes(q)),
       );
     }
-    if (sortBy !== "newest") {
+    if (sortBy !== "default") {
       list = [...list].sort((a, b) => {
         switch (sortBy) {
+          case "newest":
+            return (b.takenAt ?? "").localeCompare(a.takenAt ?? "");
           case "oldest":
             return (a.takenAt ?? "").localeCompare(b.takenAt ?? "");
           case "title-az":
@@ -285,6 +287,7 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
                 className="appearance-none h-9 pl-3 pr-8 bg-[color:var(--card)] border border-[color:var(--border)] rounded-full text-xs font-semibold text-[color:var(--fg)] cursor-pointer focus:outline-none focus:border-[color:var(--fg)] transition"
                 aria-label="Sort posts"
               >
+                <option value="default">Featured</option>
                 <option value="newest">Newest first</option>
                 <option value="oldest">Oldest first</option>
                 <option value="title-az">Title A–Z</option>

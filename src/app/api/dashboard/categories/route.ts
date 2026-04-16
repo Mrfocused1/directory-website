@@ -16,7 +16,8 @@ async function ensureSiteOwnership(siteId: string, userId: string) {
 
 /**
  * GET /api/dashboard/categories?siteId=xxx
- * Returns distinct categories across the site's posts with counts.
+ * Returns categories with counts, ordered by the saved sites.categories array.
+ * Categories that exist in posts but not in the array are appended at the end.
  */
 export async function GET(request: NextRequest) {
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
@@ -29,29 +30,47 @@ export async function GET(request: NextRequest) {
   const ok = await ensureSiteOwnership(siteId, user.id);
   if (!ok) return NextResponse.json({ error: "Site not found" }, { status: 404 });
 
-  const rows = await db
-    .select({
-      category: posts.category,
-      count: sql<number>`cast(count(*) as int)`,
-    })
-    .from(posts)
-    .where(eq(posts.siteId, siteId))
-    .groupBy(posts.category)
-    .orderBy(sql`count(*) desc`);
+  const [rows, site] = await Promise.all([
+    db
+      .select({
+        category: posts.category,
+        count: sql<number>`cast(count(*) as int)`,
+      })
+      .from(posts)
+      .where(eq(posts.siteId, siteId))
+      .groupBy(posts.category),
+    db.query.sites.findFirst({
+      where: eq(sites.id, siteId),
+      columns: { categories: true },
+    }),
+  ]);
 
-  return NextResponse.json({
-    categories: rows.map((r) => ({ name: r.category, count: r.count ?? 0 })),
-  });
+  const countMap = new Map(rows.map((r) => [r.category, r.count ?? 0]));
+  const savedOrder = (site?.categories as string[]) ?? [];
+
+  // Build ordered list: saved order first, then any categories from posts not in the array
+  const result: { name: string; count: number }[] = [];
+  const seen = new Set<string>();
+
+  for (const name of savedOrder) {
+    seen.add(name);
+    result.push({ name, count: countMap.get(name) ?? 0 });
+  }
+
+  for (const [name, count] of countMap) {
+    if (!seen.has(name)) {
+      result.push({ name, count });
+    }
+  }
+
+  return NextResponse.json({ categories: result });
 }
 
 /**
  * PATCH /api/dashboard/categories
  * Body: { siteId, action: "rename"|"merge", from: string, to: string }
  *
- * Rename: updates every post where category = `from` to `to`.
- * Merge:  same effect — moves all posts from one category into another
- *         that already exists. We keep them as separate actions so the
- *         UI can warn the user when `to` already exists ("this is a merge").
+ * Updates posts AND the sites.categories array to keep them in sync.
  */
 export async function PATCH(request: NextRequest) {
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
@@ -80,13 +99,35 @@ export async function PATCH(request: NextRequest) {
   const ok = await ensureSiteOwnership(siteId, user.id);
   if (!ok) return NextResponse.json({ error: "Site not found" }, { status: 404 });
 
+  // Update posts
   const result = await db
     .update(posts)
     .set({ category: toTrim })
     .where(and(eq(posts.siteId, siteId), eq(posts.category, fromTrim)))
     .returning({ id: posts.id });
 
-  if (result.length > 0) await revalidateTenantBySiteId(siteId);
+  // Update sites.categories array: replace `from` with `to`, or remove `from` if merging into existing
+  const site = await db.query.sites.findFirst({
+    where: eq(sites.id, siteId),
+    columns: { categories: true },
+  });
+  const cats = (site?.categories as string[]) ?? [];
+  const toExists = cats.some((c) => c.toLowerCase() === toTrim.toLowerCase() && c.toLowerCase() !== fromTrim.toLowerCase());
+
+  let updatedCats: string[];
+  if (toExists) {
+    // Merge: remove the source, keep the target
+    updatedCats = cats.filter((c) => c.toLowerCase() !== fromTrim.toLowerCase());
+  } else {
+    // Rename: replace in-place
+    updatedCats = cats.map((c) => (c.toLowerCase() === fromTrim.toLowerCase() ? toTrim : c));
+  }
+
+  await db.update(sites).set({ categories: updatedCats }).where(eq(sites.id, siteId));
+
+  if (result.length > 0 || cats.length !== updatedCats.length) {
+    await revalidateTenantBySiteId(siteId);
+  }
 
   return NextResponse.json({ updated: result.length, from: fromTrim, to: toTrim });
 }
@@ -94,10 +135,6 @@ export async function PATCH(request: NextRequest) {
 /**
  * POST /api/dashboard/categories
  * Body: { siteId, action: "add"|"delete"|"reorder", ... }
- *
- * add:     { name: string } — adds name to site.categories array
- * delete:  { name: string } — moves posts to "Uncategorized", removes from array
- * reorder: { order: string[] } — replaces site.categories with new order
  */
 export async function POST(request: NextRequest) {
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
@@ -143,6 +180,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing category name" }, { status: 400 });
     }
 
+    // Guard: cannot delete "Uncategorized" — that's the fallback target
+    if (name.toLowerCase() === "uncategorized") {
+      return NextResponse.json({ error: "Cannot delete the Uncategorized category" }, { status: 400 });
+    }
+
     const moved = await db
       .update(posts)
       .set({ category: "Uncategorized" })
@@ -156,6 +198,12 @@ export async function POST(request: NextRequest) {
     const updated = ((site?.categories as string[]) ?? []).filter(
       (c: string) => c.toLowerCase() !== name.toLowerCase(),
     );
+
+    // Ensure "Uncategorized" is in the array if posts were moved there
+    if (moved.length > 0 && !updated.some((c) => c.toLowerCase() === "uncategorized")) {
+      updated.push("Uncategorized");
+    }
+
     await db.update(sites)
       .set({ categories: updated })
       .where(eq(sites.id, siteId));

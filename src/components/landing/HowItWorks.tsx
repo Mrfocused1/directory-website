@@ -78,7 +78,7 @@ const STEPS = [
 
 export default function HowItWorks() {
   return (
-    <section className="bg-[color:var(--bd-dark)] px-6 sm:px-10 pb-24 pt-20 -mx-6 sm:-mx-10">
+    <section className="bg-[color:var(--bd-dark)] px-6 sm:px-10 pb-24 pt-20">
       <div className="max-w-[90rem] mx-auto">
         <div className="text-center mb-16">
           <div className="eyebrow text-white/60 justify-center mb-4 inline-flex">

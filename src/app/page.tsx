@@ -135,7 +135,7 @@ const PRICING = [
 
 export default function LandingPage() {
   return (
-    <div className="marketing-theme min-h-screen">
+    <div className="marketing-theme min-h-screen overflow-x-hidden">
       {/* ── HERO (dark purple) ─────────────────────────────────────── */}
       <div className="bg-[color:var(--bd-dark)] text-white">
         <MarketingNav />

@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { posts, sites } from "@/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { posts, sites, users } from "@/db/schema";
+import { eq, and, sql } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
 import { revalidateTenantBySiteId } from "@/lib/cache";
+import { uploadBuffer } from "@/lib/pipeline/storage";
+import { getPlan, type PlanId } from "@/lib/plans";
+import crypto from "node:crypto";
 
 /**
  * GET /api/dashboard/posts?siteId=xxx
@@ -53,6 +56,190 @@ export async function GET(request: NextRequest) {
       createdAt: p.createdAt.toISOString(),
     })),
   });
+}
+
+/**
+ * POST /api/dashboard/posts
+ *
+ * Manual-upload endpoint — the creator hand-builds a post with
+ * their own thumbnail + media + caption + title + category, instead
+ * of (or in addition to) the scraper pipeline. Available to every
+ * plan. Does NOT consume any Apify/Groq/Anthropic budget.
+ *
+ * Request is multipart/form-data with these fields:
+ *   siteId     string  required — must be owned by the caller
+ *   caption    string  required
+ *   title      string  optional — defaults to first 80 chars of caption
+ *   category   string  optional — defaults to "Uncategorized"
+ *   platformUrl string optional — link to the original social post
+ *   type       "image"|"video" — inferred from media file if omitted
+ *   thumbnail  file    required (≤ 5 MB, image/*)
+ *   media      file    optional (≤ 100 MB, image/* or video/*)
+ *
+ * The 100 MB cap is our own guard, not R2's — R2 supports 5 TB/file.
+ * We enforce it so a user can't run up storage cost uploading a
+ * 4K feature film.
+ *
+ * sortOrder = max(existing) + 1 so new posts always append.
+ * Post count is capped at the plan's postLimit.
+ */
+const MAX_THUMB_BYTES = 5 * 1024 * 1024;   // 5 MB
+const MAX_MEDIA_BYTES = 100 * 1024 * 1024; // 100 MB
+const VALID_PLANS = new Set(["free", "creator", "pro", "agency"]);
+
+export async function POST(request: NextRequest) {
+  if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+  const user = await getApiUser();
+  if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return NextResponse.json({ error: "Expected multipart/form-data" }, { status: 400 });
+  }
+
+  const siteId = String(form.get("siteId") || "");
+  const caption = String(form.get("caption") || "").trim();
+  const titleRaw = String(form.get("title") || "").trim();
+  const categoryRaw = String(form.get("category") || "").trim();
+  const platformUrl = String(form.get("platformUrl") || "").trim() || null;
+  const typeRaw = String(form.get("type") || "").trim();
+  const thumbFile = form.get("thumbnail");
+  const mediaFile = form.get("media");
+
+  if (!siteId || !/^[0-9a-f-]{36}$/i.test(siteId)) {
+    return NextResponse.json({ error: "Missing or invalid siteId" }, { status: 400 });
+  }
+  if (!caption) {
+    return NextResponse.json({ error: "Caption is required" }, { status: 400 });
+  }
+  if (caption.length > 5000) {
+    return NextResponse.json({ error: "Caption too long (max 5000 chars)" }, { status: 400 });
+  }
+  if (!(thumbFile instanceof File) || thumbFile.size === 0) {
+    return NextResponse.json({ error: "Thumbnail file is required" }, { status: 400 });
+  }
+  if (thumbFile.size > MAX_THUMB_BYTES) {
+    return NextResponse.json({ error: "Thumbnail too large (max 5 MB)" }, { status: 400 });
+  }
+  if (!thumbFile.type.startsWith("image/")) {
+    return NextResponse.json({ error: "Thumbnail must be an image" }, { status: 400 });
+  }
+  if (mediaFile instanceof File && mediaFile.size > 0) {
+    if (mediaFile.size > MAX_MEDIA_BYTES) {
+      return NextResponse.json({ error: "Media too large (max 100 MB)" }, { status: 400 });
+    }
+    if (!mediaFile.type.startsWith("image/") && !mediaFile.type.startsWith("video/")) {
+      return NextResponse.json({ error: "Media must be an image or video" }, { status: 400 });
+    }
+  }
+
+  // Ownership — the site must belong to the caller.
+  const site = await db.query.sites.findFirst({
+    where: and(eq(sites.id, siteId), eq(sites.userId, user.id)),
+    columns: { id: true, slug: true, userId: true },
+  });
+  if (!site) return NextResponse.json({ error: "Site not found" }, { status: 404 });
+
+  // Plan-scoped post cap.
+  const ownerRow = await db.query.users.findFirst({
+    where: eq(users.id, user.id),
+    columns: { plan: true },
+  });
+  const planId: PlanId = (VALID_PLANS.has(ownerRow?.plan as string) ? ownerRow!.plan : "free") as PlanId;
+  const plan = getPlan(planId);
+  if (plan.postLimit > 0) {
+    const [{ c }] = await db
+      .select({ c: sql<number>`cast(count(*) as int)` })
+      .from(posts)
+      .where(eq(posts.siteId, siteId));
+    if (c >= plan.postLimit) {
+      return NextResponse.json(
+        {
+          error: `${plan.name} plan is capped at ${plan.postLimit} posts. Upgrade or delete something first.`,
+          reason: "post_limit_reached",
+          limit: plan.postLimit,
+        },
+        { status: 403 },
+      );
+    }
+  }
+
+  // Infer post type from media file if not explicitly provided.
+  let postType: "video" | "image" | "carousel" = "image";
+  if (typeRaw === "video" || typeRaw === "image" || typeRaw === "carousel") {
+    postType = typeRaw;
+  } else if (mediaFile instanceof File && mediaFile.type.startsWith("video/")) {
+    postType = "video";
+  }
+
+  // Shortcode: derive a random-ish id so the manual post has a stable
+  // public URL even if the scraper later ingests something with the
+  // same shortcode (we prefix with "m-" so these are never mistaken
+  // for real Instagram shortcodes).
+  const shortcode = "m-" + crypto.randomBytes(6).toString("base64url");
+  const title = (titleRaw || caption.split("\n")[0] || "Untitled").slice(0, 80);
+  const category = categoryRaw || "Uncategorized";
+
+  // Upload thumbnail (required) + media (optional) to the active
+  // provider. Paths mirror the pipeline layout so the public page
+  // renders identically.
+  let thumbUrl = "";
+  let mediaUrl: string | null = null;
+  try {
+    const thumbBuf = Buffer.from(await thumbFile.arrayBuffer());
+    const thumbExt = (thumbFile.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
+    thumbUrl = await uploadBuffer(
+      `sites/${site.slug}/thumbs/${shortcode}.${thumbExt}`,
+      thumbBuf,
+      thumbFile.type,
+    );
+    if (!thumbUrl) throw new Error("thumbnail upload returned empty URL");
+
+    if (mediaFile instanceof File && mediaFile.size > 0) {
+      const mediaBuf = Buffer.from(await mediaFile.arrayBuffer());
+      const mediaExt = (mediaFile.type.split("/")[1] || "mp4").replace("jpeg", "jpg");
+      mediaUrl = await uploadBuffer(
+        `sites/${site.slug}/media/${shortcode}.${mediaExt}`,
+        mediaBuf,
+        mediaFile.type,
+      );
+      if (!mediaUrl) mediaUrl = null; // non-fatal, thumbnail alone is enough
+    }
+  } catch (err) {
+    console.error("[posts:manual-upload] storage failed:", err);
+    return NextResponse.json({ error: "Failed to upload media" }, { status: 500 });
+  }
+
+  // sortOrder: MAX + 1 so the new post appends.
+  const [maxRow] = await db
+    .select({ max: sql<number>`coalesce(max(${posts.sortOrder}), -1)` })
+    .from(posts)
+    .where(eq(posts.siteId, siteId));
+  const nextSortOrder = (maxRow?.max ?? -1) + 1;
+
+  const [created] = await db
+    .insert(posts)
+    .values({
+      siteId,
+      shortcode,
+      type: postType,
+      caption,
+      title,
+      category,
+      takenAt: new Date(),
+      thumbUrl,
+      mediaUrl,
+      platformUrl,
+      isVisible: true,
+      sortOrder: nextSortOrder,
+    })
+    .returning();
+
+  await revalidateTenantBySiteId(siteId);
+
+  return NextResponse.json({ post: created }, { status: 201 });
 }
 
 /**

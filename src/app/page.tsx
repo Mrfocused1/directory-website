@@ -4,6 +4,7 @@ import MarketingFooter from "@/components/marketing/MarketingFooter";
 import HowItWorks from "@/components/landing/HowItWorks";
 import PricingButton from "@/components/landing/PricingButton";
 import ContactForm from "@/components/landing/ContactForm";
+import HeroDemo from "@/components/landing/HeroDemo";
 import AutoScrapeDemo from "@/components/marketing/demos/AutoScrapeDemo";
 import TranscriptionDemo from "@/components/marketing/demos/TranscriptionDemo";
 import ReferencesDemo from "@/components/marketing/demos/ReferencesDemo";
@@ -175,39 +176,8 @@ export default function LandingPage() {
               </p>
             </div>
 
-            {/* Device mockup — pastiche of nory's phone-on-warm-bg */}
-            <div className="relative">
-              <div className="aspect-[4/5] bg-gradient-to-br from-[color:var(--bd-maroon)] via-[color:var(--bd-purple)] to-[color:var(--bd-dark)] rounded-[2rem] p-6 shadow-2xl overflow-hidden">
-                <div className="h-full bg-[color:var(--bd-cream)] rounded-[1.5rem] p-5 flex flex-col">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-[color:var(--bd-grey)]">
-                      buildmy.directory/you
-                    </span>
-                    <span className="w-6 h-6 rounded-full bg-[color:var(--bd-lime)] flex items-center justify-center text-[color:var(--bd-dark)] text-xs font-bold">
-                      Y
-                    </span>
-                  </div>
-                  <div className="flex-1 grid grid-cols-2 gap-2">
-                    {[
-                      "bg-[color:var(--bd-lilac)]",
-                      "bg-[color:var(--bd-lime)]",
-                      "bg-[color:var(--bd-maroon)]",
-                      "bg-[color:var(--bd-purple)]",
-                      "bg-[color:var(--bd-green)]",
-                      "bg-[color:var(--bd-cream-2)]",
-                    ].map((cls, i) => (
-                      <div key={i} className={`rounded-xl ${cls} aspect-square`} />
-                    ))}
-                  </div>
-                  <div className="mt-3 bg-white rounded-xl px-3 py-2 flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[color:var(--bd-grey)]">
-                      <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
-                    </svg>
-                    <span className="text-xs text-[color:var(--bd-grey)]">Search posts…</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* Animated device mockup — loops through search → filter → detail → references → YouTube */}
+            <HeroDemo />
           </div>
         </section>
       </div>

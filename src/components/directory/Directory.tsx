@@ -21,15 +21,22 @@ import { trackPostClick, trackSearch, trackCategoryClick } from "@/lib/analytics
 
 const PAGE_SIZE = 12;
 
+type DirectoryFeatures = {
+  newsletter?: boolean;
+  requests?: boolean;
+  bookmarks?: boolean;
+};
+
 type DirectoryProps = {
   site: SiteConfig;
   siteId?: string; // DB site ID for analytics
   posts: SitePost[];
   initialShortcode?: string;
   branding?: SiteBranding;
+  features?: DirectoryFeatures;
 };
 
-export default function Directory({ site, siteId, posts, initialShortcode, branding }: DirectoryProps) {
+export default function Directory({ site, siteId, posts, initialShortcode, branding, features }: DirectoryProps) {
   const analyticsId = siteId || site.slug;
   const allCategories = ["All", ...site.categories];
 
@@ -420,14 +427,16 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
             </div>
           )}
 
-          {/* Subscribe banner */}
-          <div className="mt-14 max-w-2xl mx-auto animate-fade-in">
-            <SubscribeBanner
-              siteId={analyticsId}
-              siteName={site.displayName}
-              categories={site.categories}
-            />
-          </div>
+          {/* Subscribe banner — only when owner's plan includes newsletter */}
+          {features?.newsletter !== false && (
+            <div className="mt-14 max-w-2xl mx-auto animate-fade-in">
+              <SubscribeBanner
+                siteId={analyticsId}
+                siteName={site.displayName}
+                categories={site.categories}
+              />
+            </div>
+          )}
 
           {/* Powered-by footer (respects remove_branding / white_label) */}
           {branding && <DirectoryBranding branding={branding} />}
@@ -436,7 +445,7 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
 
       <PostModal post={selected} onClose={() => setSelected(null)} siteId={analyticsId} />
       <BackToTop />
-      <FloatingSubscribe siteId={analyticsId} />
+      {features?.newsletter !== false && <FloatingSubscribe siteId={analyticsId} />}
     </div>
     </BookmarkProvider>
   );

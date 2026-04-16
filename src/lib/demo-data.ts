@@ -21,6 +21,7 @@ export async function getSiteData(tenantSlug: string): Promise<{
   site: SiteConfig;
   posts: SitePost[];
   branding: SiteBranding;
+  features: { newsletter: boolean; requests: boolean; bookmarks: boolean };
 } | null> {
   if (db) {
     return getSiteDataFromDB(tenantSlug);
@@ -34,6 +35,7 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
   site: SiteConfig;
   posts: SitePost[];
   branding: SiteBranding;
+  features: { newsletter: boolean; requests: boolean; bookmarks: boolean };
 } | null> {
   const site = await db!.query.sites.findFirst({
     where: eq(sites.slug, tenantSlug),
@@ -143,7 +145,17 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
     showPoweredBy: !canRemoveBranding,
   };
 
-  return { siteId: site.id, site: siteConfig, posts: postList, branding };
+  return {
+    siteId: site.id,
+    site: siteConfig,
+    posts: postList,
+    branding,
+    features: {
+      newsletter: hasFeature(planId, "newsletter"),
+      requests: hasFeature(planId, "requests"),
+      bookmarks: hasFeature(planId, "bookmarks"),
+    },
+  };
 }
 
 // ─── Demo data fallback ─────────────────────────────────────────────
@@ -186,6 +198,7 @@ function getDemoSiteData(tenantSlug: string): {
   site: SiteConfig;
   posts: SitePost[];
   branding: SiteBranding;
+  features: { newsletter: boolean; requests: boolean; bookmarks: boolean };
 } {
   const name = tenantSlug.charAt(0).toUpperCase() + tenantSlug.slice(1);
 
@@ -235,5 +248,6 @@ function getDemoSiteData(tenantSlug: string): {
     site: demoSite,
     posts: demoPosts,
     branding: { customBrandName: null, customBrandUrl: null, showPoweredBy: true },
+    features: { newsletter: true, requests: true, bookmarks: true },
   };
 }

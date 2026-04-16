@@ -95,7 +95,7 @@ export default async function TenantDirectoryPage({
         // eslint-disable-next-line react/no-danger
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <Directory site={data.site} posts={data.posts} siteId={data.siteId} branding={data.branding} />
+      <Directory site={data.site} posts={data.posts} siteId={data.siteId} branding={data.branding} features={data.features} />
     </>
   );
 }

@@ -176,6 +176,7 @@ export default function DashboardPage() {
               <p className="text-sm text-[color:var(--fg-muted)]">Loading your directories...</p>
             </div>
           ) : sites.length === 0 ? (
+            canBuildMore ? (
             <EmptyState
               icon={
                 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -202,6 +203,19 @@ export default function DashboardPage() {
                 </li>
               </ul>
             </EmptyState>
+            ) : (
+            <EmptyState
+              icon={
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="18" height="11" x="3" y="11" rx="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              }
+              title="Free build used"
+              description="Your free directory build has been used. Upgrade to Creator to build more directories, sync your content, and unlock analytics, newsletters, and more."
+              action={{ href: "/dashboard/account#plan", label: "Upgrade to Creator — $19/mo" }}
+            />
+            )
           ) : (
             <div className="space-y-4">
               {sites.map((site) => (
@@ -253,6 +267,7 @@ export default function DashboardPage() {
                           See progress
                         </Link>
                       )}
+                      {site.isPublished && (
                       <Link
                         href={`/${site.slug}`}
                         className="h-9 px-4 bg-black/5 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:bg-black/10 transition"
@@ -262,6 +277,7 @@ export default function DashboardPage() {
                           <path d="M7 17L17 7M17 7H9M17 7v8" />
                         </svg>
                       </Link>
+                      )}
                       {syncStatus?.enabled ? (
                         <button
                           type="button"

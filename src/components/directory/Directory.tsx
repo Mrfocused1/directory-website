@@ -278,32 +278,31 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
             </nav>
           )}
 
-          {/* Sort dropdown */}
-          <div className="flex justify-end mb-4 px-1 sm:px-0 animate-fade-in">
-            <div className="relative">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="appearance-none h-9 pl-3 pr-8 bg-[color:var(--card)] border border-[color:var(--border)] rounded-full text-xs font-semibold text-[color:var(--fg)] cursor-pointer focus:outline-none focus:border-[color:var(--fg)] transition"
-                aria-label="Sort posts"
-              >
-                <option value="default">Featured</option>
-                <option value="newest">Newest first</option>
-                <option value="oldest">Oldest first</option>
-                <option value="title-az">Title A–Z</option>
-                <option value="title-za">Title Z–A</option>
-              </select>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[color:var(--fg-muted)]">
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </div>
-          </div>
-
           {/* Grid — admin controls MOBILE column count (2 or 3) via the
               dashboard. Desktop always uses the natural responsive
               progression (3 at sm, 4 at lg) regardless of the toggle. */}
           {filtered.length > 0 ? (
             <>
+              {/* Sort dropdown */}
+              <div className="flex justify-end mb-4 px-1 sm:px-0 animate-fade-in">
+                <div className="relative">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as SortOption)}
+                    className="appearance-none h-9 pl-3 pr-8 bg-[color:var(--card)] border border-[color:var(--border)] rounded-full text-xs font-semibold text-[color:var(--fg)] cursor-pointer focus:outline-none focus:border-[color:var(--fg)] transition"
+                    aria-label="Sort posts"
+                  >
+                    <option value="default">Featured</option>
+                    <option value="newest">Newest first</option>
+                    <option value="oldest">Oldest first</option>
+                    <option value="title-az">Title A–Z</option>
+                    <option value="title-za">Title Z–A</option>
+                  </select>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[color:var(--fg-muted)]">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </div>
+              </div>
               <div
                 className={`grid gap-2 sm:gap-3 px-1 sm:px-0 animate-fade-in sm:grid-cols-3 lg:grid-cols-4 ${
                   site.gridColumns === 3 ? "grid-cols-3" : "grid-cols-2"

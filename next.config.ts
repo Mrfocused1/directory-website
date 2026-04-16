@@ -10,9 +10,14 @@ const nextConfig: NextConfig = {
         hostname: "*.public.blob.vercel-storage.com",
       },
       {
-        // Cloudflare R2 or S3 (when you switch storage)
+        // Cloudflare R2 bucket (signed S3-compatible endpoint)
         protocol: "https",
         hostname: "*.r2.cloudflarestorage.com",
+      },
+      {
+        // Cloudflare R2 public-dev subdomain (pub-<hash>.r2.dev)
+        protocol: "https",
+        hostname: "pub-*.r2.dev",
       },
       {
         // Instagram CDN for profile pictures

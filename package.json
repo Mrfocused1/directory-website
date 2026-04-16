@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1030.0",
     "@neondatabase/serverless": "^1.0.2",
     "@sentry/nextjs": "^10.48.0",
     "@supabase/ssr": "^0.10.2",

@@ -5,7 +5,7 @@ const PRODUCT_LINKS = [
   { href: "/#features", label: "Features" },
   { href: "/#pricing", label: "Pricing" },
   { href: "/onboarding", label: "Get started" },
-  { href: "/demo", label: "Live demo" },
+  { href: "/#how", label: "How it works" },
 ];
 
 const COMPANY_LINKS = [

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
 import Link from "next/link";
 import MarketingNav from "@/components/marketing/MarketingNav";
@@ -19,6 +19,7 @@ export default function OnboardingClient() {
 
 function OnboardingContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [step, setStep] = useState<Step>("handle");
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -96,6 +97,7 @@ function OnboardingContent() {
         });
         if (status.status === "completed") {
           setStep("done");
+            router.replace("/onboarding?complete=1");
           setIsBuilding(false);
           return;
         }
@@ -221,6 +223,7 @@ function OnboardingContent() {
 
           if (status.status === "completed") {
             setStep("done");
+            router.replace("/onboarding?complete=1");
             setIsBuilding(false);
             return; // Stop polling
           } else if (status.status === "failed") {

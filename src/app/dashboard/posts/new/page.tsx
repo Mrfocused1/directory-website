@@ -68,6 +68,7 @@ export default function NewPostPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     setError(null);
     if (!selectedSite) { setError("No site selected."); return; }
     if (!thumbnail) { setError("Thumbnail is required."); return; }

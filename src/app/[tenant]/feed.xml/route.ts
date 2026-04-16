@@ -35,6 +35,19 @@ export async function GET(
     return new NextResponse("Not found", { status: 404 });
   }
 
+  if (!data.posts || data.posts.length === 0) {
+    const emptyXml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel>
+  <title>${escapeXml(data.site.displayName)} — Directory</title>
+  <link>${SITE_URL}/${tenant}</link>
+  <description>No posts yet.</description>
+</channel></rss>`;
+    return new NextResponse(emptyXml, {
+      status: 200,
+      headers: { "Content-Type": "application/rss+xml; charset=utf-8" },
+    });
+  }
+
   const site = data.site;
   const baseUrl = `${SITE_URL}/${tenant}`;
   const feedUrl = `${baseUrl}/feed.xml`;

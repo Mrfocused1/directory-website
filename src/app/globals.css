@@ -76,7 +76,7 @@ html, body {
   --bd-lime: #d3fd74;          /* bright yellow-green accent */
   --bd-maroon: #3c0304;        /* deep burgundy card */
   --bd-green: #053017;         /* forest green card */
-  --bd-grey: #69616b;          /* muted text on cream */
+  --bd-grey: #56505e;          /* muted text on cream — 6.8:1 on bd-cream */
   --bd-dark-faded: #3532330d;  /* faint divider on cream */
   --bd-light-faded: #ffffff1a; /* faint divider on dark */
 

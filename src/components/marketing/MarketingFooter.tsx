@@ -20,7 +20,7 @@ export default function MarketingFooter() {
             <ul className="space-y-3 text-sm">
               <li><Link href="/#pricing" className="hover:text-white">Pricing</Link></li>
               <li><Link href="/#how" className="hover:text-white">How it works</Link></li>
-              <li><Link href="/demo" className="hover:text-white">Demo</Link></li>
+              <li><Link href="/#how" className="hover:text-white">How it works</Link></li>
               <li><Link href="/login" className="hover:text-white">Login</Link></li>
             </ul>
           </div>

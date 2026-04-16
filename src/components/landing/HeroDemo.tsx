@@ -166,14 +166,17 @@ export default function HeroDemo() {
                     transition={{ duration: 0.8, ease: "easeInOut" }}
                   >
                     {/* Video */}
-                    <div className="rounded-xl aspect-video relative overflow-hidden shrink-0" style={{ background: `linear-gradient(135deg, ${FILTERED[0].color}60, ${FILTERED[0].color}20)` }}>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <motion.div className="w-8 h-8 rounded-full bg-white/80 flex items-center justify-center" animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: Infinity }}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-[color:var(--bd-dark)] ml-0.5"><path d="M8 5v14l11-7z" /></svg>
-                        </motion.div>
-                      </div>
+                    <div className="rounded-xl aspect-video relative overflow-hidden shrink-0 bg-black">
+                      <video
+                        src="/hero-demo.mp4"
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
                       <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-black/10">
-                        <motion.div className="h-full bg-[color:var(--bd-dark)]" initial={{ width: "0%" }} animate={{ width: "65%" }} transition={{ duration: 2.5, ease: "linear" }} />
+                        <motion.div className="h-full bg-[color:var(--bd-lime)]" initial={{ width: "0%" }} animate={{ width: "65%" }} transition={{ duration: 2.5, ease: "linear" }} />
                       </div>
                     </div>
 

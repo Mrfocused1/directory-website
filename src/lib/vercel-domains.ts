@@ -65,13 +65,16 @@ export type DomainAvailability = {
 
 /**
  * Check if a specific domain is available for purchase.
+ * Uses the v1 registrar API (v4 was sunsetted Nov 2025).
  */
 export async function checkDomainAvailability(domain: string): Promise<DomainAvailability> {
-  const data = await vercelFetch(`/v4/domains/status?name=${encodeURIComponent(domain)}`);
+  const data = await vercelFetch(
+    `/v1/registrar/domains/${encodeURIComponent(domain)}/availability`,
+  );
   return {
     domain,
     available: data.available === true,
-    price: 0, // Will be filled by getDomainPrice
+    price: 0,
     renewal: 0,
     period: 1,
   };
@@ -79,13 +82,15 @@ export async function checkDomainAvailability(domain: string): Promise<DomainAva
 
 /**
  * Get the price for a domain.
+ * v1 registrar returns USD floats (e.g. 11.25).
  */
 export async function getDomainPrice(domain: string): Promise<{ price: number; period: number }> {
-  const data = await vercelFetch(`/v4/domains/price?name=${encodeURIComponent(domain)}`);
-  // Vercel returns price in USD (e.g. 9.99)
+  const data = await vercelFetch(
+    `/v1/registrar/domains/${encodeURIComponent(domain)}/price`,
+  );
   return {
-    price: Math.round((data.price ?? 0) * 100), // convert to cents
-    period: data.period ?? 1,
+    price: Math.round((data.purchasePrice ?? data.renewalPrice ?? 0) * 100),
+    period: data.years ?? 1,
   };
 }
 
@@ -164,13 +169,16 @@ export type RegisterResult = {
  * The cost is charged to your Vercel team billing.
  */
 export async function purchaseDomain(domain: string): Promise<RegisterResult> {
-  const data = await vercelFetch("/v5/domains/buy", {
-    method: "POST",
-    body: JSON.stringify({ name: domain }),
-  });
+  const data = await vercelFetch(
+    `/v1/registrar/domains/${encodeURIComponent(domain)}/buy`,
+    {
+      method: "POST",
+      body: JSON.stringify({ duration: 1, autoRenew: true }),
+    },
+  );
   return {
     domain,
-    created: data.created === true || data.purchased === true,
+    created: data.orderId != null || data.created === true,
   };
 }
 

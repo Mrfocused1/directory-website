@@ -312,6 +312,32 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
 
     await updateJob(siteId, "categorize", "completed", 100, `Categorized into ${detectedCategories.length} categories`);
 
+    // ── Reconcile sites.categories with actual post categories ──────
+    // After categorization, posts may have categories that differ from
+    // sites.categories (e.g. LLM assigned a new label, or some
+    // categories are no longer used). Query the distinct set from posts
+    // and update sites.categories — preserving existing order and
+    // appending new ones at the end.
+    const distinctRows = await database
+      .selectDistinct({ category: posts.category })
+      .from(posts)
+      .where(eq(posts.siteId, siteId));
+    const actualCategories = new Set(distinctRows.map((r) => r.category));
+    const currentSiteCategories: string[] = (
+      await database.query.sites.findFirst({
+        where: eq(sites.id, siteId),
+        columns: { categories: true },
+      })
+    )?.categories as string[] ?? [];
+    // Keep existing order for categories still in use, then append new ones
+    const reconciledCategories = [
+      ...currentSiteCategories.filter((c) => actualCategories.has(c)),
+      ...[...actualCategories].filter((c) => !currentSiteCategories.includes(c)),
+    ];
+    await database.update(sites)
+      .set({ categories: reconciledCategories })
+      .where(eq(sites.id, siteId));
+
     // ── Step 4.5: REFERENCES (Creator+ plans only) ──────────────────
     // Extract any YouTube videos / article URLs that appear in the
     // post's caption or transcript. Non-fatal: if this fails or times

@@ -4,6 +4,7 @@ import { users, sites } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/admin";
 import { createClient } from "@supabase/supabase-js";
+import { stripe } from "@/lib/stripe";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,7 +25,7 @@ const supabaseAdmin = createClient(
  * Irreversible. The user's content is gone.
  */
 export async function POST(request: NextRequest) {
-  await requireAdmin();
+  const caller = await requireAdmin();
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
   const body = await request.json().catch(() => ({}));
@@ -34,10 +35,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Valid email required" }, { status: 400 });
   }
 
+  // Prevent admins from revoking their own account
+  if (email === caller.email.toLowerCase()) {
+    return NextResponse.json({ error: "Cannot revoke your own account" }, { status: 400 });
+  }
+
   // Find the app-side user
   const appUser = await db.query.users.findFirst({
     where: eq(users.email, email),
-    columns: { id: true, email: true },
+    columns: { id: true, email: true, stripeCustomerId: true },
   });
 
   // Find the Supabase auth user
@@ -51,6 +57,27 @@ export async function POST(request: NextRequest) {
   }
 
   const deleted: string[] = [];
+
+  // 0. Cancel any active Stripe subscriptions (best-effort — failures
+  //    here won't block the revocation; they can be cleaned up manually).
+  if (stripe && appUser?.stripeCustomerId) {
+    try {
+      const subs = await stripe.subscriptions.list({
+        customer: appUser.stripeCustomerId,
+        status: "active",
+        limit: 10,
+      });
+      for (const sub of subs.data) {
+        await stripe.subscriptions.cancel(sub.id).catch((e) =>
+          console.error("[admin/revoke] Stripe cancel failed for sub:", sub.id, e),
+        );
+      }
+      deleted.push("stripe subscriptions cancelled");
+    } catch (err) {
+      console.error("[admin/revoke] Stripe list subs failed:", err);
+      deleted.push("stripe cancellation failed (best-effort)");
+    }
+  }
 
   // 1. Delete app-side user row (cascades to sites → posts → refs → jobs → subscribers → etc.)
   if (appUser) {

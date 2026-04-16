@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { subscribers, sites, posts, digestHistory } from "@/db/schema";
+import { subscribers, sites, posts, digestHistory, users } from "@/db/schema";
 import { eq, and, desc, gte } from "drizzle-orm";
 import { resolveSiteId } from "@/db/utils";
 import { resend } from "@/lib/email/resend";
 import { digestEmail, sanitizeFromName } from "@/lib/email/templates";
 import { getApiUser } from "@/lib/supabase/api";
+import { hasFeature, type PlanId } from "@/lib/plans";
+
+const VALID_PLANS = new Set(["free", "creator", "pro", "agency"]);
 
 // Sending to many subscribers can take a while
 export const maxDuration = 60;
@@ -54,6 +57,23 @@ export async function POST(request: NextRequest) {
     }
     if (site.userId !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Plan gate — newsletter feature required
+    const userRow = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+      columns: { plan: true },
+    });
+    const planId: PlanId = (VALID_PLANS.has(userRow?.plan as string) ? userRow!.plan : "free") as PlanId;
+    if (!hasFeature(planId, "newsletter")) {
+      return NextResponse.json(
+        {
+          error: "Newsletter is not available on your plan.",
+          reason: "plan_feature_missing",
+          requiredPlan: "creator",
+        },
+        { status: 403 },
+      );
     }
 
     // Get active, verified subscribers

@@ -186,6 +186,12 @@ export async function POST(request: NextRequest) {
 
 // GET /api/pipeline?siteId=xxx — Check pipeline status
 export async function GET(request: NextRequest) {
+  // Require authentication — pipeline status may reveal site details.
+  const user = await getApiUser();
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
   const siteId = request.nextUrl.searchParams.get("siteId");
 
   if (!siteId) {
@@ -208,6 +214,15 @@ export async function GET(request: NextRequest) {
       { error: "Database not configured" },
       { status: 503 },
     );
+  }
+
+  // Verify the caller owns the site before revealing pipeline status.
+  const site = await db.query.sites.findFirst({
+    where: and(eq(sites.id, siteId), eq(sites.userId, user.id)),
+    columns: { id: true },
+  });
+  if (!site) {
+    return NextResponse.json({ error: "Site not found" }, { status: 404 });
   }
 
   let jobs;

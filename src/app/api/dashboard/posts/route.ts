@@ -87,6 +87,18 @@ const MAX_THUMB_BYTES = 5 * 1024 * 1024;   // 5 MB
 const MAX_MEDIA_BYTES = 100 * 1024 * 1024; // 100 MB
 const VALID_PLANS = new Set(["free", "creator", "pro", "agency"]);
 
+// Allowlisted file extensions — validated server-side from the filename,
+// NOT from the client-supplied MIME type which can be spoofed.
+const THUMB_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp"]);
+const MEDIA_EXTENSIONS = new Set(["jpg", "jpeg", "png", "gif", "webp", "mp4", "mov", "webm"]);
+
+/** Extract lowercase extension from a filename, or empty string if none. */
+function getFileExtension(name: string): string {
+  const dot = name.lastIndexOf(".");
+  if (dot === -1 || dot === name.length - 1) return "";
+  return name.slice(dot + 1).toLowerCase();
+}
+
 export async function POST(request: NextRequest) {
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
@@ -123,15 +135,24 @@ export async function POST(request: NextRequest) {
   if (thumbFile.size > MAX_THUMB_BYTES) {
     return NextResponse.json({ error: "Thumbnail too large (max 5 MB)" }, { status: 400 });
   }
-  if (!thumbFile.type.startsWith("image/")) {
-    return NextResponse.json({ error: "Thumbnail must be an image" }, { status: 400 });
+  // Validate file extension from the filename (not the client-supplied MIME type).
+  const thumbExt = getFileExtension(thumbFile.name);
+  if (!THUMB_EXTENSIONS.has(thumbExt)) {
+    return NextResponse.json(
+      { error: `Thumbnail file type not allowed. Accepted: ${[...THUMB_EXTENSIONS].join(", ")}` },
+      { status: 400 },
+    );
   }
   if (mediaFile instanceof File && mediaFile.size > 0) {
     if (mediaFile.size > MAX_MEDIA_BYTES) {
       return NextResponse.json({ error: "Media too large (max 100 MB)" }, { status: 400 });
     }
-    if (!mediaFile.type.startsWith("image/") && !mediaFile.type.startsWith("video/")) {
-      return NextResponse.json({ error: "Media must be an image or video" }, { status: 400 });
+    const mediaExt = getFileExtension(mediaFile.name);
+    if (!MEDIA_EXTENSIONS.has(mediaExt)) {
+      return NextResponse.json(
+        { error: `Media file type not allowed. Accepted: ${[...MEDIA_EXTENSIONS].join(", ")}` },
+        { status: 400 },
+      );
     }
   }
 
@@ -189,9 +210,9 @@ export async function POST(request: NextRequest) {
   let mediaUrl: string | null = null;
   try {
     const thumbBuf = Buffer.from(await thumbFile.arrayBuffer());
-    const thumbExt = (thumbFile.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
+    const uploadThumbExt = getFileExtension(thumbFile.name) || "jpg";
     thumbUrl = await uploadBuffer(
-      `sites/${site.slug}/thumbs/${shortcode}.${thumbExt}`,
+      `sites/${site.slug}/thumbs/${shortcode}.${uploadThumbExt}`,
       thumbBuf,
       thumbFile.type,
     );
@@ -199,9 +220,9 @@ export async function POST(request: NextRequest) {
 
     if (mediaFile instanceof File && mediaFile.size > 0) {
       const mediaBuf = Buffer.from(await mediaFile.arrayBuffer());
-      const mediaExt = (mediaFile.type.split("/")[1] || "mp4").replace("jpeg", "jpg");
+      const uploadMediaExt = getFileExtension(mediaFile.name) || "mp4";
       mediaUrl = await uploadBuffer(
-        `sites/${site.slug}/media/${shortcode}.${mediaExt}`,
+        `sites/${site.slug}/media/${shortcode}.${uploadMediaExt}`,
         mediaBuf,
         mediaFile.type,
       );

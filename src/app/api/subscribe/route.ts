@@ -5,6 +5,7 @@ import { eq, and, count } from "drizzle-orm";
 import { resolveSiteId } from "@/db/utils";
 import { resend } from "@/lib/email/resend";
 import { verificationEmail } from "@/lib/email/templates";
+import { getApiUser } from "@/lib/supabase/api";
 import crypto from "crypto";
 
 // POST /api/subscribe — Subscribe to a directory
@@ -44,17 +45,21 @@ export async function POST(request: NextRequest) {
     });
 
     if (existing) {
+      // If re-subscribing after unsubscribe, always require re-verification
+      const needsReverify = !existing.isActive;
+
       // Update preferences
       await db.update(subscribers)
         .set({
           categories: categories || existing.categories,
           frequency: frequency || existing.frequency,
           isActive: true,
+          ...(needsReverify ? { isVerified: false } : {}),
         })
         .where(eq(subscribers.id, existing.id));
 
-      // If the existing subscriber hasn't verified yet, re-send the verification email
-      if (!existing.isVerified && resend) {
+      // Send verification email if not verified (including forced re-verification)
+      if ((!existing.isVerified || needsReverify) && resend) {
         const site = await db.query.sites.findFirst({
           where: eq(sites.id, resolvedSiteId),
           columns: { displayName: true, slug: true },
@@ -72,7 +77,7 @@ export async function POST(request: NextRequest) {
         } catch (err) {
           console.error("[subscribe] Resend verification failed:", err);
         }
-        return NextResponse.json({ message: "Verification email resent. Check your inbox." });
+        return NextResponse.json({ message: "Verification email sent. Check your inbox." });
       }
 
       return NextResponse.json({ message: "Preferences updated" });
@@ -188,14 +193,14 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-// DELETE /api/subscribe — Unsubscribe
+// DELETE /api/subscribe — Unsubscribe (token-only)
 export async function DELETE(request: NextRequest) {
   try {
     const body = await request.json();
-    const { siteId, email, token } = body;
+    const { siteId, token } = body;
 
-    if (!siteId || (!email && !token)) {
-      return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
+    if (!siteId || !token) {
+      return NextResponse.json({ error: "Missing siteId or token" }, { status: 400 });
     }
 
     if (!db) {
@@ -207,17 +212,9 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Site not found" }, { status: 404 });
     }
 
-    if (token) {
-      // Unsubscribe via secure token (from email link)
-      await db.update(subscribers)
-        .set({ isActive: false })
-        .where(and(eq(subscribers.siteId, resolvedSiteId), eq(subscribers.unsubscribeToken, token)));
-    } else if (email) {
-      const normalizedEmail = email.toLowerCase().trim();
-      await db.update(subscribers)
-        .set({ isActive: false })
-        .where(and(eq(subscribers.siteId, resolvedSiteId), eq(subscribers.email, normalizedEmail)));
-    }
+    await db.update(subscribers)
+      .set({ isActive: false })
+      .where(and(eq(subscribers.siteId, resolvedSiteId), eq(subscribers.unsubscribeToken, token)));
 
     return NextResponse.json({ message: "Unsubscribed" });
   } catch (err) {
@@ -228,18 +225,32 @@ export async function DELETE(request: NextRequest) {
 
 // GET /api/subscribe?siteId=xxx — Get subscriber stats (for dashboard)
 export async function GET(request: NextRequest) {
+  if (!db) {
+    return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+  }
+
+  const user = await getApiUser();
+  if (!user) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
   const siteId = request.nextUrl.searchParams.get("siteId");
   if (!siteId) {
     return NextResponse.json({ error: "Missing siteId" }, { status: 400 });
   }
 
-  if (!db) {
-    return NextResponse.json({ total: 0, active: 0, verified: 0, thisWeek: 0 });
-  }
-
   const resolvedSiteId = await resolveSiteId(siteId);
   if (!resolvedSiteId) {
-    return NextResponse.json({ total: 0, active: 0, verified: 0, thisWeek: 0 });
+    return NextResponse.json({ error: "Site not found" }, { status: 404 });
+  }
+
+  // Verify the authenticated user owns this site
+  const site = await db.query.sites.findFirst({
+    where: and(eq(sites.id, resolvedSiteId), eq(sites.userId, user.id)),
+    columns: { id: true },
+  });
+  if (!site) {
+    return NextResponse.json({ error: "Site not found" }, { status: 404 });
   }
 
   try {

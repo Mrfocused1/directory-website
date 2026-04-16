@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { subscribers, digestHistory, sites } from "@/db/schema";
+import { subscribers, digestHistory, sites, users } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { ownedSiteId } from "@/db/utils";
 import { getApiUser } from "@/lib/supabase/api";
+import { hasFeature, type PlanId } from "@/lib/plans";
+
+const VALID_PLANS = new Set(["free", "creator", "pro", "agency"]);
 
 /**
  * GET /api/newsletter?siteId=xxx
@@ -31,6 +34,23 @@ export async function GET(request: NextRequest) {
     const resolvedSiteId = await ownedSiteId(siteId, user.id);
     if (!resolvedSiteId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Plan gate — newsletter feature required
+    const userRow = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+      columns: { plan: true },
+    });
+    const planId: PlanId = (VALID_PLANS.has(userRow?.plan as string) ? userRow!.plan : "free") as PlanId;
+    if (!hasFeature(planId, "newsletter")) {
+      return NextResponse.json(
+        {
+          error: "Newsletter is not available on your plan.",
+          reason: "plan_feature_missing",
+          requiredPlan: "creator",
+        },
+        { status: 403 },
+      );
     }
 
     // Fetch all subscribers for this site

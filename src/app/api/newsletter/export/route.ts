@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { subscribers } from "@/db/schema";
+import { subscribers, users } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { ownedSiteId } from "@/db/utils";
 import { getApiUser } from "@/lib/supabase/api";
+import { hasFeature, type PlanId } from "@/lib/plans";
 
 /**
  * GET /api/newsletter/export?siteId=xxx
@@ -29,6 +30,24 @@ export async function GET(request: NextRequest) {
   const resolvedSiteId = await ownedSiteId(siteId, user.id);
   if (!resolvedSiteId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Plan gate — export_subscribers feature required
+  const VALID_PLANS = new Set(["free", "creator", "pro", "agency"]);
+  const userRow = await db.query.users.findFirst({
+    where: eq(users.id, user.id),
+    columns: { plan: true },
+  });
+  const planId: PlanId = (VALID_PLANS.has(userRow?.plan as string) ? userRow!.plan : "free") as PlanId;
+  if (!hasFeature(planId, "export_subscribers")) {
+    return NextResponse.json(
+      {
+        error: "Subscriber export is not available on your plan.",
+        reason: "plan_feature_missing",
+        requiredPlan: "pro",
+      },
+      { status: 403 },
+    );
   }
 
   const rows = await db.query.subscribers.findMany({

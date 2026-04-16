@@ -26,7 +26,7 @@ export async function generateMetadata({
   const url = `${SITE_URL}/${tenant}/p/${shortcode}`;
 
   return {
-    title: `${title} | ${data.site.displayName}`,
+    title,
     description,
     alternates: { canonical: url },
     openGraph: { title, description, type: "article", url },

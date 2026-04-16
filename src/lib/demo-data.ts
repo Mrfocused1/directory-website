@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { sites, posts, references, platformConnections, users } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import type { SiteConfig, SitePost, Reference, PlatformConnection, Platform } from "@/lib/types";
 import { hasFeature, type PlanId } from "@/lib/plans";
 
@@ -81,38 +81,48 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
     ],
   });
 
-  const postList: SitePost[] = await Promise.all(
-    sitePosts.map(async (p) => {
-      const refs = await db!.query.references.findMany({
-        where: eq(references.postId, p.id),
-      });
+  // Batch-load ALL references for this site's posts in a single query
+  // instead of one query per post (N+1).
+  const postIds = sitePosts.map((p) => p.id);
+  const allRefs = postIds.length > 0
+    ? await db!.select().from(references).where(inArray(references.postId, postIds))
+    : [];
 
-      const mappedRefs: Reference[] = refs.map((r) =>
-        r.kind === "youtube"
-          ? { kind: "youtube" as const, title: r.title, videoId: r.videoId || "", note: r.note || undefined }
-          : { kind: "article" as const, title: r.title, url: r.url || "", note: r.note || undefined },
-      );
+  // Group references by postId for O(1) lookup
+  const refsByPostId = new Map<string, typeof allRefs>();
+  for (const r of allRefs) {
+    if (!refsByPostId.has(r.postId)) refsByPostId.set(r.postId, []);
+    refsByPostId.get(r.postId)!.push(r);
+  }
 
-      return {
-        id: p.id,
-        shortcode: p.shortcode,
-        type: p.type as SitePost["type"],
-        caption: p.caption,
-        title: p.title,
-        category: p.category,
-        platform: (site.platform || "instagram") as Platform,
-        takenAt: p.takenAt?.toISOString() ?? null,
-        mediaUrl: p.mediaUrl,
-        thumbUrl: p.thumbUrl,
-        numSlides: p.numSlides ?? 0,
-        slides: p.slides ?? null,
-        transcript: p.transcript,
-        platformUrl: p.platformUrl,
-        references: mappedRefs,
-        isFeatured: p.isFeatured,
-      };
-    }),
-  );
+  const postList: SitePost[] = sitePosts.map((p) => {
+    const refs = refsByPostId.get(p.id) ?? [];
+
+    const mappedRefs: Reference[] = refs.map((r) =>
+      r.kind === "youtube"
+        ? { kind: "youtube" as const, title: r.title, videoId: r.videoId || "", note: r.note || undefined }
+        : { kind: "article" as const, title: r.title, url: r.url || "", note: r.note || undefined },
+    );
+
+    return {
+      id: p.id,
+      shortcode: p.shortcode,
+      type: p.type as SitePost["type"],
+      caption: p.caption,
+      title: p.title,
+      category: p.category,
+      platform: (site.platform || "instagram") as Platform,
+      takenAt: p.takenAt?.toISOString() ?? null,
+      mediaUrl: p.mediaUrl,
+      thumbUrl: p.thumbUrl,
+      numSlides: p.numSlides ?? 0,
+      slides: p.slides ?? null,
+      transcript: p.transcript,
+      platformUrl: p.platformUrl,
+      references: mappedRefs,
+      isFeatured: p.isFeatured,
+    };
+  });
 
   const siteConfig: SiteConfig = {
     slug: site.slug,

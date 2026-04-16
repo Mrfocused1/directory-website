@@ -13,7 +13,10 @@ import { users } from "@/db/schema";
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  const nextParam = searchParams.get("next") ?? "/dashboard";
+  // Validate redirect target to prevent open-redirect attacks.
+  // Must start with a single "/" and must NOT start with "//" (protocol-relative URL).
+  const next = (nextParam.startsWith("/") && !nextParam.startsWith("//")) ? nextParam : "/dashboard";
 
   if (code) {
     const supabase = await createClient();

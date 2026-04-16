@@ -82,7 +82,7 @@ export default function HeroDemo() {
   const cardsToShow = phase === "filtered" ? FILTERED : CARDS;
 
   return (
-    <div className="relative hidden lg:block">
+    <div className="relative max-w-sm mx-auto lg:max-w-none">
       <div className="aspect-[4/5] bg-gradient-to-br from-[color:var(--bd-maroon)] via-[color:var(--bd-purple)] to-[color:var(--bd-dark)] rounded-[2rem] p-5 shadow-2xl overflow-hidden">
         <div className="h-full bg-[color:var(--bd-cream)] rounded-[1.5rem] overflow-hidden flex flex-col">
           {/* Browser bar */}

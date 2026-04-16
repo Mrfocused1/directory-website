@@ -3,63 +3,44 @@
 import { useEffect, useState } from "react";
 import DemoFrame from "./DemoFrame";
 
-const HANDLE = "@garyvee";
+const HANDLE = "@catherinetalks";
 
-/**
- * Six-tile grid of looping talking-head videos.
- *
- * To swap Gary Vee in for the placeholders:
- *   1. Obtain MP4 URLs you have rights to (his YouTube via yt-dlp
- *      + your own CDN, Apify scrape + Vercel Blob, or licensed stock).
- *   2. Replace each `src` below. Any falsy `src` falls back to the
- *      colored tile + text label automatically.
- *
- * The placeholders below are Google's public sample videos — reliable
- * URLs that prove the grid works. They are NOT Gary Vee; swap when
- * ready. All videos autoplay muted looped — browsers allow this
- * without user interaction.
- */
 const VIDEOS: { src: string; bg: string; label: string; darkText?: boolean }[] = [
   {
-    src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+    src: "/demo-scrape-1.mp4",
     bg: "var(--bd-maroon)",
-    label: "Wine tasting",
+    label: "Self-care chat",
   },
   {
-    src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+    src: "/demo-scrape-2.mp4",
     bg: "var(--bd-lilac)",
-    label: "Marketing tip",
+    label: "Confidence tips",
     darkText: true,
   },
   {
-    src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    src: "/demo-scrape-3.mp4",
     bg: "var(--bd-lime)",
-    label: "NYC speech",
+    label: "Daily vlog",
     darkText: true,
   },
   {
-    src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+    src: "",
     bg: "var(--bd-green)",
-    label: "Patience > hustle",
+    label: "Morning routine",
   },
   {
-    src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+    src: "",
     bg: "var(--bd-purple)",
-    label: "Trash talk",
+    label: "Q&A reel",
   },
   {
-    src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4",
+    src: "",
     bg: "var(--bd-cream-2)",
-    label: "Q&A reel",
+    label: "Get ready",
     darkText: true,
   },
 ];
 
-/**
- * AutoScrape demo: types @garyvee, then fills a 3×2 grid of looping
- * video tiles one-by-one. Once full, holds for ~5s then resets so the
- * fill sequence plays again.
- */
 export default function AutoScrapeDemo() {
   const [typed, setTyped] = useState(0);
   const [filled, setFilled] = useState(0);
@@ -68,14 +49,14 @@ export default function AutoScrapeDemo() {
     let t = 0;
     const tick = () => {
       t += 100;
-      if (t <= 800) {
+      if (t <= 1400) {
         setTyped(Math.min(HANDLE.length, Math.floor(t / 100)));
-      } else if (t > 800 && t <= 1400) {
+      } else if (t > 1400 && t <= 2000) {
         setTyped(HANDLE.length);
         setFilled(0);
-      } else if (t > 1400 && t <= 4400) {
-        setFilled(Math.min(VIDEOS.length, Math.floor((t - 1400) / 500) + 1));
-      } else if (t > 4400 && t <= 10000) {
+      } else if (t > 2000 && t <= 5000) {
+        setFilled(Math.min(VIDEOS.length, Math.floor((t - 2000) / 500) + 1));
+      } else if (t > 5000 && t <= 10000) {
         setFilled(VIDEOS.length);
       } else {
         t = 0; setTyped(0); setFilled(0);
@@ -146,7 +127,6 @@ function VideoTile({
     >
       {visible && video.src && (
         <video
-          // eslint-disable-next-line @next/next/no-img-element
           autoPlay
           muted
           loop
@@ -156,8 +136,6 @@ function VideoTile({
           className="absolute inset-0 w-full h-full object-cover"
           aria-hidden
           onError={(e) => {
-            // If the URL 404s or the video can't decode, hide the
-            // <video> element so the colored-tile fallback shows through.
             (e.currentTarget as HTMLVideoElement).style.display = "none";
           }}
         />

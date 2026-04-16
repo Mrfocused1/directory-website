@@ -40,9 +40,11 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
   const analyticsId = siteId || site.slug;
   const allCategories = ["All", ...site.categories];
 
+  type SortOption = "newest" | "oldest" | "title-az" | "title-za";
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
   const [platformFilter, setPlatformFilter] = useState<Platform | "all">("all");
+  const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [selected, setSelected] = useState<SitePost | null>(
     initialShortcode ? posts.find((p) => p.shortcode === initialShortcode) ?? null : null,
   );
@@ -78,8 +80,22 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
           (p.transcript && p.transcript.toLowerCase().includes(q)),
       );
     }
+    if (sortBy !== "newest") {
+      list = [...list].sort((a, b) => {
+        switch (sortBy) {
+          case "oldest":
+            return (a.takenAt ?? "").localeCompare(b.takenAt ?? "");
+          case "title-az":
+            return a.title.localeCompare(b.title);
+          case "title-za":
+            return b.title.localeCompare(a.title);
+          default:
+            return 0;
+        }
+      });
+    }
     return list;
-  }, [posts, search, category, platformFilter]);
+  }, [posts, search, category, platformFilter, sortBy]);
 
   // Category counts
   const counts = useMemo(() => {
@@ -117,7 +133,7 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
 
   useEffect(() => {
     setPage(1);
-  }, [search, category, platformFilter]);
+  }, [search, category, platformFilter, sortBy]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -259,6 +275,26 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
               </div>
             </nav>
           )}
+
+          {/* Sort dropdown */}
+          <div className="flex justify-end mb-4 px-1 sm:px-0 animate-fade-in">
+            <div className="relative">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="appearance-none h-9 pl-3 pr-8 bg-[color:var(--card)] border border-[color:var(--border)] rounded-full text-xs font-semibold text-[color:var(--fg)] cursor-pointer focus:outline-none focus:border-[color:var(--fg)] transition"
+                aria-label="Sort posts"
+              >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="title-az">Title A–Z</option>
+                <option value="title-za">Title Z–A</option>
+              </select>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[color:var(--fg-muted)]">
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </div>
+          </div>
 
           {/* Grid — admin controls MOBILE column count (2 or 3) via the
               dashboard. Desktop always uses the natural responsive

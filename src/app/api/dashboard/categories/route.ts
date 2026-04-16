@@ -90,3 +90,93 @@ export async function PATCH(request: NextRequest) {
 
   return NextResponse.json({ updated: result.length, from: fromTrim, to: toTrim });
 }
+
+/**
+ * POST /api/dashboard/categories
+ * Body: { siteId, action: "add"|"delete"|"reorder", ... }
+ *
+ * add:     { name: string } — adds name to site.categories array
+ * delete:  { name: string } — moves posts to "Uncategorized", removes from array
+ * reorder: { order: string[] } — replaces site.categories with new order
+ */
+export async function POST(request: NextRequest) {
+  if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
+  const user = await getApiUser();
+  if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+
+  const body = await request.json().catch(() => ({}));
+  const { siteId, action } = body;
+
+  if (!siteId || !action) {
+    return NextResponse.json({ error: "Missing siteId or action" }, { status: 400 });
+  }
+
+  const ownedSiteId = await ensureSiteOwnership(siteId, user.id);
+  if (!ownedSiteId) return NextResponse.json({ error: "Site not found" }, { status: 404 });
+
+  if (action === "add") {
+    const name = (body.name ?? "").trim();
+    if (!name || name.length > 64) {
+      return NextResponse.json({ error: "Invalid category name" }, { status: 400 });
+    }
+
+    const site = await db.query.sites.findFirst({
+      where: eq(sites.id, siteId),
+      columns: { categories: true },
+    });
+    const existing = (site?.categories as string[]) ?? [];
+    if (existing.some((c: string) => c.toLowerCase() === name.toLowerCase())) {
+      return NextResponse.json({ error: "Category already exists" }, { status: 409 });
+    }
+
+    await db.update(sites)
+      .set({ categories: [...existing, name] })
+      .where(eq(sites.id, siteId));
+
+    await revalidateTenantBySiteId(siteId);
+    return NextResponse.json({ added: name });
+  }
+
+  if (action === "delete") {
+    const name = (body.name ?? "").trim();
+    if (!name) {
+      return NextResponse.json({ error: "Missing category name" }, { status: 400 });
+    }
+
+    const moved = await db
+      .update(posts)
+      .set({ category: "Uncategorized" })
+      .where(and(eq(posts.siteId, siteId), eq(posts.category, name)))
+      .returning({ id: posts.id });
+
+    const site = await db.query.sites.findFirst({
+      where: eq(sites.id, siteId),
+      columns: { categories: true },
+    });
+    const updated = ((site?.categories as string[]) ?? []).filter(
+      (c: string) => c.toLowerCase() !== name.toLowerCase(),
+    );
+    await db.update(sites)
+      .set({ categories: updated })
+      .where(eq(sites.id, siteId));
+
+    await revalidateTenantBySiteId(siteId);
+    return NextResponse.json({ deleted: name, postsMoved: moved.length });
+  }
+
+  if (action === "reorder") {
+    const order = body.order;
+    if (!Array.isArray(order) || order.some((c: unknown) => typeof c !== "string")) {
+      return NextResponse.json({ error: "order must be a string array" }, { status: 400 });
+    }
+
+    await db.update(sites)
+      .set({ categories: order })
+      .where(eq(sites.id, siteId));
+
+    await revalidateTenantBySiteId(siteId);
+    return NextResponse.json({ reordered: true });
+  }
+
+  return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+}

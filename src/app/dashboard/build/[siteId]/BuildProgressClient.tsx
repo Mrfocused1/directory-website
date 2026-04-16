@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import LearnWhileBuilding from "@/components/dashboard/LearnWhileBuilding";
 
 type Props = {
   siteId: string;
@@ -234,6 +235,9 @@ export default function BuildProgressClient({
             <p className="text-xs text-[color:var(--fg-subtle)] mt-2">{status.message}</p>
           </div>
         )}
+
+        {/* Learn while building */}
+        {!status.failed && <LearnWhileBuilding />}
 
         {status.failed && (
           <>

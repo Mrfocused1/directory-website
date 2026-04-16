@@ -82,12 +82,12 @@ export default function HeroDemo() {
   const cardsToShow = phase === "filtered" ? FILTERED : CARDS;
 
   return (
-    <div className="relative max-w-sm mx-auto lg:max-w-none">
-      <div className="aspect-[4/5] bg-gradient-to-br from-[color:var(--bd-maroon)] via-[color:var(--bd-purple)] to-[color:var(--bd-dark)] rounded-[2rem] p-5 shadow-2xl overflow-hidden">
-        <div className="h-full bg-[color:var(--bd-cream)] rounded-[1.5rem] overflow-hidden flex flex-col">
+    <div className="relative w-full mt-8 lg:mt-0">
+      <div className="h-[420px] sm:h-[480px] lg:h-[540px] bg-gradient-to-br from-[color:var(--bd-maroon)] via-[color:var(--bd-purple)] to-[color:var(--bd-dark)] rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-5 shadow-2xl overflow-hidden">
+        <div className="h-full bg-[color:var(--bd-cream)] rounded-[1rem] sm:rounded-[1.5rem] overflow-hidden flex flex-col">
           {/* Browser bar */}
-          <div className="flex items-center justify-between px-4 pt-4 pb-2 shrink-0">
-            <span className="text-[10px] font-semibold text-[color:var(--bd-grey)]">
+          <div className="flex items-center justify-between px-3 sm:px-4 pt-3 sm:pt-4 pb-2 shrink-0">
+            <span className="text-[10px] sm:text-xs font-semibold text-[color:var(--bd-grey)]">
               buildmy.directory/you
             </span>
             <span className="w-5 h-5 rounded-full bg-[color:var(--bd-lime)] flex items-center justify-center text-[color:var(--bd-dark)] text-[8px] font-bold">
@@ -96,7 +96,7 @@ export default function HeroDemo() {
           </div>
 
           {/* Content area */}
-          <div className="flex-1 px-4 pb-4 overflow-hidden relative">
+          <div className="flex-1 px-3 sm:px-4 pb-3 sm:pb-4 overflow-hidden relative">
             <AnimatePresence mode="wait">
               {/* ── Grid view ── */}
               {showGrid && (

@@ -50,6 +50,7 @@ function OnboardingContent() {
   };
 
   const [isBuilding, setIsBuilding] = useState(false);
+  const [upgradeRequired, setUpgradeRequired] = useState<string | null>(null);
   // If the user came here from a failed build via "Change handle & retry",
   // we get the existing site id in the URL. We then PATCH that site with
   // the new handle instead of POSTing a new one (which would hit the free
@@ -180,6 +181,11 @@ function OnboardingContent() {
           try {
             const errData = await res.json();
             if (errData?.error) errMsg = errData.error;
+            if (errData?.reason === "free_build_exhausted" || (res.status === 403 && /upgrade|limit/i.test(errMsg))) {
+              setUpgradeRequired(errMsg);
+              setIsBuilding(false);
+              return;
+            }
           } catch {
             // Response wasn't JSON — use generic message
           }
@@ -290,7 +296,61 @@ function OnboardingContent() {
           </div>
 
           {/* Step: Enter handle */}
-          {step === "handle" && (
+          {/* ── Upgrade required card (shown when free build is exhausted) ── */}
+          {upgradeRequired && (
+            <div className="animate-fade-in text-center py-8">
+              <div className="w-20 h-20 rounded-full bg-[color:var(--bd-dark)] text-[color:var(--bd-lime)] flex items-center justify-center mx-auto mb-6">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="18" height="11" x="3" y="11" rx="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              </div>
+              <h1 className="font-display-tight text-[2.25rem] sm:text-[3rem] text-[color:var(--bd-dark)] mb-4">
+                Upgrade to keep
+                <br />
+                building.
+              </h1>
+              <p className="text-[color:var(--bd-grey)] mb-10 leading-relaxed max-w-md mx-auto">
+                {upgradeRequired}
+              </p>
+
+              <div className="bg-white rounded-[1.5rem] p-8 max-w-sm mx-auto mb-8">
+                <div className="text-center mb-6">
+                  <div className="font-display-tight text-[color:var(--bd-dark)] text-2xl mb-1">Creator</div>
+                  <div className="flex items-baseline justify-center gap-1 mb-2">
+                    <span className="font-display-tight text-[3rem] leading-none text-[color:var(--bd-dark)]">$19</span>
+                    <span className="text-sm text-[color:var(--bd-grey)]">/mo</span>
+                  </div>
+                  <p className="text-xs text-[color:var(--bd-grey)]">
+                    Unlimited rebuilds · 30 syncs/month · custom domain · analytics · newsletter
+                  </p>
+                </div>
+                <ul className="space-y-2 text-sm text-[color:var(--bd-dark)] mb-6">
+                  {["Up to 100 posts", "30 syncs per month", "Instagram + TikTok + YouTube", "Full analytics dashboard", "Email newsletter", "Smart references"].map((f) => (
+                    <li key={f} className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--bd-lime)] shrink-0" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/dashboard/account#plan"
+                  className="block w-full h-12 bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] rounded-full text-sm font-semibold hover:opacity-90 transition flex items-center justify-center"
+                >
+                  Upgrade now
+                </Link>
+              </div>
+
+              <Link
+                href="/dashboard"
+                className="text-sm text-[color:var(--bd-grey)] hover:text-[color:var(--bd-dark)] hover:underline"
+              >
+                ← Back to dashboard
+              </Link>
+            </div>
+          )}
+
+          {step === "handle" && !upgradeRequired && (
             <div className="animate-fade-in">
               <h1 className="font-display-tight text-[2.5rem] sm:text-[3.25rem] text-[color:var(--bd-dark)] mb-3">
                 Let&apos;s build
@@ -355,7 +415,7 @@ function OnboardingContent() {
           )}
 
           {/* Step: Customize */}
-          {step === "customize" && (
+          {step === "customize" && !upgradeRequired && (
             <div className="animate-fade-in">
               <h1 className="font-display-tight text-[2.5rem] sm:text-[3.25rem] text-[color:var(--bd-dark)] mb-3">
                 Customize
@@ -447,7 +507,7 @@ function OnboardingContent() {
           )}
 
           {/* Step: Processing */}
-          {step === "processing" && (
+          {step === "processing" && !upgradeRequired && (
             <div className="animate-fade-in text-center pt-6">
               <div className="w-16 h-16 rounded-full bg-[color:var(--bd-dark)] text-[color:var(--bd-lime)] flex items-center justify-center mx-auto mb-6">
                 <svg className="animate-spin" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

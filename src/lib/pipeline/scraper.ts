@@ -105,14 +105,102 @@ async function runApifyActor(
   return items as Record<string, unknown>[];
 }
 
+/**
+ * Try the self-hosted VPS scraper first (Hetzner + IPRoyal residential
+ * proxy). Falls back to Apify if the VPS is unreachable, errors, or
+ * returns 0 posts.
+ *
+ * SCRAPER_PROVIDER env:
+ *   "crawlee" → VPS first, Apify fallback (default when VPS is configured)
+ *   "apify"   → Apify only (skip VPS)
+ *   unset     → Apify only
+ */
+async function scrapeViaVPS(
+  handle: string,
+  platform: string,
+  maxPosts: number,
+): Promise<ScrapedPost[] | null> {
+  const vpsUrl = process.env.SCRAPER_VPS_URL;
+  const vpsKey = process.env.SCRAPER_VPS_API_KEY;
+  if (!vpsUrl || !vpsKey) return null;
+
+  try {
+    console.log(`[scraper] trying VPS at ${vpsUrl} for @${handle}`);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60_000);
+    const res = await fetch(`${vpsUrl}/scrape`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Api-Key": vpsKey,
+      },
+      body: JSON.stringify({ handle, platform, maxPosts }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.warn(`[scraper] VPS returned ${res.status}: ${body.slice(0, 120)}`);
+      return null;
+    }
+
+    const data = await res.json();
+    if (!data.success || !data.posts?.length) {
+      console.warn(`[scraper] VPS success=${data.success} posts=${data.posts?.length || 0} error=${data.error || ""}`);
+      return null;
+    }
+
+    // Map VPS response shape to ScrapedPost[]
+    return data.posts.map((p: Record<string, unknown>) => ({
+      shortcode: (p.shortcode as string) || `vps-${Date.now()}`,
+      type:
+        p.type === "video"
+          ? ("video" as const)
+          : p.type === "carousel"
+            ? ("carousel" as const)
+            : ("image" as const),
+      caption: (p.caption as string) || "",
+      takenAt: p.takenAt ? new Date(p.takenAt as string) : new Date(),
+      mediaUrls: Array.isArray(p.mediaUrls)
+        ? (p.mediaUrls as string[])
+        : p.videoUrl
+          ? [p.videoUrl as string]
+          : p.displayUrl
+            ? [p.displayUrl as string]
+            : [],
+      thumbUrl: (p.thumbUrl as string) || (p.displayUrl as string) || "",
+      numSlides: (p.numSlides as number) || 0,
+      platformUrl: (p.platformUrl as string) || "",
+    }));
+  } catch (err) {
+    console.warn(
+      `[scraper] VPS failed: ${err instanceof Error ? err.message : String(err)} — falling back to Apify`,
+    );
+    return null;
+  }
+}
+
 export async function scrapeProfile(config: ScraperConfig): Promise<ScrapedPost[]> {
+  const { platform, handle } = config;
+  const maxPosts = config.maxPosts || 50;
+  const provider = (process.env.SCRAPER_PROVIDER || "apify").toLowerCase();
+
+  // Try VPS first for Instagram when provider is "crawlee"
+  if (provider === "crawlee" && platform === "instagram") {
+    const vpsPosts = await scrapeViaVPS(handle, platform, maxPosts);
+    if (vpsPosts && vpsPosts.length > 0) {
+      console.log(`[scraper] VPS returned ${vpsPosts.length} posts — skipping Apify`);
+      return vpsPosts;
+    }
+    console.log("[scraper] VPS returned nothing — falling back to Apify");
+  }
+
+  // Apify path (original or fallback)
   if (!APIFY_TOKEN) {
     console.warn("[scraper] APIFY_API_TOKEN not set — returning empty results");
     return [];
   }
-
-  const { platform, handle } = config;
-  const maxPosts = config.maxPosts || 50;
 
   if (platform === "instagram") {
     return scrapeInstagram(handle, maxPosts);

@@ -3,6 +3,7 @@ import { users, sites } from "@/db/schema";
 import { sql, ilike, count } from "drizzle-orm";
 import PageShell from "../_components/PageShell";
 import DataTable, { type Column } from "../_components/DataTable";
+import RevokeButton from "../_components/RevokeButton";
 
 export const revalidate = 60;
 
@@ -93,6 +94,10 @@ const columns: Column<Row>[] = [
         {new Date(r.createdAt).toLocaleDateString()}
       </span>
     ),
+  },
+  {
+    header: "",
+    cell: (r) => <RevokeButton email={r.email} />,
   },
 ];
 

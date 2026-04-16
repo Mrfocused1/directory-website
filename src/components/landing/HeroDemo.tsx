@@ -148,9 +148,18 @@ export default function HeroDemo() {
                               playsInline
                               className="absolute inset-0 w-full h-full object-cover"
                             />
-                          ) : card.title === "HIIT Workout" ? (
+                          ) : card.title === "Meal Prep Guide" ? (
                             <video
                               src="/hero-demo-fitness.mp4"
+                              autoPlay
+                              muted
+                              loop
+                              playsInline
+                              className="absolute inset-0 w-full h-full object-cover"
+                            />
+                          ) : card.title === "HIIT Workout" ? (
+                            <video
+                              src="/hero-demo-fitness-new.mp4"
                               autoPlay
                               muted
                               loop

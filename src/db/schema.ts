@@ -93,6 +93,7 @@ export const posts = pgTable(
       { start: number; end: number; text: string }[]
     >(),
     platformUrl: text("platform_url"), // original IG/TT url
+    summary: text("summary"), // AI-generated 2-3 bullet point summary
     isVisible: boolean("is_visible").notNull().default(true),
     isFeatured: boolean("is_featured").notNull().default(false),
     // Manual ordering set by the creator from the dashboard. Lower = first.

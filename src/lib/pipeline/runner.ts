@@ -280,12 +280,30 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
           );
           // Update in parallel — just DB round-trips now, not API calls
           await Promise.all(
-            batch.map((post, idx) =>
-              database
+            batch.map((post, idx) => {
+              const result = results[idx];
+              const updates: Record<string, unknown> = {
+                category: result?.category || detectedCategories[0],
+              };
+              // Save the AI-generated summary
+              if (result?.summary && result.summary.length > 0) {
+                updates.summary = result.summary;
+              }
+              // Save the AI-generated title if it's meaningful and better
+              // than the naive caption-first-line fallback
+              if (result?.title && result.title.length > 0) {
+                const captionFirstLine = (post.caption?.split("\n")[0] || "").slice(0, 80);
+                const isSameAsCaption =
+                  result.title.toLowerCase() === captionFirstLine.toLowerCase();
+                if (!isSameAsCaption) {
+                  updates.title = result.title.slice(0, 100);
+                }
+              }
+              return database
                 .update(posts)
-                .set({ category: results[idx]?.category || detectedCategories[0] })
-                .where(eq(posts.id, post.id)),
-            ),
+                .set(updates)
+                .where(eq(posts.id, post.id));
+            }),
           );
         } else {
           await Promise.all(

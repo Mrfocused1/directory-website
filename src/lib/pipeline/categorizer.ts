@@ -7,6 +7,9 @@
 export type CategoryResult = {
   category: string;
   confidence: number;
+  summary: string | null;
+  /** AI-generated SEO-friendly title (5-10 words). Only set by LLM-based categorizers. */
+  title?: string | null;
 };
 
 /**
@@ -39,6 +42,7 @@ export function categorizeByKeywords(
   return {
     category: bestCategory,
     confidence: bestScore > 0 ? Math.min(bestScore / 3, 1) : 0,
+    summary: null,
   };
 }
 
@@ -52,7 +56,7 @@ export async function categorizeWithLLM(
   availableCategories: string[],
 ): Promise<CategoryResult> {
   if (!process.env.ANTHROPIC_API_KEY) {
-    return { category: availableCategories[0] || "Uncategorized", confidence: 0 };
+    return { category: availableCategories[0] || "Uncategorized", confidence: 0, summary: null };
   }
 
   try {
@@ -79,7 +83,7 @@ Respond with ONLY the category name, nothing else.`;
 
     if (!response.ok) {
       console.error("[categorizer] Claude API error:", response.status);
-      return { category: availableCategories[0] || "Uncategorized", confidence: 0 };
+      return { category: availableCategories[0] || "Uncategorized", confidence: 0, summary: null };
     }
 
     const data = await response.json();
@@ -93,10 +97,11 @@ Respond with ONLY the category name, nothing else.`;
     return {
       category: matched || availableCategories[0] || "Uncategorized",
       confidence: matched ? 0.9 : 0.3,
+      summary: null,
     };
   } catch (error) {
     console.error("[categorizer] Error:", error);
-    return { category: availableCategories[0] || "Uncategorized", confidence: 0 };
+    return { category: availableCategories[0] || "Uncategorized", confidence: 0, summary: null };
   }
 }
 
@@ -115,7 +120,7 @@ export async function categorizeBatchWithLLM(
 ): Promise<CategoryResult[]> {
   if (!process.env.ANTHROPIC_API_KEY || posts.length === 0 || availableCategories.length === 0) {
     const fallback = availableCategories[0] || "Uncategorized";
-    return posts.map(() => ({ category: fallback, confidence: 0 }));
+    return posts.map(() => ({ category: fallback, confidence: 0, summary: null }));
   }
 
   const fallback = availableCategories[0] || "Uncategorized";
@@ -138,13 +143,17 @@ export async function categorizeBatchWithLLM(
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 400,
+        max_tokens: 2500,
         messages: [
           {
             role: "user",
-            content: `Assign each numbered post to exactly one category. Available categories: ${availableCategories.join(", ")}.
+            content: `For each numbered post, do THREE things:
+1. Assign it to exactly one category. Available categories: ${availableCategories.join(", ")}.
+2. Write a clean, descriptive, SEO-friendly title (5-10 words) that captures the post's core topic. The title should read like a blog post or YouTube video title — NOT the caption's first line. Do not include hashtags, @-mentions, or "Follow me" language.
+3. Write a 2-3 bullet point summary of the post's key takeaways. Each bullet should start with "- " and be on its own line (use \\n to separate).
 
-Output ONLY a JSON array of category strings, one per post, in order. No preamble. Example: ["Tax Strategy", "Property Investment", ...]
+Output ONLY a JSON array of objects, one per post, in order. No preamble.
+Example: [{"category":"Tax Strategy","title":"How to Reduce Your Tax Bill Legally","summary":"- Key insight about tax planning\\n- Practical tip for saving money\\n- Action step to implement"},{"category":"Property Investment","title":"5 Signs a Rental Property Will Profit","summary":"- How to evaluate rental yield\\n- Warning signs to watch for"}]
 
 Each category MUST match one of the available categories exactly (case-sensitive). If unsure, pick "${fallback}".
 
@@ -157,29 +166,40 @@ ${postBlock}`,
 
     if (!response.ok) {
       console.warn("[categorizer] batch HTTP", response.status);
-      return posts.map(() => ({ category: fallback, confidence: 0 }));
+      return posts.map(() => ({ category: fallback, confidence: 0, summary: null }));
     }
 
     const data = await response.json();
     const text = (data.content?.[0]?.text || "").trim();
-    const match = text.match(/\[[\s\S]*?\]/);
-    if (!match) return posts.map(() => ({ category: fallback, confidence: 0 }));
+    const match = text.match(/\[[\s\S]*\]/);
+    if (!match) return posts.map(() => ({ category: fallback, confidence: 0, summary: null }));
 
     let arr: unknown;
-    try { arr = JSON.parse(match[0]); } catch { return posts.map(() => ({ category: fallback, confidence: 0 })); }
-    if (!Array.isArray(arr)) return posts.map(() => ({ category: fallback, confidence: 0 }));
+    try { arr = JSON.parse(match[0]); } catch { return posts.map(() => ({ category: fallback, confidence: 0, summary: null })); }
+    if (!Array.isArray(arr)) return posts.map(() => ({ category: fallback, confidence: 0, summary: null }));
 
-    const allowed = new Set(availableCategories.map((c) => c.toLowerCase()));
     return posts.map((_, i) => {
-      const raw = typeof arr[i] === "string" ? (arr[i] as string).trim() : "";
-      const matched = availableCategories.find((c) => c.toLowerCase() === raw.toLowerCase());
-      if (matched) return { category: matched, confidence: 0.9 };
+      const item = arr[i];
+      // Support both object format {category, title, summary} and legacy string format
+      const rawCategory = typeof item === "string"
+        ? item.trim()
+        : (typeof item === "object" && item !== null && typeof (item as Record<string, unknown>).category === "string")
+          ? ((item as Record<string, unknown>).category as string).trim()
+          : "";
+      const rawTitle = (typeof item === "object" && item !== null && typeof (item as Record<string, unknown>).title === "string")
+        ? ((item as Record<string, unknown>).title as string).trim()
+        : null;
+      const rawSummary = (typeof item === "object" && item !== null && typeof (item as Record<string, unknown>).summary === "string")
+        ? ((item as Record<string, unknown>).summary as string).trim()
+        : null;
+      const matched = availableCategories.find((c) => c.toLowerCase() === rawCategory.toLowerCase());
+      if (matched) return { category: matched, confidence: 0.9, title: rawTitle || null, summary: rawSummary || null };
       // Unexpected value or missing index — fall back rather than invent
-      return { category: fallback, confidence: 0.3 };
+      return { category: fallback, confidence: 0.3, title: rawTitle || null, summary: rawSummary || null };
     });
   } catch (error) {
     console.error("[categorizer] batch error:", error);
-    return posts.map(() => ({ category: fallback, confidence: 0 }));
+    return posts.map(() => ({ category: fallback, confidence: 0, summary: null }));
   }
 }
 

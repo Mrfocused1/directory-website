@@ -45,7 +45,6 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
   if (!site) {
     // No site found in DB — fall back to demo for the "demo" slug
     if (tenantSlug === "demo") return getDemoSiteData(tenantSlug);
-    if (tenantSlug === "nischa") return getNischaDemoData();
     return null;
   }
 
@@ -119,7 +118,9 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
       thumbUrl: p.thumbUrl,
       numSlides: p.numSlides ?? 0,
       slides: p.slides ?? null,
+      summary: p.summary ?? null,
       transcript: p.transcript,
+      transcriptSegments: p.transcriptSegments ?? null,
       platformUrl: p.platformUrl,
       references: mappedRefs,
       isFeatured: p.isFeatured,
@@ -249,7 +250,9 @@ function getDemoSiteData(tenantSlug: string): {
       thumbUrl: null,
       numSlides: i % 4 === 0 ? 3 : 0,
       slides: null,
+      summary: null,
       transcript: i % 2 !== 0 ? "This is a demo transcript. In production, this would be the full AI-generated transcription of the video content." : null,
+      transcriptSegments: null,
       platformUrl: PLATFORM_URLS[platform](handle, `demo${i}`),
       references: refs,
     };
@@ -299,6 +302,8 @@ function getNischaDemoData(): {
       numSlides: 0,
       slides: null,
       transcript: "Let me share the 17 habits that genuinely changed my financial life. Number one — automate your savings. The day I set up a standing order to move money the moment I got paid, everything changed. Number two — the 24-hour rule. Before buying anything over fifty pounds, wait 24 hours. You'd be amazed how often you don't actually want it.",
+      summary: null,
+      transcriptSegments: null,
       platformUrl: null,
       references: [
         { kind: "youtube", title: "17 Habits That Made Me Rich", videoId: "K8dTnlVWPZo", note: "Nischa's full YouTube breakdown — 2.8M views" },
@@ -319,6 +324,8 @@ function getNischaDemoData(): {
       numSlides: 0,
       slides: null,
       transcript: "Everyone talks about the 50/30/20 rule but honestly, in today's economy, it doesn't work for most people. Here's what I use instead — the 65/25/10 rule. 65 percent goes to necessities, 25 percent to savings and investments, and 10 percent to fun money. The reason this works better is because it acknowledges that living costs have gone up.",
+      summary: null,
+      transcriptSegments: null,
       platformUrl: null,
       references: [
         { kind: "article", title: "The 65/20/15 Rule: A Modern Budgeting Framework", url: "https://finance.yahoo.com/news/6-ways-change-finances-6-220009483.html", note: "Yahoo Finance" },
@@ -339,6 +346,8 @@ function getNischaDemoData(): {
       numSlides: 0,
       slides: null,
       transcript: "If you have one thousand pounds and you want to start investing, here's exactly what I'd do. Step one — open a stocks and shares ISA. This is a tax-free wrapper, meaning any gains you make inside it are completely tax free. Step two — pick a global index fund. Something like Vanguard FTSE Global All Cap. You're instantly diversified across thousands of companies worldwide.",
+      summary: null,
+      transcriptSegments: null,
       platformUrl: null,
       references: [
         { kind: "article", title: "How to Start Investing in Index Funds", url: "https://www.investopedia.com/articles/investing/090215/index-fund-investopedia.asp", note: "Investopedia" },
@@ -360,6 +369,8 @@ function getNischaDemoData(): {
       numSlides: 0,
       slides: null,
       transcript: "The first hack is what I call the cost-per-use calculation. Before buying something, divide the price by how many times you'll realistically use it. A hundred pound jacket you wear twice costs fifty pounds per wear. A thirty pound jacket you wear fifty times costs sixty pence per wear. Suddenly expensive things look cheap and cheap things look expensive.",
+      summary: null,
+      transcriptSegments: null,
       platformUrl: null,
       references: [
         { kind: "article", title: "5 Mind Hacks To Save More Money — Nischa Shah", url: "https://finance.yahoo.com/news/money-expert-nischa-5-mind-170155614.html", note: "Yahoo Finance" },
@@ -380,6 +391,8 @@ function getNischaDemoData(): {
       numSlides: 0,
       slides: null,
       transcript: "Everyone tells you to buy a house as soon as possible. Your parents, your friends, random people on the internet. But here's what they're not telling you. When you factor in mortgage interest, stamp duty, maintenance costs, insurance, and opportunity cost of your deposit — renting and investing the difference often comes out ahead over 10 years.",
+      summary: null,
+      transcriptSegments: null,
       platformUrl: null,
       references: [
         { kind: "youtube", title: "They're Lying to You About Buying a House!", videoId: "Uwl3-jBNEd4", note: "Nischa on YouTube — Diary of a CEO appearance" },
@@ -400,6 +413,8 @@ function getNischaDemoData(): {
       numSlides: 0,
       slides: null,
       transcript: "Passive income idea number one — dividend ETFs. I put money into Vanguard's High Dividend Yield ETF and it pays me quarterly without me doing anything. Number two — a high interest savings account. Boring? Yes. Passive? Absolutely. I'm earning over five percent right now doing literally nothing.",
+      summary: null,
+      transcriptSegments: null,
       platformUrl: null,
       references: [
         { kind: "youtube", title: "7 Passive Income Ideas — How I Make $200K/year", videoId: "M5y69v1RbU0", note: "Nischa on YouTube" },
@@ -420,6 +435,8 @@ function getNischaDemoData(): {
       numSlides: 5,
       slides: null,
       transcript: null,
+      summary: null,
+      transcriptSegments: null,
       platformUrl: null,
       references: [
         { kind: "article", title: "How to Track Your Spending Effectively", url: "https://www.ramseysolutions.com/budgeting/how-to-track-spending", note: "Ramsey Solutions" },
@@ -439,6 +456,8 @@ function getNischaDemoData(): {
       numSlides: 0,
       slides: null,
       transcript: "I was 28 years old making over six figures in investment banking. On paper my life looked perfect. But I was working 80 hour weeks, I had no time for myself, and I realised I was building someone else's dream. The day I handed in my resignation was terrifying but also the most free I've ever felt.",
+      summary: null,
+      transcriptSegments: null,
       platformUrl: null,
       references: [
         { kind: "article", title: "An Investment Banker Quit to Become a YouTuber — Now Makes Over $1M", url: "https://www.cnbc.com/2024/07/10/investment-banker-who-quit-to-become-a-youtuber-made-over-1-million.html", note: "CNBC" },
@@ -459,6 +478,8 @@ function getNischaDemoData(): {
       numSlides: 0,
       slides: null,
       transcript: "Everyone says save three to six months of expenses as an emergency fund. But that's way too vague. Here's how I think about it. If you're employed with a stable job, three months is fine. If you're self-employed or freelance, aim for six to nine months. If you have dependents, add two more months on top. And keep it in a high-interest easy-access savings account — not invested.",
+      summary: null,
+      transcriptSegments: null,
       platformUrl: null,
       references: [
         { kind: "article", title: "How Much Emergency Fund Do I Need?", url: "https://www.moneysavingexpert.com/savings/emergency-fund/", note: "MoneySavingExpert" },

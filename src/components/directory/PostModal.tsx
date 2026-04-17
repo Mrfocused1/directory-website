@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import type { SitePost } from "@/lib/types";
@@ -8,6 +8,7 @@ import { formatDate } from "@/lib/utils";
 import ReferencesAccordion from "./ReferencesAccordion";
 import ShareButtons from "./ShareButtons";
 import BookmarkButton from "@/components/bookmarks/BookmarkButton";
+import { SUPPORTED_LANGUAGES } from "@/lib/translate";
 
 export default function PostModal({
   post,
@@ -21,6 +22,7 @@ export default function PostModal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (!post) return;
@@ -63,6 +65,13 @@ export default function PostModal({
       returnFocusRef.current?.focus?.();
     };
   }, [post, onClose]);
+
+  const seekTo = useCallback((seconds: number) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = seconds;
+      videoRef.current.play();
+    }
+  }, []);
 
   const shareUrl = post && typeof window !== "undefined"
     ? `${window.location.origin}${window.location.pathname.replace(/\/p\/.*$/, "")}/p/${post.shortcode}`
@@ -120,6 +129,7 @@ export default function PostModal({
               <div className="bg-black">
                 {post.type === "video" && post.mediaUrl ? (
                   <video
+                    ref={videoRef}
                     key={post.shortcode}
                     src={post.mediaUrl}
                     poster={post.thumbUrl || undefined}
@@ -143,22 +153,37 @@ export default function PostModal({
                 ) : null}
               </div>
 
+              {/* Chapters */}
+              {post.transcriptSegments && post.transcriptSegments.length > 0 && (
+                <ChaptersAccordion segments={post.transcriptSegments} onSeek={seekTo} />
+              )}
+
               {/* Caption + actions */}
               <section className="px-4 pt-4">
                 <p className="text-sm whitespace-pre-line leading-relaxed">
                   {post.caption}
                 </p>
 
+                {/* AI Summary */}
+                {post.summary && (
+                  <div className="mt-4 rounded-lg bg-black/[0.03] dark:bg-white/[0.05] px-4 py-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--fg-subtle)] mb-2">
+                      Key Takeaways
+                    </p>
+                    <ul className="space-y-1">
+                      {post.summary.split("\n").filter((line) => line.trim().startsWith("-")).map((line, i) => (
+                        <li key={i} className="text-xs text-[color:var(--fg-muted)] leading-relaxed flex gap-1.5">
+                          <span className="text-[color:var(--fg-subtle)] shrink-0">&#8226;</span>
+                          <span>{line.trim().replace(/^-\s*/, "")}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
                 {/* Transcript */}
                 {post.transcript && (
-                  <details className="mt-4">
-                    <summary className="text-xs font-semibold uppercase tracking-wide text-[color:var(--fg-subtle)] cursor-pointer hover:text-[color:var(--fg)] transition">
-                      Transcript
-                    </summary>
-                    <p className="mt-2 text-sm text-[color:var(--fg-muted)] whitespace-pre-line leading-relaxed bg-[color:var(--card)] border border-[color:var(--border)] rounded-lg p-3">
-                      {post.transcript}
-                    </p>
-                  </details>
+                  <TranscriptSection transcript={post.transcript} />
                 )}
 
                 <div className="mt-3 flex items-center gap-3 flex-wrap">
@@ -190,6 +215,207 @@ export default function PostModal({
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Video chapters                                                     */
+/* ------------------------------------------------------------------ */
+
+type Segment = { start: number; end: number; text: string };
+
+/** Merge consecutive transcript segments into ~30-second chapters. */
+function buildChapters(segments: Segment[]): { start: number; text: string }[] {
+  if (segments.length === 0) return [];
+
+  const chapters: { start: number; text: string }[] = [];
+  let chapterStart = segments[0].start;
+  let chapterTexts: string[] = [];
+
+  for (const seg of segments) {
+    // Start a new chapter when this segment begins >= 30s after the current chapter start
+    if (seg.start - chapterStart >= 30 && chapterTexts.length > 0) {
+      chapters.push({ start: chapterStart, text: chapterTexts.join(" ") });
+      chapterStart = seg.start;
+      chapterTexts = [];
+    }
+    chapterTexts.push(seg.text.trim());
+  }
+
+  // Push the last chapter
+  if (chapterTexts.length > 0) {
+    chapters.push({ start: chapterStart, text: chapterTexts.join(" ") });
+  }
+
+  return chapters;
+}
+
+/** Format seconds as M:SS */
+function fmtTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function ChaptersAccordion({
+  segments,
+  onSeek,
+}: {
+  segments: Segment[];
+  onSeek: (seconds: number) => void;
+}) {
+  const chapters = buildChapters(segments);
+  if (chapters.length === 0) return null;
+
+  return (
+    <details className="px-4 pt-3">
+      <summary className="text-xs font-semibold uppercase tracking-wide text-[color:var(--fg-subtle)] cursor-pointer hover:text-[color:var(--fg)] transition select-none">
+        Chapters &middot; {chapters.length}
+      </summary>
+      <ul className="mt-2 space-y-1">
+        {chapters.map((ch, i) => (
+          <li key={i}>
+            <button
+              type="button"
+              onClick={() => onSeek(ch.start)}
+              className="w-full text-left flex items-start gap-2 px-2 py-1.5 rounded hover:bg-[color:var(--fg)]/5 transition group"
+            >
+              <span className="shrink-0 text-xs font-mono text-[color:var(--fg-subtle)] group-hover:text-[color:var(--fg)] tabular-nums mt-px">
+                {fmtTime(ch.start)}
+              </span>
+              <span className="text-xs text-[color:var(--fg-muted)] group-hover:text-[color:var(--fg)] leading-relaxed line-clamp-1">
+                {ch.text.length > 60 ? ch.text.slice(0, 60) + "\u2026" : ch.text}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Transcript with translation support                               */
+/* ------------------------------------------------------------------ */
+
+function TranscriptSection({ transcript }: { transcript: string }) {
+  const [selectedLang, setSelectedLang] = useState("");
+  const [translating, setTranslating] = useState(false);
+  const [showTranslated, setShowTranslated] = useState(false);
+  const [translatedText, setTranslatedText] = useState("");
+  // Cache: lang code -> translated string
+  const cacheRef = useRef<Record<string, string>>({});
+
+  const handleTranslate = useCallback(
+    async (langCode: string) => {
+      if (!langCode) {
+        setShowTranslated(false);
+        setSelectedLang("");
+        return;
+      }
+
+      setSelectedLang(langCode);
+
+      // Return cached result if available
+      if (cacheRef.current[langCode]) {
+        setTranslatedText(cacheRef.current[langCode]);
+        setShowTranslated(true);
+        return;
+      }
+
+      setTranslating(true);
+      try {
+        const res = await fetch("/api/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: transcript, targetLang: langCode }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const result: string = data.translated ?? transcript;
+        cacheRef.current[langCode] = result;
+        setTranslatedText(result);
+        setShowTranslated(true);
+      } catch (err) {
+        console.error("[TranscriptSection] translation failed:", err);
+        // On failure just keep showing original
+      } finally {
+        setTranslating(false);
+      }
+    },
+    [transcript],
+  );
+
+  return (
+    <details className="mt-4">
+      <summary className="text-xs font-semibold uppercase tracking-wide text-[color:var(--fg-subtle)] cursor-pointer hover:text-[color:var(--fg)] transition">
+        Transcript
+      </summary>
+
+      {/* Language selector */}
+      <div className="mt-2 flex items-center gap-2 flex-wrap">
+        <label
+          htmlFor="translate-lang"
+          className="text-xs text-[color:var(--fg-subtle)]"
+        >
+          Translate transcript:
+        </label>
+        <select
+          id="translate-lang"
+          value={selectedLang}
+          onChange={(e) => handleTranslate(e.target.value)}
+          className="text-xs rounded border border-[color:var(--border)] bg-[color:var(--card)] text-[color:var(--fg)] px-2 py-1 focus:outline-none focus:ring-1 focus:ring-[color:var(--fg)]"
+        >
+          <option value="">Original</option>
+          {SUPPORTED_LANGUAGES.map((lang) => (
+            <option key={lang.code} value={lang.code}>
+              {lang.name}
+            </option>
+          ))}
+        </select>
+
+        {translating && (
+          <svg
+            className="animate-spin h-4 w-4 text-[color:var(--fg-subtle)]"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            aria-label="Translating"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
+          </svg>
+        )}
+
+        {translatedText && !translating && (
+          <button
+            type="button"
+            onClick={() => {
+              setShowTranslated((v) => !v);
+            }}
+            className="text-xs underline text-[color:var(--fg-subtle)] hover:text-[color:var(--fg)] transition"
+          >
+            {showTranslated ? "Show original" : "Show translation"}
+          </button>
+        )}
+      </div>
+
+      {/* Transcript text */}
+      <p className="mt-2 text-sm text-[color:var(--fg-muted)] whitespace-pre-line leading-relaxed bg-[color:var(--card)] border border-[color:var(--border)] rounded-lg p-3">
+        {showTranslated && !translating ? translatedText : transcript}
+      </p>
+    </details>
   );
 }
 

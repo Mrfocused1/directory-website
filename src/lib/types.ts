@@ -38,8 +38,10 @@ export type SitePost = {
   thumbUrl: string | null;
   numSlides: number;
   slides: { type: string; src: string }[] | null;
+  summary: string | null;
   transcript: string | null;
   platformUrl: string | null;
+  transcriptSegments: { start: number; end: number; text: string }[] | null;
   references: Reference[];
   isFeatured?: boolean;
 };

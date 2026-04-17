@@ -200,6 +200,7 @@ function OnboardingContent() {
       // Only show the processing spinner AFTER the API accepted the build.
       // This avoids a false-progress state when the API rejects with 403.
       setStep("processing");
+      window.scrollTo({ top: 0, behavior: "smooth" });
 
       const data = { siteId };
 
@@ -267,24 +268,24 @@ function OnboardingContent() {
   };
 
   return (
-    <div className="marketing-theme min-h-screen flex flex-col">
+    <div className="marketing-theme min-h-screen flex flex-col overflow-x-hidden">
       <div className="bg-[color:var(--bd-dark)] text-white">
         <MarketingNav />
       </div>
 
-      <main className="flex-1 bg-[color:var(--bd-cream)] py-16">
-        <div className="max-w-xl mx-auto px-6">
+      <main className="flex-1 bg-[color:var(--bd-cream)] py-10 sm:py-16">
+        <div className="max-w-xl mx-auto px-5 sm:px-6">
           {/* Steps indicator */}
-          <div className="flex items-center gap-2 mb-10">
+          <div className="flex items-center justify-center gap-3 mb-8 sm:mb-10">
             {(["handle", "customize", "processing"] as const).map((s, i) => (
-              <div key={s} className="flex items-center gap-2">
+              <div key={s} className="flex items-center gap-3">
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition ${
+                  className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition ${
                     step === s || (step === "done" && s === "processing")
                       ? "bg-[color:var(--bd-dark)] text-[color:var(--bd-lime)]"
                       : i < ["handle", "customize", "processing"].indexOf(step)
                         ? "bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)]"
-                        : "bg-[color:var(--bd-dark-faded)] text-[color:var(--bd-grey)]"
+                        : "bg-neutral-200 text-neutral-400"
                   }`}
                 >
                   {i < ["handle", "customize", "processing", "done"].indexOf(step) ? (
@@ -295,7 +296,7 @@ function OnboardingContent() {
                     i + 1
                   )}
                 </div>
-                {i < 2 && <div className="w-12 h-0.5 bg-[color:var(--bd-dark-faded)] rounded-full" />}
+                {i < 2 && <div className="w-10 sm:w-14 h-0.5 bg-neutral-200 rounded-full" />}
               </div>
             ))}
           </div>
@@ -357,12 +358,12 @@ function OnboardingContent() {
 
           {step === "handle" && !upgradeRequired && (
             <div className="animate-fade-in">
-              <h1 className="font-display-tight text-[2.5rem] sm:text-[3.25rem] text-[color:var(--bd-dark)] mb-3">
+              <h1 className="font-display-tight text-[2rem] sm:text-[3.25rem] text-[color:var(--bd-dark)] mb-2 sm:mb-3">
                 Let&apos;s build
                 <br />
                 your directory.
               </h1>
-              <p className="text-[color:var(--bd-grey)] mb-10 leading-relaxed">
+              <p className="text-[color:var(--bd-grey)] mb-8 sm:mb-10 leading-relaxed text-sm sm:text-base">
                 Enter your social media handle and we&apos;ll do the rest.
               </p>
 
@@ -404,22 +405,22 @@ function OnboardingContent() {
           {/* Step: Customize */}
           {step === "customize" && !upgradeRequired && (
             <div className="animate-fade-in">
-              <h1 className="font-display-tight text-[2.5rem] sm:text-[3.25rem] text-[color:var(--bd-dark)] mb-3">
+              <h1 className="font-display-tight text-[2rem] sm:text-[3.25rem] text-[color:var(--bd-dark)] mb-2 sm:mb-3">
                 Customize
                 <br />
                 your directory.
               </h1>
-              <p className="text-[color:var(--bd-grey)] mb-10 leading-relaxed">
+              <p className="text-[color:var(--bd-grey)] mb-8 sm:mb-10 leading-relaxed text-sm sm:text-base">
                 Choose your URL and display name.
               </p>
 
-              <form onSubmit={handleStartBuild} className="space-y-6">
+              <form onSubmit={handleStartBuild} className="space-y-5 sm:space-y-6">
                 <div>
-                  <label htmlFor="slug" className="eyebrow text-[color:var(--bd-dark)] mb-3">
+                  <label htmlFor="slug" className="eyebrow text-[color:var(--bd-dark)] mb-3 block text-xs uppercase tracking-wider font-semibold">
                     Your URL
                   </label>
-                  <div className="flex items-center gap-0 mt-2">
-                    <span className="h-14 px-5 bg-[color:var(--bd-cream-2)] border-2 border-r-0 border-[color:var(--bd-dark-faded)] rounded-l-full text-sm font-medium text-[color:var(--bd-grey)] flex items-center whitespace-nowrap">
+                  <div className="flex items-center mt-2">
+                    <span className="h-12 sm:h-14 px-3 sm:px-5 bg-neutral-100 border-2 border-r-0 border-neutral-200 rounded-l-full text-xs sm:text-sm font-medium text-[color:var(--bd-grey)] flex items-center whitespace-nowrap">
                       buildmy.directory/
                     </span>
                     <input
@@ -428,13 +429,13 @@ function OnboardingContent() {
                       value={slug}
                       onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
                       required
-                      className="flex-1 h-14 px-4 bg-white border-2 border-l-0 border-[color:var(--bd-dark-faded)] rounded-r-full text-lg font-medium text-[color:var(--bd-dark)] focus:outline-none focus:border-[color:var(--bd-dark)] transition"
+                      className="flex-1 min-w-0 h-12 sm:h-14 px-3 sm:px-4 bg-white border-2 border-l-0 border-neutral-200 rounded-r-full text-base sm:text-lg font-medium text-[color:var(--bd-dark)] focus:outline-none focus:border-[color:var(--bd-dark)] transition"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label htmlFor="displayName" className="eyebrow text-[color:var(--bd-dark)] mb-3">
+                  <label htmlFor="displayName" className="eyebrow text-[color:var(--bd-dark)] mb-3 block text-xs uppercase tracking-wider font-semibold">
                     Display name
                   </label>
                   <input
@@ -444,24 +445,24 @@ function OnboardingContent() {
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="Your Directory"
                     required
-                    className="w-full h-14 px-5 mt-2 bg-white border-2 border-[color:var(--bd-dark-faded)] rounded-full text-lg font-medium text-[color:var(--bd-dark)] placeholder:text-[color:var(--bd-grey)] focus:outline-none focus:border-[color:var(--bd-dark)] transition"
+                    className="w-full h-12 sm:h-14 px-4 sm:px-5 mt-2 bg-white border-2 border-neutral-200 rounded-full text-base sm:text-lg font-medium text-[color:var(--bd-dark)] placeholder:text-neutral-400 focus:outline-none focus:border-[color:var(--bd-dark)] transition"
                   />
                 </div>
 
                 {/* Preview */}
-                <div className="bg-white rounded-[1.25rem] p-6">
-                  <p className="eyebrow text-[color:var(--bd-dark)] mb-4">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--bd-lime)]" />
-                    Preview
-                  </p>
+                <div className="bg-white rounded-2xl p-5 sm:p-6 border border-neutral-100">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="w-2 h-2 rounded-full bg-[color:var(--bd-lime)]" />
+                    <span className="text-xs uppercase tracking-wider font-semibold text-[color:var(--bd-grey)]">Preview</span>
+                  </div>
                   <div className="text-center">
-                    <h2 className="font-display-tight text-2xl text-[color:var(--bd-dark)]">
+                    <h2 className="font-display-tight text-xl sm:text-2xl text-[color:var(--bd-dark)]">
                       {displayName || "Your Directory"}
                     </h2>
                     <p className="text-xs text-[color:var(--bd-grey)] mt-1">
                       @{handle.replace(/^@/, "") || "handle"} on {platform}
                     </p>
-                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="mt-4 grid grid-cols-4 gap-1.5 sm:gap-2">
                       {[
                         "var(--bd-maroon)",
                         "var(--bd-lilac)",
@@ -474,17 +475,17 @@ function OnboardingContent() {
                   </div>
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex gap-3 pt-1">
                   <button
                     type="button"
                     onClick={() => setStep("handle")}
-                    className="flex-1 h-14 border-2 border-[color:var(--bd-dark-faded)] rounded-full text-base font-semibold text-[color:var(--bd-dark)] hover:bg-white transition"
+                    className="flex-1 h-12 sm:h-14 border-2 border-neutral-200 rounded-full text-sm sm:text-base font-semibold text-[color:var(--bd-dark)] hover:bg-white transition"
                   >
                     Back
                   </button>
                   <button
                     type="submit"
-                    className="flex-[2] h-14 bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] rounded-full text-base font-semibold hover:opacity-90 transition"
+                    className="flex-[2] h-12 sm:h-14 bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] rounded-full text-sm sm:text-base font-semibold hover:opacity-90 transition"
                   >
                     Build My Directory
                   </button>

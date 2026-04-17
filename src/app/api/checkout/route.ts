@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { getApiUser } from "@/lib/supabase/api";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
+
+/** Promo codes that bypass Stripe and grant a plan directly. */
+const PROMO_CODES: Record<string, { plan: string }> = {
+  INFLUENCER123: { plan: "pro" },
+};
 
 /**
  * Plan pricing configuration.
@@ -41,7 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { plan } = body;
+    const { plan, promoCode } = body;
 
     const user = await getApiUser();
     if (!user) {
@@ -51,6 +59,24 @@ export async function POST(request: NextRequest) {
       );
     }
     const userId = user.id;
+
+    // ── Promo code: bypass Stripe, upgrade directly ──
+    if (promoCode) {
+      const promo = PROMO_CODES[promoCode.toUpperCase().trim()];
+      if (!promo) {
+        return NextResponse.json({ error: "Invalid promo code." }, { status: 400 });
+      }
+      if (!db) {
+        return NextResponse.json({ error: "Database unavailable." }, { status: 503 });
+      }
+      await db.update(users)
+        .set({ plan: promo.plan, updatedAt: new Date() })
+        .where(eq(users.id, userId));
+
+      return NextResponse.json({
+        url: `${request.nextUrl.origin}/onboarding?plan=${promo.plan}&paid=true`,
+      });
+    }
 
     const planConfig = PLAN_PRICES[plan];
     if (!planConfig) {

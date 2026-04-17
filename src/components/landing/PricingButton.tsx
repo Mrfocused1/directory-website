@@ -6,6 +6,7 @@ import Link from "next/link";
 /**
  * Pricing CTA button. Free plan goes straight to onboarding.
  * Paid plans redirect to Stripe Checkout first, then onboarding after payment.
+ * Supports promo codes that bypass Stripe.
  */
 export default function PricingButton({
   plan,
@@ -20,9 +21,9 @@ export default function PricingButton({
 }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPromo, setShowPromo] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
 
-  // Marketing-theme styling to match the nory-inspired landing page.
-  // Caller can override with `className` if embedded elsewhere.
   const defaultClass = `w-full h-11 rounded-full text-sm font-semibold flex items-center justify-center transition ${
     highlight
       ? "bg-[color:var(--bd-dark)] text-[color:var(--bd-lime)] hover:opacity-90"
@@ -39,15 +40,19 @@ export default function PricingButton({
     );
   }
 
-  // Paid plans — Stripe Checkout first, then onboarding
-  const handleClick = async () => {
+  // Paid plans — Stripe Checkout or promo code
+  const handleCheckout = async (usePromo?: boolean) => {
     setLoading(true);
     setError(null);
     try {
+      const payload: Record<string, string> = { plan };
+      if (usePromo && promoCode.trim()) {
+        payload.promoCode = promoCode.trim();
+      }
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (res.ok && data.url) {
@@ -66,14 +71,44 @@ export default function PricingButton({
     <div>
       <button
         type="button"
-        onClick={handleClick}
+        onClick={() => handleCheckout(false)}
         disabled={loading}
         className={`${baseClass} disabled:opacity-60`}
       >
         {loading ? "Redirecting..." : cta}
       </button>
+
+      {/* Promo code toggle */}
+      {!showPromo ? (
+        <button
+          type="button"
+          onClick={() => setShowPromo(true)}
+          className="w-full mt-2 text-xs text-white/50 hover:text-white/80 transition text-center"
+        >
+          Have a promo code?
+        </button>
+      ) : (
+        <div className="mt-2 flex gap-2">
+          <input
+            type="text"
+            value={promoCode}
+            onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+            placeholder="Enter code"
+            className="flex-1 h-9 rounded-full bg-white/10 border border-white/20 px-3 text-xs text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/40"
+          />
+          <button
+            type="button"
+            onClick={() => handleCheckout(true)}
+            disabled={loading || !promoCode.trim()}
+            className="h-9 px-4 rounded-full bg-white/10 border border-white/20 text-xs font-semibold text-white hover:bg-white/20 transition disabled:opacity-40"
+          >
+            Apply
+          </button>
+        </div>
+      )}
+
       {error && (
-        <p className="text-xs text-red-600 text-center mt-2">{error}</p>
+        <p className="text-xs text-red-400 text-center mt-2">{error}</p>
       )}
     </div>
   );

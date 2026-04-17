@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import DashboardNav from "@/components/dashboard/DashboardNav";
 import EmptyState from "@/components/dashboard/EmptyState";
 import GettingStarted from "@/components/dashboard/GettingStarted";
@@ -29,6 +30,17 @@ type SyncStatus = {
 };
 
 export default function DashboardPage() {
+  const searchParams = useSearchParams();
+  const newDirectorySlug = searchParams.get("new_directory");
+  const [showNewBanner, setShowNewBanner] = useState(!!newDirectorySlug);
+
+  // Clean URL after showing banner
+  useEffect(() => {
+    if (newDirectorySlug) {
+      window.history.replaceState({}, "", "/dashboard");
+    }
+  }, [newDirectorySlug]);
+
   const [sites, setSites] = useState<SiteData[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -137,6 +149,47 @@ export default function DashboardPage() {
         <DashboardNav />
 
         <main id="main" className="max-w-4xl mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-20">
+          {/* New directory banner */}
+          {showNewBanner && newDirectorySlug && (
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-5 mb-6 animate-fade-in">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-green-500 text-white flex items-center justify-center shrink-0">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-lg font-extrabold text-green-900 mb-1">Your directory is live!</h2>
+                  <p className="text-sm text-green-800 mb-3">
+                    <span className="font-mono font-semibold">buildmy.directory/{newDirectorySlug}</span> is ready to share with your audience.
+                  </p>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <a
+                      href={`/${newDirectorySlug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 h-11 px-6 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 transition shadow-md shadow-green-200"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                        <polyline points="15 3 21 3 21 9" />
+                        <line x1="10" y1="14" x2="21" y2="3" />
+                      </svg>
+                      View new directory
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => setShowNewBanner(false)}
+                      className="text-sm text-green-700 hover:text-green-900 font-medium transition"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {!loading && sites.length > 0 && <GettingStarted sites={sites} />}
 
           <div className="flex items-center justify-between mb-8">

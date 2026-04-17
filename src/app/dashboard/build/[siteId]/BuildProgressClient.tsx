@@ -111,6 +111,13 @@ export default function BuildProgressClient({
 
   const currentIdx = STEPS.findIndex((s) => s.key === status.step);
 
+  // Redirect to dashboard when build completes
+  useEffect(() => {
+    if (done) {
+      router.push("/dashboard?new_directory=" + encodeURIComponent(slug));
+    }
+  }, [done, router, slug]);
+
   if (done) {
     return (
       <div className="min-h-screen relative">
@@ -118,33 +125,13 @@ export default function BuildProgressClient({
         <div className="fixed inset-0 bg-gradient-to-br from-white/70 via-white/30 to-white/70 pointer-events-none" aria-hidden />
         <main id="main" className="relative z-10 max-w-lg mx-auto px-6 pt-20 pb-20 text-center animate-fade-in">
           <div className="w-16 h-16 rounded-full bg-green-500 text-white flex items-center justify-center mx-auto mb-6">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 6L9 17l-5-5" />
+            <svg className="animate-spin" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
             </svg>
           </div>
-          <h1 className="text-3xl font-extrabold tracking-tight mb-2">
-            Your directory is live
+          <h1 className="text-2xl font-extrabold tracking-tight">
+            Taking you to your dashboard...
           </h1>
-          <p className="text-[color:var(--fg-muted)] mb-8">
-            Share <span className="font-semibold">{displayName}</span> with your audience.
-          </p>
-          <div className="bg-white border-2 border-[color:var(--border)] rounded-2xl p-6 mb-6 max-w-sm mx-auto">
-            <p className="text-sm font-mono font-semibold">buildmy.directory/{slug}</p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 max-w-sm mx-auto">
-            <Link
-              href={`/${slug}`}
-              className="flex-1 h-12 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold flex items-center justify-center hover:opacity-90 transition"
-            >
-              View directory
-            </Link>
-            <Link
-              href="/dashboard"
-              className="flex-1 h-12 border-2 border-[color:var(--border)] rounded-xl text-sm font-semibold flex items-center justify-center hover:bg-black/5 transition"
-            >
-              Dashboard
-            </Link>
-          </div>
         </main>
       </div>
     );

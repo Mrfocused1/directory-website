@@ -30,7 +30,7 @@ const FEATURES: {
     eyebrow: "Auto-scrape",
     accent: "#d3fd74",
     title: "We pull every post, reel and carousel.",
-    desc: "Enter your Instagram or TikTok handle. We do the scraping, the uploading, and the thumbnail prep. You don't touch anything.",
+    desc: "Enter your Instagram handle. We do the scraping, the uploading, and the thumbnail prep. You don't touch anything.",
     Demo: AutoScrapeDemo,
   },
   {
@@ -65,7 +65,7 @@ const PRICING = [
     features: [
       "1 directory site",
       "Up to 9 posts (one-shot build)",
-      "1 Instagram or TikTok account",
+      "1 Instagram account",
       "AI transcription + key takeaways",
       "Smart references (articles + YouTube)",
       "Auto-categorization with AI titles",
@@ -86,7 +86,7 @@ const PRICING = [
     features: [
       "Up to 150 posts",
       "30 syncs per month (~1/day)",
-      "Instagram + TikTok",
+      "Instagram",
       "Custom domain (connect your own)",
       "Full analytics dashboard",
       "Email newsletter & subscribers",
@@ -155,7 +155,7 @@ export default function LandingPage() {
               </h1>
 
               <p className="text-lg text-white/75 leading-relaxed max-w-xl mb-10">
-                Turn your Instagram or TikTok feed into a beautiful, searchable directory
+                Turn your Instagram feed into a beautiful, searchable directory
                 your audience can explore. Transcribed, categorized, cross-referenced —
                 all done for you in minutes.
               </p>

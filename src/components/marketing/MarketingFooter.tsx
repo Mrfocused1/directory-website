@@ -11,7 +11,7 @@ export default function MarketingFooter() {
               <Logo height={48} variant="white" />
             </Link>
             <p className="mt-4 text-sm text-white/60 max-w-xs leading-relaxed">
-              Turn your Instagram or TikTok content into a beautiful, searchable
+              Turn your Instagram content into a beautiful, searchable
               directory your audience can explore.
             </p>
           </div>

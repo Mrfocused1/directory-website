@@ -29,7 +29,7 @@ function OnboardingContent() {
       if (pollRef.current) clearTimeout(pollRef.current);
     };
   }, []);
-  const [platform, setPlatform] = useState<"instagram" | "tiktok">("instagram");
+  const [platform, setPlatform] = useState<"instagram">("instagram");
   const [handle, setHandle] = useState(() => {
     return searchParams.get("handle")?.replace(/^@/, "") || "";
   });
@@ -331,7 +331,7 @@ function OnboardingContent() {
                   </p>
                 </div>
                 <ul className="space-y-2 text-sm text-[color:var(--bd-dark)] mb-6">
-                  {["Up to 100 posts", "30 syncs per month", "Instagram + TikTok + YouTube", "Full analytics dashboard", "Email newsletter", "Smart references"].map((f) => (
+                  {["Up to 150 posts", "30 syncs per month", "Instagram", "Full analytics dashboard", "Email newsletter", "Smart references"].map((f) => (
                     <li key={f} className="flex items-center gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--bd-lime)] shrink-0" />
                       {f}
@@ -367,26 +367,8 @@ function OnboardingContent() {
               </p>
 
               <form onSubmit={handleSubmitHandle} className="space-y-6">
-                {/* Platform selector */}
-                <div>
-                  <label className="eyebrow text-[color:var(--bd-dark)] mb-3">Platform</label>
-                  <div className="flex gap-2 mt-2">
-                    {(["instagram", "tiktok"] as const).map((p) => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => setPlatform(p)}
-                        className={`flex-1 h-12 rounded-full text-sm font-semibold border-2 transition ${
-                          platform === p
-                            ? "border-[color:var(--bd-dark)] bg-[color:var(--bd-dark)] text-[color:var(--bd-lime)]"
-                            : "border-[color:var(--bd-dark-faded)] bg-white text-[color:var(--bd-dark)] hover:border-[color:var(--bd-dark)]"
-                        }`}
-                      >
-                        {p === "instagram" ? "Instagram" : "TikTok"}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                {/* Platform — Instagram only for now */}
+                <input type="hidden" name="platform" value="instagram" />
 
                 {/* Handle input */}
                 <div>

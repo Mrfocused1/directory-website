@@ -15,11 +15,10 @@ const STEPS = [
     accent: "#d3fd74",
     eyebrow: "Get started",
     title: "Enter your handle",
-    desc: "Paste your Instagram or TikTok username. You can connect multiple platforms to merge all your content into one directory.",
+    desc: "Paste your Instagram username. We pull your content and build your directory automatically.",
     detail: null,
     tags: [
       { label: "Instagram", color: "bg-pink-500/15 text-pink-300" },
-      { label: "TikTok", color: "bg-white/10 text-white/70" },
     ],
     Demo: DemoHandleInput,
   },

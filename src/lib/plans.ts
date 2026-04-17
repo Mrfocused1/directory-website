@@ -92,6 +92,7 @@ const PLANS: Record<PlanId, PlanConfig> = {
       "sync",
       "tts",
       "qr_codes",
+      "edit_talking_points",
     ]),
     // ~1 sync/day. Most creators post once every day or two — this
     // matches the real cadence without burning money on constant

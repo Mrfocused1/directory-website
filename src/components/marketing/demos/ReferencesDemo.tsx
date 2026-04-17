@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import DemoFrame from "./DemoFrame";
 
 /**
- * Shows a Gary Vee post at the top, then two reference cards (a
- * YouTube video + an article) animate in below as if Claude just
+ * Shows a Catherine Talks post at the top, then two reference cards
+ * (a YouTube video + an article) animate in below as if AI just
  * pulled them from related content.
  */
 export default function ReferencesDemo() {
@@ -15,11 +15,11 @@ export default function ReferencesDemo() {
     let t = 0;
     const tick = () => {
       t += 100;
-      if (t <= 800) setStep(0);          // post shown
-      else if (t <= 2200) setStep(1);    // "Claude reading…" flash
-      else if (t <= 3200) setStep(2);    // youtube ref
-      else if (t <= 4200) setStep(3);    // article ref
-      else if (t <= 7000) setStep(3);    // hold
+      if (t <= 800) setStep(0);
+      else if (t <= 2200) setStep(1);
+      else if (t <= 3200) setStep(2);
+      else if (t <= 4200) setStep(3);
+      else if (t <= 7000) setStep(3);
       else { t = 0; setStep(0); }
     };
     const id = setInterval(tick, 100);
@@ -30,15 +30,15 @@ export default function ReferencesDemo() {
     <DemoFrame accent="#92eedd">
       {/* Post card */}
       <div className="bg-white rounded-xl p-3 flex gap-3 items-center shadow-sm mb-3">
-        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[color:var(--bd-maroon)] to-[color:var(--bd-purple)] shrink-0 flex items-center justify-center text-white text-xs font-bold">
-          GV
+        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[color:var(--bd-lilac)] to-[color:var(--bd-purple)] shrink-0 flex items-center justify-center text-white text-xs font-bold">
+          CT
         </div>
         <div className="flex-1 min-w-0">
           <div className="text-[10px] font-semibold text-[color:var(--bd-dark)]">
-            @garyvee
+            @catherinetalks
           </div>
           <div className="text-[11px] text-[color:var(--bd-grey)] truncate">
-            &ldquo;Patience beats hustle every single time&rdquo;
+            &ldquo;Pay yourself first — before rent, before bills&rdquo;
           </div>
         </div>
       </div>
@@ -70,7 +70,7 @@ export default function ReferencesDemo() {
               YouTube
             </div>
             <div className="text-[10px] font-medium text-[color:var(--bd-dark)] truncate">
-              Gary Vaynerchuk — The Power of Patience (12:34)
+              The Pay Yourself First Rule Explained (8:12)
             </div>
           </div>
         </div>
@@ -92,10 +92,10 @@ export default function ReferencesDemo() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-[9px] font-semibold uppercase tracking-wider text-[color:var(--bd-grey)]">
-              Forbes
+              Investopedia
             </div>
             <div className="text-[10px] font-medium text-[color:var(--bd-dark)] truncate">
-              Why Long-Term Thinking Wins in Business
+              How Automating Savings Builds Wealth Faster
             </div>
           </div>
         </div>

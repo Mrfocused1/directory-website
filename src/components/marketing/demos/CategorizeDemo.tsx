@@ -3,30 +3,25 @@
 import { useEffect, useState } from "react";
 import DemoFrame from "./DemoFrame";
 
-// Gary Vee-flavored mix. Each post sorts into one of 4 category tabs.
+// Catherine Talks — financial advisor niche
 const POSTS: { title: string; cat: 0 | 1 | 2 | 3 }[] = [
-  { title: "How to 10x your agency in 2026", cat: 0 },
-  { title: "Tasting notes: 2019 Chablis", cat: 2 },
-  { title: "The TikTok algorithm in one tweet", cat: 1 },
-  { title: "My non-negotiable morning routine", cat: 3 },
-  { title: "Why I'm bullish on long-form YouTube", cat: 1 },
-  { title: "Raising sons who hustle without burnout", cat: 3 },
-  { title: "Sauvignon Blanc vs Chardonnay", cat: 2 },
-  { title: "Stop optimizing. Start shipping.", cat: 0 },
+  { title: "How to build a 6-month emergency fund", cat: 0 },
+  { title: "Index funds vs individual stocks in 2026", cat: 1 },
+  { title: "The debt payoff strategy that actually works", cat: 2 },
+  { title: "Morning routine that keeps me disciplined", cat: 3 },
+  { title: "Why I stopped timing the market", cat: 1 },
+  { title: "Setting financial boundaries with family", cat: 3 },
+  { title: "Credit score myths you need to stop believing", cat: 2 },
+  { title: "Your first $10K — a step-by-step plan", cat: 0 },
 ];
 
 const CATS = [
-  { label: "Entrepreneurship", color: "var(--bd-lime)" },
-  { label: "Marketing", color: "var(--bd-lilac)" },
-  { label: "Wine", color: "var(--bd-maroon)", light: true },
+  { label: "Saving", color: "var(--bd-lime)" },
+  { label: "Investing", color: "var(--bd-lilac)" },
+  { label: "Debt", color: "var(--bd-maroon)", light: true },
   { label: "Mindset", color: "#ffc72d" },
 ];
 
-/**
- * Shows unclassified posts streaming through a "Claude reading…"
- * indicator, then appearing under niche-specific tabs. Counts update
- * as posts land. Loop: resets after holding end state.
- */
 export default function CategorizeDemo() {
   const [sortedCount, setSortedCount] = useState(0);
 
@@ -54,8 +49,8 @@ export default function CategorizeDemo() {
       {/* Next post to sort */}
       <div className="bg-white rounded-xl p-2.5 mb-3 shadow-sm">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-gradient-to-br from-[color:var(--bd-maroon)] to-[color:var(--bd-purple)] flex items-center justify-center text-white text-[9px] font-bold shrink-0">
-            GV
+          <div className="w-6 h-6 rounded bg-gradient-to-br from-[color:var(--bd-lilac)] to-[color:var(--bd-purple)] flex items-center justify-center text-white text-[9px] font-bold shrink-0">
+            CT
           </div>
           <div className="text-[11px] font-medium text-[color:var(--bd-dark)] truncate flex-1">
             {sortedCount < POSTS.length

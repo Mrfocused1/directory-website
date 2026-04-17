@@ -3,31 +3,28 @@
 import { useEffect, useState } from "react";
 import DemoFrame from "./DemoFrame";
 
-// Gary Vee-flavored quote, broken into chunks that print one-by-one.
+// Catherine Talks — financial advisor niche
 const WORDS = [
-  "Patience",
-  "beats",
-  "hustle",
-  "every",
-  "single",
-  "time.",
   "The",
-  "people",
-  "who",
-  "win",
-  "long-term",
-  "stop",
-  "chasing",
-  "the",
-  "dopamine",
-  "hit.",
+  "number",
+  "one",
+  "rule",
+  "of",
+  "building",
+  "wealth",
+  "is",
+  "paying",
+  "yourself",
+  "first.",
+  "Before",
+  "rent,",
+  "before",
+  "bills,",
+  "automate",
+  "that",
+  "transfer.",
 ];
 
-/**
- * Loops a "video transcribing" animation — audio waveform pulses
- * while words print into the transcript column. When complete, a
- * small "searchable" pill appears and the whole thing resets.
- */
 export default function TranscriptionDemo() {
   const [wordIdx, setWordIdx] = useState(0);
   const [showPill, setShowPill] = useState(false);
@@ -69,7 +66,7 @@ export default function TranscriptionDemo() {
             ))}
           </div>
           <div className="text-[8px] text-white/50 font-medium">
-            @garyvee • Reel • 0:08 / 0:30
+            @catherinetalks • Reel • 0:08 / 0:30
           </div>
         </div>
 
@@ -97,7 +94,7 @@ export default function TranscriptionDemo() {
               <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                 <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
               </svg>
-              Searchable • 16 words indexed
+              Searchable • {WORDS.length} words indexed
             </div>
           )}
         </div>

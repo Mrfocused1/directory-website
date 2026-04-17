@@ -13,6 +13,7 @@ import { scrapeProfile } from "./scraper";
 import { uploadThumbnail, uploadMedia } from "./storage";
 import { transcribeVideo } from "./transcriber";
 import { categorizeBatchWithLLM, detectCategories, categorizeByKeywords } from "./categorizer";
+import { extractTalkingPoints } from "./talking-points";
 import { extractReferencesForPosts } from "./references";
 import { references as referencesTable } from "@/db/schema";
 import { hasFeature, getPlan, type PlanId } from "@/lib/plans";
@@ -216,6 +217,34 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     } else {
       await report("transcribe", 60, "Skipping transcription (upgrade to Creator for this feature)");
       await updateJob(siteId, "transcribe", "completed", 100, "Transcription not available on Free plan");
+    }
+
+    // ── Step 3b: TALKING POINTS (post-transcription) ─────────────────
+    // Analyze transcribed videos to extract intelligent talking points
+    // (numbered tips, topic transitions, key arguments) instead of
+    // raw 30-second audio chunks.
+    if (canTranscribe) {
+      const transcribedPosts = await database.query.posts.findMany({
+        where: and(eq(posts.siteId, siteId), eq(posts.type, "video")),
+        columns: { id: true, shortcode: true, transcript: true, transcriptSegments: true },
+      });
+      const postsWithSegments = transcribedPosts.filter(
+        (p) => p.transcript && p.transcriptSegments && Array.isArray(p.transcriptSegments) && p.transcriptSegments.length > 0,
+      );
+
+      for (const tp of postsWithSegments) {
+        try {
+          const rawSegments = tp.transcriptSegments as { start: number; end: number; text: string }[];
+          const talkingPoints = await extractTalkingPoints(rawSegments, tp.transcript!);
+          if (talkingPoints.length > 0) {
+            await database.update(posts)
+              .set({ transcriptSegments: talkingPoints })
+              .where(eq(posts.id, tp.id));
+          }
+        } catch {
+          // Keep raw segments as fallback
+        }
+      }
     }
 
     // ── Step 4: CATEGORIZE ──────────────────────────────────────────

@@ -224,27 +224,41 @@ export default function PostModal({
 
 type Segment = { start: number; end: number; text: string };
 
-/** Merge consecutive transcript segments into ~30-second chapters. */
+/**
+ * Build talking points from transcript segments.
+ *
+ * Detects whether segments are AI-curated talking points (short titles,
+ * 3-8 items) or raw transcription chunks (long text, many items), and
+ * handles each case differently.
+ */
 function buildChapters(segments: Segment[]): { start: number; text: string }[] {
   if (segments.length === 0) return [];
 
-  const chapters: { start: number; text: string }[] = [];
-  let chapterStart = segments[0].start;
-  let chapterTexts: string[] = [];
+  // AI-curated talking points: typically 3-8 segments with short, descriptive text
+  // Raw transcription: many segments (10+) with long sentence fragments
+  const avgTextLen = segments.reduce((sum, s) => sum + s.text.length, 0) / segments.length;
+  const isCurated = segments.length <= 10 && avgTextLen < 100;
 
-  for (const seg of segments) {
-    // Start a new chapter when this segment begins >= 30s after the current chapter start
-    if (seg.start - chapterStart >= 30 && chapterTexts.length > 0) {
-      chapters.push({ start: chapterStart, text: chapterTexts.join(" ") });
-      chapterStart = seg.start;
-      chapterTexts = [];
-    }
-    chapterTexts.push(seg.text.trim());
+  if (isCurated) {
+    // Already curated by Claude — use directly
+    return segments.map((s) => ({ start: s.start, text: s.text.trim() }));
   }
 
-  // Push the last chapter
-  if (chapterTexts.length > 0) {
-    chapters.push({ start: chapterStart, text: chapterTexts.join(" ") });
+  // Raw transcription — merge into ~30-second windows
+  const chapters: { start: number; text: string }[] = [];
+  let chunkStart = segments[0].start;
+  let chunkTexts: string[] = [];
+
+  for (const seg of segments) {
+    if (seg.start - chunkStart >= 30 && chunkTexts.length > 0) {
+      chapters.push({ start: chunkStart, text: chunkTexts.join(" ") });
+      chunkStart = seg.start;
+      chunkTexts = [];
+    }
+    chunkTexts.push(seg.text.trim());
+  }
+  if (chunkTexts.length > 0) {
+    chapters.push({ start: chunkStart, text: chunkTexts.join(" ") });
   }
 
   return chapters;

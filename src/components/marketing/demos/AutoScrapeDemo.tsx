@@ -29,7 +29,7 @@ const VIDEOS: { src: string; bg: string; label: string; darkText?: boolean }[] =
     label: "Morning routine",
   },
   {
-    src: "",
+    src: "/demo-scrape-5.mp4",
     bg: "var(--bd-purple)",
     label: "Q&A reel",
   },

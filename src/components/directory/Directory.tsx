@@ -173,15 +173,17 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
                 {site.bio}
               </p>
             )}
-            <a
-              href={`/${site.slug}/requests`}
-              className="inline-flex items-center gap-1.5 mt-4 mb-2 text-xs font-semibold text-[color:var(--fg)] bg-black/5 hover:bg-black/10 px-3 py-1.5 rounded-full transition"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-              Request a topic
-            </a>
+            {features?.requests !== false && (
+              <a
+                href={`/${site.slug}/requests`}
+                className="inline-flex items-center gap-1.5 mt-4 mb-2 text-xs font-semibold text-[color:var(--fg)] bg-black/5 hover:bg-black/10 px-3 py-1.5 rounded-full transition"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                Request a topic
+              </a>
+            )}
             <CollectionsHeader tenantSlug={site.slug} />
             <p className="mt-2 text-xs text-[color:var(--fg-subtle)] tracking-wide">
               Browsing{" "}

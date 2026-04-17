@@ -5,6 +5,7 @@ import { eq, and, count, gte } from "drizzle-orm";
 import { resolveSiteId } from "@/db/utils";
 import { resend } from "@/lib/email/resend";
 import { verificationEmail } from "@/lib/email/templates";
+import { resolveFromAddress } from "@/app/api/dashboard/sender/route";
 import { getApiUser } from "@/lib/supabase/api";
 import crypto from "crypto";
 import { emailLimiter, checkRateLimit } from "@/lib/rate-limit-middleware";
@@ -66,14 +67,23 @@ export async function POST(request: NextRequest) {
       if ((!existing.isVerified || needsReverify) && resend) {
         const site = await db.query.sites.findFirst({
           where: eq(sites.id, resolvedSiteId),
-          columns: { displayName: true, slug: true },
+          columns: {
+            displayName: true,
+            slug: true,
+            newsletterFromName: true,
+            senderEmail: true,
+            senderVerified: true,
+            senderDomain: true,
+            senderDomainVerified: true,
+          },
         });
         const siteName = site?.displayName || site?.slug || siteId;
+        const fromAddr = site ? resolveFromAddress(site) : "BuildMy.Directory <hello@buildmy.directory>";
         const verifyUrl = `${request.nextUrl.origin}/api/subscribe/verify?token=${existing.unsubscribeToken}&siteId=${resolvedSiteId}`;
         const template = verificationEmail({ siteName, verifyUrl });
         try {
           await resend.emails.send({
-            from: "BuildMy.Directory <hello@buildmy.directory>",
+            from: fromAddr,
             to: existing.email,
             subject: template.subject,
             html: template.html,
@@ -102,12 +112,21 @@ export async function POST(request: NextRequest) {
 
     // Send verification email
     if (resend) {
-      // Look up site display name
+      // Look up site display name + sender config
       const site = await db.query.sites.findFirst({
         where: eq(sites.id, resolvedSiteId),
-        columns: { displayName: true, slug: true },
+        columns: {
+          displayName: true,
+          slug: true,
+          newsletterFromName: true,
+          senderEmail: true,
+          senderVerified: true,
+          senderDomain: true,
+          senderDomainVerified: true,
+        },
       });
       const siteName = site?.displayName || site?.slug || siteId;
+      const fromAddr = site ? resolveFromAddress(site) : "BuildMy.Directory <hello@buildmy.directory>";
 
       const origin = request.nextUrl.origin;
       const verifyUrl = `${origin}/api/subscribe/verify?token=${unsubscribeToken}&siteId=${resolvedSiteId}`;
@@ -117,7 +136,7 @@ export async function POST(request: NextRequest) {
       });
       try {
         const { error: sendError } = await resend.emails.send({
-          from: "BuildMy.Directory <hello@buildmy.directory>",
+          from: fromAddr,
           to: normalizedEmail,
           subject: template.subject,
           html: template.html,

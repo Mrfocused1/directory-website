@@ -16,7 +16,8 @@ import {
 } from "@/db/schema";
 import { eq, and, gte, desc, lt } from "drizzle-orm";
 import { resend } from "@/lib/email/resend";
-import { digestEmail, sanitizeFromName } from "@/lib/email/templates";
+import { digestEmail } from "@/lib/email/templates";
+import { resolveFromAddress } from "@/app/api/dashboard/sender/route";
 import { stripe } from "@/lib/stripe";
 
 /**
@@ -138,7 +139,7 @@ export const scheduledDigestFunction = inngest.createFunction(
       });
 
       const siteName = site.displayName || site.slug;
-      const fromName = sanitizeFromName(site.newsletterFromName || siteName);
+      const fromAddress = resolveFromAddress(site);
       const replyTo = site.newsletterReplyTo || owner?.email || undefined;
       const siteUrl = `${origin}/${site.slug}`;
 
@@ -160,7 +161,7 @@ export const scheduledDigestFunction = inngest.createFunction(
 
         try {
           const { error: sendError } = await resend.emails.send({
-            from: `${fromName} <hello@buildmy.directory>`,
+            from: fromAddress,
             to: sub.email,
             replyTo,
             subject: template.subject,

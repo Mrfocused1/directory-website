@@ -50,6 +50,15 @@ export const sites = pgTable(
     // auth email respectively.
     newsletterFromName: varchar("newsletter_from_name", { length: 64 }),
     newsletterReplyTo: varchar("newsletter_reply_to", { length: 320 }),
+    // Custom sender email — lets the creator send subscriber emails from
+    // their own address instead of hello@buildmy.directory.
+    senderEmail: varchar("sender_email", { length: 320 }),
+    senderVerified: boolean("sender_verified").default(false),
+    senderVerificationToken: varchar("sender_verification_token", { length: 128 }),
+    senderVerificationExpiry: timestamp("sender_verification_expiry"),
+    // Custom sending domain (Option 2) — e.g. mail.creatordomain.com
+    senderDomain: varchar("sender_domain", { length: 255 }),
+    senderDomainVerified: boolean("sender_domain_verified").default(false),
     // White-label brand shown in the directory footer instead of
     // "Powered by BuildMy.Directory". Requires white_label feature (Agency).
     // Null + plan has remove_branding = hide the badge entirely.

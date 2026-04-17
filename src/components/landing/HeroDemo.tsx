@@ -281,7 +281,7 @@ export default function HeroDemo() {
 
                   <div className="rounded-xl aspect-video relative overflow-hidden mb-3 bg-black shrink-0">
                     <video
-                      src="/demo-scrape-4.mp4"
+                      src="/hero-demo-yt.mp4"
                       autoPlay
                       muted
                       loop

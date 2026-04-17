@@ -132,7 +132,7 @@ export default function PostModal({
 
             <div className="flex-1 overflow-y-auto">
               {/* Media */}
-              <div className="bg-black">
+              <div className="bg-black relative">
                 {post.type === "video" && post.mediaUrl ? (
                   <video
                     ref={videoRef}
@@ -157,28 +157,28 @@ export default function PostModal({
                     />
                   </div>
                 ) : null}
-              </div>
 
-              {/* Dubbing — watch in another language */}
-              {dubbingEnabled && post.type === "video" && post.mediaUrl && post.id && (
-                <div className="px-4 pt-2">
-                  <DubbingButton
-                    postId={post.id}
-                    siteId={siteId || ""}
-                    hasDubbingFeature={true}
-                    onDubbedVideoReady={(url) => setDubbedSrc(url)}
-                  />
-                  {dubbedSrc && (
-                    <button
-                      type="button"
-                      onClick={() => setDubbedSrc(null)}
-                      className="mt-1 text-xs text-[color:var(--fg-subtle)] hover:text-[color:var(--fg)] transition"
-                    >
-                      Switch back to original
-                    </button>
-                  )}
-                </div>
-              )}
+                {/* Dubbing overlay — language selector on the video */}
+                {dubbingEnabled && post.type === "video" && post.mediaUrl && post.id && (
+                  <div className="absolute top-3 right-3 z-10">
+                    <DubbingButton
+                      postId={post.id}
+                      siteId={siteId || ""}
+                      hasDubbingFeature={true}
+                      onDubbedVideoReady={(url) => setDubbedSrc(url)}
+                    />
+                    {dubbedSrc && (
+                      <button
+                        type="button"
+                        onClick={() => setDubbedSrc(null)}
+                        className="mt-1 w-full text-[10px] text-white/70 hover:text-white bg-black/50 rounded px-2 py-1 transition"
+                      >
+                        Original
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Chapters */}
               {post.transcriptSegments && post.transcriptSegments.length > 0 && (

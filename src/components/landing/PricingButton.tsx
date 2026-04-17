@@ -59,6 +59,11 @@ export default function PricingButton({
         window.location.href = data.url;
         return;
       }
+      // If auth required with promo code, redirect to signup with promo preserved
+      if (res.status === 401 && usePromo && promoCode.trim()) {
+        window.location.href = `/login?next=${encodeURIComponent(`/onboarding?promo=${promoCode.trim()}`)}`;
+        return;
+      }
       setError(data.error || "Checkout unavailable. Please try again.");
       setLoading(false);
     } catch {

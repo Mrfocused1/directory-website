@@ -23,12 +23,34 @@ function OnboardingContent() {
   const [step, setStep] = useState<Step>("handle");
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [promoApplied, setPromoApplied] = useState(false);
+
   // Clean up polling on unmount
   useEffect(() => {
     return () => {
       if (pollRef.current) clearTimeout(pollRef.current);
     };
   }, []);
+
+  // Auto-apply promo code from URL (e.g. ?promo=INFLUENCER123)
+  useEffect(() => {
+    const promo = searchParams.get("promo");
+    if (!promo || promoApplied) return;
+    setPromoApplied(true);
+
+    fetch("/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ promoCode: promo }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.url) {
+          console.log("[onboarding] Promo code applied successfully");
+        }
+      })
+      .catch(() => {});
+  }, [searchParams, promoApplied]);
   const [platform, setPlatform] = useState<"instagram">("instagram");
   const [handle, setHandle] = useState(() => {
     return searchParams.get("handle")?.replace(/^@/, "") || "";

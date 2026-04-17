@@ -36,11 +36,44 @@ const PLAN_PRICES: Record<string, { name: string; price: number; features: strin
 /**
  * POST /api/checkout
  *
- * Creates a Stripe Checkout session for a plan subscription.
- * Body: { plan: "creator" | "pro" | "agency" }
+ * Creates a Stripe Checkout session for a plan subscription,
+ * or applies a promo code to bypass payment entirely.
+ * Body: { plan: "creator" | "pro" | "agency", promoCode?: string }
  */
 export async function POST(request: NextRequest) {
   try {
+    const body = await request.json();
+    const { plan, promoCode } = body;
+
+    // ── Promo code: bypass Stripe entirely ──
+    if (promoCode) {
+      const promo = PROMO_CODES[promoCode.toUpperCase().trim()];
+      if (!promo) {
+        return NextResponse.json({ error: "Invalid promo code." }, { status: 400 });
+      }
+
+      const user = await getApiUser();
+      if (!user) {
+        return NextResponse.json(
+          { error: "Please sign up or sign in first, then apply your promo code." },
+          { status: 401 },
+        );
+      }
+
+      if (!db) {
+        return NextResponse.json({ error: "Database unavailable." }, { status: 503 });
+      }
+
+      await db.update(users)
+        .set({ plan: promo.plan, updatedAt: new Date() })
+        .where(eq(users.id, user.id));
+
+      return NextResponse.json({
+        url: `${request.nextUrl.origin}/onboarding?plan=${promo.plan}&paid=true`,
+      });
+    }
+
+    // ── Stripe checkout: requires Stripe to be configured ──
     if (!stripe) {
       return NextResponse.json(
         { error: "Checkout is currently unavailable. Please try again later." },
@@ -48,34 +81,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const { plan, promoCode } = body;
-
     const user = await getApiUser();
     if (!user) {
       return NextResponse.json(
         { error: "Authentication required. Please sign in before upgrading." },
         { status: 401 },
       );
-    }
-    const userId = user.id;
-
-    // ── Promo code: bypass Stripe, upgrade directly ──
-    if (promoCode) {
-      const promo = PROMO_CODES[promoCode.toUpperCase().trim()];
-      if (!promo) {
-        return NextResponse.json({ error: "Invalid promo code." }, { status: 400 });
-      }
-      if (!db) {
-        return NextResponse.json({ error: "Database unavailable." }, { status: 503 });
-      }
-      await db.update(users)
-        .set({ plan: promo.plan, updatedAt: new Date() })
-        .where(eq(users.id, userId));
-
-      return NextResponse.json({
-        url: `${request.nextUrl.origin}/onboarding?plan=${promo.plan}&paid=true`,
-      });
     }
 
     const planConfig = PLAN_PRICES[plan];
@@ -108,7 +119,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         type: "subscription",
         plan,
-        userId,
+        userId: user.id,
       },
       success_url: `${request.nextUrl.origin}/onboarding?plan=${plan}&paid=true`,
       cancel_url: `${request.nextUrl.origin}/#pricing`,

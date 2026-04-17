@@ -298,8 +298,8 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (platform && platform !== "instagram") {
-      res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Only instagram supported. Use Apify for " + platform }));
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: false, error: "TikTok scraping requires Apify. VPS handles Instagram only.", posts: [], handle }));
       return;
     }
     const result = await scrapeInstagram(handle, maxPosts || 9);

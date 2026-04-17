@@ -21,21 +21,21 @@ type Phase =
   | "youtube";
 
 const CARDS = [
-  { title: "Morning Routine", cat: "LIFESTYLE", color: "#b0b0fe" },
+  { title: "Index Funds 101", cat: "INVESTING", color: "#b0b0fe" },
   { title: "Skincare Tips", cat: "BEAUTY", color: "#ff6b9d" },
-  { title: "Meal Prep Guide", cat: "NUTRITION", color: "#92eedd" },
-  { title: "HIIT Workout", cat: "FITNESS", color: "#d3fd74" },
-  { title: "Budget Hacks", cat: "FINANCE", color: "#ffc72d" },
-  { title: "Travel Packing", cat: "TRAVEL", color: "#b0b0fe" },
+  { title: "Budget Hacks", cat: "SAVING", color: "#92eedd" },
+  { title: "Best Stocks 2026", cat: "INVESTING", color: "#d3fd74" },
+  { title: "Side Hustles", cat: "INCOME", color: "#ffc72d" },
+  { title: "Debt Payoff", cat: "DEBT", color: "#b0b0fe" },
 ];
 
 const FILTERED = [CARDS[0], CARDS[3]];
-const SEARCH_TEXT = "routine";
+const SEARCH_TEXT = "stocks";
 
 const REFERENCES = [
-  { type: "article", title: "The Science of Morning Habits", source: "healthline.com" },
-  { type: "youtube", title: "5-Minute Morning Stretch", channel: "FitnessPro" },
-  { type: "article", title: "How Routines Boost Focus", source: "psychtoday.com" },
+  { type: "article", title: "How to Pick Your First Stocks in 2026", source: "investopedia.com" },
+  { type: "youtube", title: "Index Funds vs Individual Stocks Explained", channel: "Bloomberg" },
+  { type: "article", title: "The Best Stocks for Beginners to Buy", source: "nerdwallet.com" },
 ];
 
 const PHASE_DURATIONS: Record<Phase, number> = {
@@ -157,7 +157,7 @@ export default function HeroDemo() {
                           className={`rounded-lg relative overflow-hidden ${phase === "filtered" ? "aspect-[3/4]" : "aspect-square"}`}
                           style={{ backgroundColor: `${card.color}30` }}
                         >
-                          {card.title === "Morning Routine" ? (
+                          {card.title === "Index Funds 101" ? (
                             <video
                               src="/hero-demo.mp4"
                               autoPlay
@@ -175,7 +175,7 @@ export default function HeroDemo() {
                               playsInline
                               className="absolute inset-0 w-full h-full object-cover"
                             />
-                          ) : card.title === "Meal Prep Guide" ? (
+                          ) : card.title === "Budget Hacks" ? (
                             <video
                               src="/hero-demo-fitness.mp4"
                               autoPlay
@@ -184,7 +184,7 @@ export default function HeroDemo() {
                               playsInline
                               className="absolute inset-0 w-full h-full object-cover"
                             />
-                          ) : card.title === "HIIT Workout" ? (
+                          ) : card.title === "Best Stocks 2026" ? (
                             <video
                               src="/hero-demo-fitness-new.mp4"
                               autoPlay
@@ -248,9 +248,9 @@ export default function HeroDemo() {
 
                     {/* Title + description */}
                     <div className="shrink-0">
-                      <h4 className="text-[10px] font-bold text-[color:var(--bd-dark)] mb-0.5">Morning Routine</h4>
+                      <h4 className="text-[10px] font-bold text-[color:var(--bd-dark)] mb-0.5">Index Funds vs Individual Stocks</h4>
                       <p className="text-[7px] text-[color:var(--bd-grey)] leading-relaxed">
-                        My complete morning routine — skincare, workout, and mindset prep.
+                        Which is better for beginners? Here&apos;s the honest breakdown of returns, risk, and fees.
                       </p>
                     </div>
 
@@ -334,8 +334,8 @@ export default function HeroDemo() {
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="#ef4444"><path d="M8 5v14l11-7z" /></svg>
                     </div>
                     <div>
-                      <h4 className="text-[9px] font-bold text-[color:var(--bd-dark)]">5-Minute Morning Stretch</h4>
-                      <p className="text-[7px] text-[color:var(--bd-grey)]">FitnessPro · 2.1M views</p>
+                      <h4 className="text-[9px] font-bold text-[color:var(--bd-dark)]">Index Funds vs Stocks Explained</h4>
+                      <p className="text-[7px] text-[color:var(--bd-grey)]">Bloomberg · 3.4M views</p>
                     </div>
                   </div>
                 </motion.div>

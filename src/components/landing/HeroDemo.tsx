@@ -155,54 +155,16 @@ export default function HeroDemo() {
                           exit={{ opacity: 0, scale: 0.8 }}
                           transition={{ duration: 0.25, delay: i * 0.05 }}
                           className={`rounded-lg relative overflow-hidden ${phase === "filtered" ? "aspect-[3/4]" : "aspect-square"}`}
-                          style={{ backgroundColor: `${card.color}30` }}
+                          style={{ backgroundColor: "transparent" }}
                         >
-                          {card.title === "Index Funds 101" ? (
-                            <video
-                              src="/hero-demo.mp4"
-                              autoPlay
-                              muted
-                              loop
-                              playsInline
-                              className="absolute inset-0 w-full h-full object-cover"
-                            />
-                          ) : card.title === "Skincare Tips" ? (
-                            <video
-                              src="/hero-demo-beauty.mp4"
-                              autoPlay
-                              muted
-                              loop
-                              playsInline
-                              className="absolute inset-0 w-full h-full object-cover"
-                            />
-                          ) : card.title === "Budget Hacks" ? (
-                            <video
-                              src="/hero-demo-fitness.mp4"
-                              autoPlay
-                              muted
-                              loop
-                              playsInline
-                              className="absolute inset-0 w-full h-full object-cover"
-                            />
-                          ) : card.title === "Best Stocks 2026" ? (
-                            <video
-                              src="/hero-demo-fitness-new.mp4"
-                              autoPlay
-                              muted
-                              loop
-                              playsInline
-                              className="absolute inset-0 w-full h-full object-cover"
-                            />
-                          ) : (
-                            <>
-                              <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${card.color}50, ${card.color}15)` }} />
-                              <div className="absolute inset-0 flex items-center justify-center">
-                                <div className="w-6 h-6 rounded-full bg-white/70 flex items-center justify-center">
-                                  <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" className="text-[color:var(--bd-dark)] ml-0.5"><path d="M8 5v14l11-7z" /></svg>
-                                </div>
-                              </div>
-                            </>
-                          )}
+                          <video
+                            src={["/hero-demo.mp4", "/hero-demo-beauty.mp4", "/hero-demo-fitness.mp4", "/hero-demo-fitness-new.mp4", "/demo-scrape-1.mp4", "/demo-scrape-2.mp4"][i % 6]}
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
                         </motion.div>
                       ))}
                     </AnimatePresence>

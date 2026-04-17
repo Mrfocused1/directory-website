@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
   const rows = await db.query.subscribers.findMany({
     where: eq(subscribers.siteId, resolvedSiteId),
     orderBy: [desc(subscribers.createdAt)],
+    limit: 10000,
   });
 
   // Build CSV — escape any double quotes and wrap fields with quotes/commas/newlines

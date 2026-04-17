@@ -5,6 +5,7 @@ import {
   syncPlatformFunction,
   scheduledDigestFunction,
   pruneAnalyticsFunction,
+  reconcileStripeFunction,
 } from "@/lib/inngest/functions";
 
 // Pipeline can take several minutes. Vercel Pro max is 300 seconds.
@@ -18,5 +19,6 @@ export const { GET, POST, PUT } = serve({
     syncPlatformFunction,
     scheduledDigestFunction,
     pruneAnalyticsFunction,
+    reconcileStripeFunction,
   ],
 });

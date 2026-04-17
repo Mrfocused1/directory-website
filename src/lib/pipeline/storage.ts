@@ -226,19 +226,18 @@ export async function uploadMedia(
 export async function deleteFile(url: string): Promise<void> {
   if (!url) return;
 
-  const provider = activeProvider();
   try {
-    if (provider === "r2") {
+    // Detect provider from the URL itself rather than the active config,
+    // so files uploaded under a previous provider still get cleaned up.
+    const r2PublicBase = process.env.R2_PUBLIC_URL?.replace(/\/$/, "");
+
+    if (r2PublicBase && url.startsWith(r2PublicBase)) {
+      // R2 path
       const client = r2Client();
       const bucket = process.env.R2_BUCKET;
       if (!client || !bucket) return;
 
-      // Extract the object key from the public URL.
-      // R2_PUBLIC_URL is the base (e.g. https://cdn.example.com) — strip
-      // it to get the key.  If the URL doesn't match, skip silently.
-      const publicBase = process.env.R2_PUBLIC_URL?.replace(/\/$/, "");
-      if (!publicBase || !url.startsWith(publicBase)) return;
-      const key = url.slice(publicBase.length).replace(/^\//, "");
+      const key = url.slice(r2PublicBase.length).replace(/^\//, "");
       if (!key) return;
 
       await client.send(
@@ -247,10 +246,15 @@ export async function deleteFile(url: string): Promise<void> {
       return;
     }
 
-    // Vercel Blob path
-    if (!process.env.BLOB_READ_WRITE_TOKEN) return;
-    await del(url);
+    if (url.includes("vercel-storage.com") || url.includes("blob.vercel-storage.com")) {
+      // Vercel Blob path
+      if (!process.env.BLOB_READ_WRITE_TOKEN) return;
+      await del(url);
+      return;
+    }
+
+    // URL doesn't match any known provider — skip silently.
   } catch (error) {
-    console.error(`[storage:${provider}] delete failed for ${url}:`, error);
+    console.error(`[storage] delete failed for ${url}:`, error);
   }
 }

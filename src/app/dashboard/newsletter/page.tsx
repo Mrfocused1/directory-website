@@ -20,20 +20,21 @@ export default function NewsletterDashboard() {
   const { selectedSite } = useSiteContext();
   const [realData, setRealData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const siteId = selectedSite?.id;
 
   useEffect(() => {
     if (!siteId) return;
+    setLoading(true);
+    setError(null);
     async function fetchData() {
       try {
         const res = await fetch(`/api/newsletter?siteId=${siteId}`);
+        if (!res.ok) throw new Error(`Newsletter fetch failed (${res.status})`);
         const data = await res.json();
-        if (res.ok) {
-          // Always capture settings; only swap content when real data exists
-          setRealData(data);
-        }
-      } catch {
-        // Fall back to mock data
+        setRealData(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load newsletter data");
       } finally {
         setLoading(false);
       }
@@ -103,7 +104,24 @@ export default function NewsletterDashboard() {
 
         <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-20">
           <FeatureGate feature="newsletter">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+
+          {/* Loading state */}
+          {loading && (
+            <div className="flex items-center justify-center py-20">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-black/10 border-t-[color:var(--fg)]" />
+              <span className="ml-3 text-sm text-[color:var(--fg-muted)]">Loading newsletter data...</span>
+            </div>
+          )}
+
+          {/* Error state */}
+          {!loading && error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+              <p className="text-sm font-semibold text-red-700">Failed to load newsletter</p>
+              <p className="text-xs text-red-600 mt-1">{error}</p>
+            </div>
+          )}
+
+          {!loading && !error && <><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
               <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight">Newsletter</h1>
               <p className="text-xs sm:text-sm text-[color:var(--fg-muted)] mt-1">
@@ -316,6 +334,7 @@ export default function NewsletterDashboard() {
               </div>
             )}
           </div>
+          </>}
           </FeatureGate>
         </main>
       </div>

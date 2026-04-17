@@ -36,6 +36,8 @@ export default function AnalyticsDashboard() {
   const [period, setPeriod] = useState<Period>("30d");
   const [chartMetric, setChartMetric] = useState<ChartMetric>("views");
   const [realData, setRealData] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const days = period === "7d" ? 7 : 30;
   const siteId = selectedSite?.id;
@@ -43,13 +45,19 @@ export default function AnalyticsDashboard() {
   // Fetch analytics for the currently selected site
   useEffect(() => {
     if (!siteId) return;
+    setLoading(true);
+    setError(null);
     async function fetchAnalytics() {
       try {
         const res = await fetch(`/api/analytics/summary?siteId=${siteId}&days=${days}`);
+        if (!res.ok) throw new Error(`Analytics fetch failed (${res.status})`);
         const data = await res.json();
         setRealData(data.hasData ? data : null);
-      } catch {
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load analytics");
         setRealData(null);
+      } finally {
+        setLoading(false);
       }
     }
     fetchAnalytics();
@@ -93,8 +101,24 @@ export default function AnalyticsDashboard() {
         <DashboardNav />
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-20 overflow-x-hidden">
+          {/* Loading state */}
+          {loading && (
+            <div className="flex items-center justify-center py-20">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-black/10 border-t-[color:var(--fg)]" />
+              <span className="ml-3 text-sm text-[color:var(--fg-muted)]">Loading analytics...</span>
+            </div>
+          )}
+
+          {/* Error state */}
+          {!loading && error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+              <p className="text-sm font-semibold text-red-700">Failed to load analytics</p>
+              <p className="text-xs text-red-600 mt-1">{error}</p>
+            </div>
+          )}
+
           {/* Header + period selector */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 sm:mb-8">
+          {!loading && !error && <><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 sm:mb-8">
             <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight">Analytics</h1>
             <div className="flex items-center bg-black/5 rounded-lg p-0.5 self-start">
               {(["7d", "30d"] as const).map((p) => (
@@ -240,6 +264,7 @@ export default function AnalyticsDashboard() {
           </div>
           </FeatureGate>
           </FeatureGate>
+          </>}
         </main>
       </div>
     </div>

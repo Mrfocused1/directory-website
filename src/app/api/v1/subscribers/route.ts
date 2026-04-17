@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
   const rows = await db.query.subscribers.findMany({
     where: eq(subscribers.siteId, siteId),
     orderBy: [desc(subscribers.createdAt)],
+    limit: 200,
   });
 
   return NextResponse.json({

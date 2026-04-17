@@ -12,10 +12,12 @@ import {
   postClicks,
   searchEvents,
   categoryClicks,
+  stripeEvents,
 } from "@/db/schema";
 import { eq, and, gte, desc, lt } from "drizzle-orm";
 import { resend } from "@/lib/email/resend";
 import { digestEmail, sanitizeFromName } from "@/lib/email/templates";
+import { stripe } from "@/lib/stripe";
 
 /**
  * Background function: Run the content pipeline for a new site.
@@ -24,6 +26,7 @@ export const runPipelineFunction = inngest.createFunction(
   {
     id: "run-pipeline",
     retries: 1,
+    timeouts: { finish: "600s" },
     triggers: [{ event: "pipeline/run" }],
     // Apify's FREE tier has an 8 GB global actor-memory cap. With the
     // 512 MB per-run we request (see scraper.ts), 4 concurrent pipeline
@@ -252,5 +255,134 @@ export const pruneAnalyticsFunction = inngest.createFunction(
     const total = Object.values(results).reduce((a, b) => a + b, 0);
     console.log(`[prune-analytics] deleted ${total} rows older than ${cutoff.toISOString()}`, results);
     return { deleted: total, byTable: results, cutoff: cutoff.toISOString() };
+  },
+);
+
+// Plan ID mapping from Stripe price amounts (cents) to plan IDs
+const PRICE_TO_PLAN: Record<number, string> = {
+  1900: "creator",
+  3900: "pro",
+  9900: "agency",
+};
+
+/**
+ * Daily Stripe webhook reconciliation.
+ *
+ * Fetches events from Stripe's API for the last 24 hours and replays
+ * any that our webhook endpoint missed (network blip, downtime, etc.).
+ * The same idempotency guard (stripeEvents insert) prevents double-
+ * processing — if the webhook already handled an event, the insert
+ * will hit a unique-violation and we skip it.
+ */
+export const reconcileStripeFunction = inngest.createFunction(
+  {
+    id: "reconcile-stripe",
+    retries: 1,
+    triggers: [{ cron: "0 4 * * *" }], // 04:00 UTC every day
+  },
+  async () => {
+    if (!stripe || !db) return { skipped: "stripe or db not configured" };
+
+    const oneDayAgo = Math.floor(Date.now() / 1000) - 86400;
+    const events = await stripe.events.list({
+      created: { gte: oneDayAgo },
+      limit: 100,
+    });
+
+    let reconciled = 0;
+
+    for (const event of events.data) {
+      // Attempt idempotent insert — skip if already processed
+      try {
+        await db.insert(stripeEvents).values({
+          id: event.id,
+          type: event.type,
+        });
+      } catch (err: unknown) {
+        const pgCode = (err as { code?: string })?.code;
+        if (pgCode === "23505") continue; // already handled
+        captureError(err, { context: "reconcile-stripe-insert", eventId: event.id });
+        continue;
+      }
+
+      // Process the event (mirrors the webhook switch logic)
+      try {
+        switch (event.type) {
+          case "checkout.session.completed": {
+            const session = event.data.object as unknown as Record<string, unknown>;
+            const metadata = (session.metadata ?? {}) as Record<string, string>;
+            if (metadata.type === "subscription" && metadata.plan) {
+              const plan = metadata.plan;
+              const userId = metadata.userId;
+              const customerId = typeof session.customer === "string" ? session.customer : null;
+              if (customerId) {
+                const existingByCustomer = await db.query.users.findFirst({
+                  where: eq(users.stripeCustomerId, customerId),
+                });
+                if (existingByCustomer) {
+                  await db.update(users)
+                    .set({ plan, updatedAt: new Date() })
+                    .where(eq(users.id, existingByCustomer.id));
+                } else if (userId && userId !== "anonymous") {
+                  const userExists = await db.query.users.findFirst({
+                    where: eq(users.id, userId),
+                    columns: { id: true },
+                  });
+                  if (userExists) {
+                    await db.update(users)
+                      .set({ plan, stripeCustomerId: customerId, updatedAt: new Date() })
+                      .where(eq(users.id, userId));
+                  }
+                }
+              }
+            }
+            break;
+          }
+
+          case "customer.subscription.created":
+          case "customer.subscription.updated": {
+            const subscription = event.data.object as unknown as Record<string, unknown>;
+            const items = subscription.items as { data?: { price?: { unit_amount?: number } }[] } | undefined;
+            const amount = items?.data?.[0]?.price?.unit_amount;
+            const plan = amount ? PRICE_TO_PLAN[amount] : null;
+            const customerId = typeof subscription.customer === "string" ? subscription.customer : null;
+            if (plan && customerId) {
+              await db.update(users)
+                .set({ plan, updatedAt: new Date() })
+                .where(eq(users.stripeCustomerId, customerId));
+            }
+            break;
+          }
+
+          case "customer.subscription.deleted": {
+            const subscription = event.data.object as unknown as Record<string, unknown>;
+            const customerId = typeof subscription.customer === "string" ? subscription.customer : null;
+            if (customerId) {
+              await db.update(users)
+                .set({ plan: "free", updatedAt: new Date() })
+                .where(eq(users.stripeCustomerId, customerId));
+            }
+            break;
+          }
+
+          case "invoice.payment_failed": {
+            const invoice = event.data.object as unknown as Record<string, unknown>;
+            const customerId = typeof invoice.customer === "string" ? invoice.customer : null;
+            console.warn(`[BILLING] Payment failed for customer ${customerId}`);
+            break;
+          }
+
+          default:
+            break;
+        }
+
+        reconciled++;
+      } catch (err) {
+        captureError(err, { context: "reconcile-stripe-process", eventId: event.id, eventType: event.type });
+      }
+    }
+
+    console.log(`[reconcile-stripe] reconciled ${reconciled} events from last 24h (${events.data.length} total fetched)`);
+    return { reconciled, totalFetched: events.data.length };
   },
 );

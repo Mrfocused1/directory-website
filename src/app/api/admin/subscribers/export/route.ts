@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { subscribers, sites } from "@/db/schema";
+import { subscribers, sites, adminAuditLog } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { requireAdmin } from "@/lib/admin";
 
@@ -15,7 +15,7 @@ import { requireAdmin } from "@/lib/admin";
  * save it as `<slug>-subscribers-YYYYMMDD.csv`.
  */
 export async function GET(request: NextRequest) {
-  await requireAdmin();
+  const caller = await requireAdmin();
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
   const siteId = request.nextUrl.searchParams.get("siteId");
@@ -77,6 +77,17 @@ export async function GET(request: NextRequest) {
 
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
   const filename = `${site.slug}-subscribers-${date}.csv`;
+
+  // Log the export action to the admin audit log
+  try {
+    await db.insert(adminAuditLog).values({
+      adminEmail: caller.email,
+      action: "export_subscribers",
+      details: `site=${site.slug}, siteId=${siteId}, rows=${rows.length}`,
+    });
+  } catch (auditErr) {
+    console.error("[admin/export] Failed to write audit log:", auditErr);
+  }
 
   return new NextResponse(`${header}\n${body}\n`, {
     status: 200,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { users, sites } from "@/db/schema";
+import { users, sites, adminAuditLog } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/admin";
 import { createClient } from "@supabase/supabase-js";
@@ -103,7 +103,19 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  console.log(`[admin/revoke] ${email}: ${deleted.join(" | ")}`);
+  console.log(`[admin/revoke] ${email.replace(/(.{2}).*(@.*)/, '$1***$2')}: ${deleted.join(" | ")}`);
+
+  // Log the action to the admin audit log
+  try {
+    await db.insert(adminAuditLog).values({
+      adminEmail: caller.email,
+      action: "revoke_user",
+      targetEmail: email,
+      details: deleted.join(" | "),
+    });
+  } catch (auditErr) {
+    console.error("[admin/revoke] Failed to write audit log:", auditErr);
+  }
 
   return NextResponse.json({
     revoked: true,

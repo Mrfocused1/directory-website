@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
     // Fetch all subscribers for this site
     const allSubscribers = await db.query.subscribers.findMany({
       where: eq(subscribers.siteId, resolvedSiteId),
+      limit: 1000,
     });
 
     // Fetch digest history

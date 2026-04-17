@@ -496,6 +496,24 @@ export const apiKeys = pgTable(
   ],
 );
 
+// ─── Admin Audit Log ─────────────────────────────────────────────────
+export const adminAuditLog = pgTable(
+  "admin_audit_log",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    adminEmail: varchar("admin_email", { length: 320 }).notNull(),
+    action: varchar("action", { length: 64 }).notNull(),
+    targetEmail: varchar("target_email", { length: 320 }),
+    details: text("details"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("admin_audit_log_admin_email_idx").on(table.adminEmail),
+    index("admin_audit_log_action_idx").on(table.action),
+    index("admin_audit_log_created_at_idx").on(table.createdAt),
+  ],
+);
+
 // ─── Stripe Webhook Events (idempotency tracking) ────────────────────
 // Stripe can deliver the same webhook multiple times. We insert event.id
 // before processing side effects; a unique-violation means we've already

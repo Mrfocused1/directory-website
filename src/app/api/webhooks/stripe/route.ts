@@ -136,6 +136,13 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      case "invoice.payment_failed": {
+        const invoice = event.data.object;
+        const customerId = typeof invoice.customer === "string" ? invoice.customer : null;
+        console.warn(`[BILLING] Payment failed for customer ${customerId}`);
+        break;
+      }
+
       default:
         break;
     }

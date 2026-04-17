@@ -22,5 +22,13 @@ if (DSN) {
       /ERR_ABORTED.*_rsc=/,
       /ResizeObserver loop/i,
     ],
+    beforeSend(event) {
+      if (event.user) {
+        delete event.user.email;
+        delete event.user.ip_address;
+        delete event.user.username;
+      }
+      return event;
+    },
   });
 }

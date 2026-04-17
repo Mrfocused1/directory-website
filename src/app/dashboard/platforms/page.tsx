@@ -47,6 +47,7 @@ export default function PlatformsPage() {
   const [showConnect, setShowConnect] = useState(false);
   const [newPlatform, setNewPlatform] = useState<Platform>("instagram");
   const [newHandle, setNewHandle] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const { canAddPlatform, platformLimit, planForPlatform } = usePlan();
   const siteId = selectedSite?.id;
 
@@ -85,8 +86,9 @@ export default function PlatformsPage() {
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newHandle.trim() || !siteId) return;
+    if (!newHandle.trim() || !siteId || submitting) return;
 
+    setSubmitting(true);
     try {
       const res = await fetch("/api/platforms", {
         method: "POST",
@@ -101,6 +103,8 @@ export default function PlatformsPage() {
       }
     } catch {
       // Network error
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -311,8 +315,8 @@ export default function PlatformsPage() {
                     <button type="button" onClick={() => setShowConnect(false)} className="flex-1 h-11 border border-[color:var(--border)] rounded-xl text-sm font-semibold hover:bg-black/5 transition">
                       Cancel
                     </button>
-                    <button type="submit" className="flex-[2] h-11 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold hover:opacity-90 transition">
-                      Connect & Sync
+                    <button type="submit" disabled={submitting} className="flex-[2] h-11 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold hover:opacity-90 transition disabled:opacity-50">
+                      {submitting ? "Connecting..." : "Connect & Sync"}
                     </button>
                   </div>
                 </>

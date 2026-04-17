@@ -21,7 +21,6 @@
     "framer-motion": "^12.38.0",
     "inngest": "^4.2.1",
     "next": "16.2.3",
-    "pg": "^8.20.0",
     "postgres": "^3.4.9",
     "posthog-js": "^1.369.0",
     "posthog-node": "^5.29.2",

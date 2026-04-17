@@ -444,6 +444,7 @@ function TranscriptSection({ transcript, ttsEnabled = false }: { transcript: str
       {ttsEnabled && selectedLang && TTS_LANGS.includes(selectedLang) && (
         <button
           type="button"
+          aria-label={ttsPlaying ? "Stop listening" : ttsLoading ? "Generating audio" : "Listen in " + (SUPPORTED_LANGUAGES.find(l => l.code === selectedLang)?.name || selectedLang)}
           disabled={ttsLoading || translating}
           onClick={async () => {
             if (ttsPlaying && ttsAudioRef.current) {

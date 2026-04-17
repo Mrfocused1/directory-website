@@ -50,10 +50,16 @@ export async function POST(request: NextRequest) {
         id: event.id,
         type: event.type,
       });
-    } catch {
-      // Already processed (unique constraint violation) — return success so Stripe stops retrying
-      console.log(`[stripe] Event ${event.id} already processed, skipping`);
-      return NextResponse.json({ received: true, deduped: true });
+    } catch (err: unknown) {
+      // Only skip on unique constraint violation (PostgreSQL error code 23505).
+      // Re-throw on any other DB error so it doesn't silently swallow real failures.
+      const pgCode = (err as { code?: string })?.code;
+      if (pgCode === "23505") {
+        console.log(`[stripe] Event ${event.id} already processed, skipping`);
+        return NextResponse.json({ received: true, deduped: true });
+      }
+      captureError(err, { context: "stripe-webhook-idempotency", eventId: event.id });
+      throw err;
     }
   }
 

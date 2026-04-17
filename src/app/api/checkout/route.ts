@@ -44,7 +44,13 @@ export async function POST(request: NextRequest) {
     const { plan } = body;
 
     const user = await getApiUser();
-    const userId = user?.id || null;
+    if (!user) {
+      return NextResponse.json(
+        { error: "Authentication required. Please sign in before upgrading." },
+        { status: 401 },
+      );
+    }
+    const userId = user.id;
 
     const planConfig = PLAN_PRICES[plan];
     if (!planConfig) {
@@ -76,7 +82,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         type: "subscription",
         plan,
-        userId: userId || "anonymous",
+        userId,
       },
       success_url: `${request.nextUrl.origin}/onboarding?plan=${plan}&paid=true`,
       cancel_url: `${request.nextUrl.origin}/#pricing`,

@@ -43,10 +43,9 @@ export async function GET(request: NextRequest) {
       .where(and(eq(pageViews.siteId, resolvedSiteId), gte(pageViews.createdAt, since)));
 
     // Unique visitors (distinct non-null sessions)
-    const uniqueResult = await db.select({ sessionId: pageViews.sessionId })
+    const [uniqueResult] = await db.select({ count: sql<number>`COUNT(DISTINCT ${pageViews.sessionId})` })
       .from(pageViews)
-      .where(and(eq(pageViews.siteId, resolvedSiteId), gte(pageViews.createdAt, since), isNotNull(pageViews.sessionId)))
-      .groupBy(pageViews.sessionId);
+      .where(and(eq(pageViews.siteId, resolvedSiteId), gte(pageViews.createdAt, since), isNotNull(pageViews.sessionId)));
 
     // Post clicks
     const [clicksResult] = await db.select({ count: count() })
@@ -153,7 +152,7 @@ export async function GET(request: NextRequest) {
       hasData: totalViews > 0,
       summary: {
         totalViews,
-        uniqueVisitors: uniqueResult.length,
+        uniqueVisitors: uniqueResult.count,
         totalClicks,
         totalSearches: searchesResult.count,
         totalShares: sharesResult.count,

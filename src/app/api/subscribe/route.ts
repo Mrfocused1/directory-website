@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { subscribers, sites } from "@/db/schema";
-import { eq, and, count } from "drizzle-orm";
+import { eq, and, count, gte } from "drizzle-orm";
 import { resolveSiteId } from "@/db/utils";
 import { resend } from "@/lib/email/resend";
 import { verificationEmail } from "@/lib/email/templates";
@@ -271,10 +271,10 @@ export async function GET(request: NextRequest) {
       .where(and(eq(subscribers.siteId, resolvedSiteId), eq(subscribers.isVerified, true)));
 
     const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const allSubs = await db.query.subscribers.findMany({
-      where: eq(subscribers.siteId, resolvedSiteId),
-    });
-    const thisWeek = allSubs.filter((s) => new Date(s.createdAt) >= oneWeekAgo).length;
+    const [thisWeekResult] = await db.select({ count: count() })
+      .from(subscribers)
+      .where(and(eq(subscribers.siteId, resolvedSiteId), gte(subscribers.createdAt, oneWeekAgo)));
+    const thisWeek = thisWeekResult.count;
 
     return NextResponse.json({
       total: totalResult.count,

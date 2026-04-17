@@ -36,10 +36,12 @@ export async function GET(
   }
 
   if (!data.posts || data.posts.length === 0) {
+    const feedUrl = `${SITE_URL}/${tenant}/feed.xml`;
     const emptyXml = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0"><channel>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel>
   <title>${escapeXml(data.site.displayName)} — Directory</title>
   <link>${SITE_URL}/${tenant}</link>
+  <atom:link href="${escapeXml(feedUrl)}" rel="self" type="application/rss+xml" />
   <description>No posts yet.</description>
 </channel></rss>`;
     return new NextResponse(emptyXml, {

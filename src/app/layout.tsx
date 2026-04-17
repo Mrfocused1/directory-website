@@ -59,6 +59,9 @@ export const metadata: Metadata = {
     description: DEFAULT_DESCRIPTION,
     images: ["/opengraph-image"],
   },
+  alternates: {
+    canonical: SITE_URL,
+  },
 };
 
 export const viewport: Viewport = {

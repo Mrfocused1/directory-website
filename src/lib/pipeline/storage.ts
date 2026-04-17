@@ -59,16 +59,72 @@ function r2PublicUrl(path: string): string {
  * `sourceUrl` so the pipeline keeps going with whatever the scraper
  * originally gave us.
  */
+const MAX_UPLOAD_BYTES = 100 * 1024 * 1024; // 100 MB
+
+/** Reject URLs that point to internal/private networks (SSRF protection). */
+function isSafeUrl(raw: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return false;
+  }
+
+  // Block non-HTTP(S) schemes (file://, ftp://, etc.)
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+
+  const hostname = parsed.hostname.toLowerCase();
+
+  // Block well-known internal hostnames
+  if (hostname === "localhost" || hostname === "metadata.google.internal") return false;
+
+  // Block private/reserved IPv4 ranges and link-local
+  const ipv4Match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname);
+  if (ipv4Match) {
+    const [, a, b] = ipv4Match.map(Number);
+    if (
+      a === 127 ||             // 127.0.0.0/8
+      a === 10 ||              // 10.0.0.0/8
+      a === 0 ||               // 0.0.0.0/8
+      (a === 172 && b >= 16 && b <= 31) || // 172.16.0.0/12
+      (a === 192 && b === 168) ||          // 192.168.0.0/16
+      (a === 169 && b === 254)             // 169.254.0.0/16 (link-local / cloud metadata)
+    ) {
+      return false;
+    }
+  }
+
+  // Block IPv6 loopback and link-local (bracketed in URLs)
+  if (hostname === "[::1]" || hostname.startsWith("[fe80:") || hostname.startsWith("[fd")) {
+    return false;
+  }
+
+  return true;
+}
+
 export async function uploadFromUrl(
   sourceUrl: string,
   path: string,
 ): Promise<string> {
   if (!sourceUrl) return sourceUrl;
 
+  if (!isSafeUrl(sourceUrl)) {
+    console.error(`[storage] SSRF blocked: ${sourceUrl}`);
+    return sourceUrl;
+  }
+
   const provider = activeProvider();
   try {
     const response = await fetch(sourceUrl);
     if (!response.ok) return sourceUrl;
+
+    // Enforce 100 MB size limit via Content-Length header
+    const contentLength = Number(response.headers.get("content-length") || 0);
+    if (contentLength > MAX_UPLOAD_BYTES) {
+      console.error(`[storage] file too large (${(contentLength / 1024 / 1024).toFixed(1)} MB): ${sourceUrl}`);
+      return sourceUrl;
+    }
+
     const contentType = response.headers.get("content-type") || "image/jpeg";
 
     if (provider === "r2") {
@@ -76,6 +132,10 @@ export async function uploadFromUrl(
       const bucket = process.env.R2_BUCKET;
       if (!client || !bucket) return sourceUrl;
       const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.byteLength > MAX_UPLOAD_BYTES) {
+        console.error(`[storage] file too large after download (${(buffer.byteLength / 1024 / 1024).toFixed(1)} MB): ${sourceUrl}`);
+        return sourceUrl;
+      }
       await client.send(
         new PutObjectCommand({
           Bucket: bucket,

@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import DashboardNav from "@/components/dashboard/DashboardNav";
 import { useSiteContext } from "@/components/dashboard/SiteContext";
 import EmptyState from "@/components/dashboard/EmptyState";
+import { usePlan } from "@/components/plans/PlanProvider";
+import UpgradeBanner from "@/components/plans/UpgradeBanner";
 
 // NOTE: Requires `npm install qrcode @types/qrcode` — using dynamic import with fallback.
 // The `qrcode` package generates QR codes as SVG strings or data URLs.
@@ -443,6 +445,7 @@ const SITE_URL =
 
 export default function SharePage() {
   const { selectedSite } = useSiteContext();
+  const { can } = usePlan();
 
   if (!selectedSite) {
     return (
@@ -505,10 +508,14 @@ export default function SharePage() {
             value={rssUrl}
           />
 
-          <QRCodeCard
-            url={directoryUrl}
-            displayName={selectedSite.displayName || slug}
-          />
+          {can("qr_codes") ? (
+            <QRCodeCard
+              url={directoryUrl}
+              displayName={selectedSite.displayName || slug}
+            />
+          ) : (
+            <UpgradeBanner feature="qr_codes" />
+          )}
 
           <div className="bg-white border border-[color:var(--border)] rounded-xl p-5">
             <h2 className="text-sm font-bold mb-1">Embed on your website</h2>

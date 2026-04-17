@@ -67,6 +67,7 @@ export const sites = pgTable(
     uniqueIndex("sites_slug_idx").on(table.slug),
     index("sites_user_id_idx").on(table.userId),
     uniqueIndex("sites_custom_domain_idx").on(table.customDomain),
+    index("sites_is_published_idx").on(table.isPublished),
   ],
 );
 
@@ -106,6 +107,7 @@ export const posts = pgTable(
     uniqueIndex("posts_site_shortcode_idx").on(table.siteId, table.shortcode),
     index("posts_featured_idx").on(table.siteId, table.isFeatured),
     index("posts_sort_idx").on(table.siteId, table.sortOrder),
+    index("posts_created_at_idx").on(table.createdAt),
   ],
 );
 

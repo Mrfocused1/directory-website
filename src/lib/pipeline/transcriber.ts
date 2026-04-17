@@ -185,16 +185,14 @@ async function transcribeWithDeepgram(videoUrl: string): Promise<TranscriptResul
  *
  * Strategy (when primary = Groq):
  *   1. Try Groq (Whisper Large v3)
- *   2. If Groq returns EMPTY text → retry once with temperature=0.2
- *      (slightly warmer sometimes helps Whisper detect faint speech)
- *   3. If still empty OR Groq throws → fall back to Deepgram if
+ *   2. If empty OR Groq throws → fall back to Deepgram if
  *      DEEPGRAM_API_KEY is set
- *   4. If everything fails → return EMPTY (never crash the pipeline)
+ *   3. If everything fails → return EMPTY (never crash the pipeline)
  *
  * This covers the three common failure modes:
  *   - Music-only reels → Groq returns empty, Deepgram also returns
  *     empty (correct; there's nothing to transcribe)
- *   - Rate-limit / transient error → retry or Deepgram catches it
+ *   - Rate-limit / transient error → Deepgram catches it
  *   - Audio format Groq can't decode → Deepgram as second opinion
  */
 export async function transcribeVideo(videoUrl: string): Promise<TranscriptResult> {
@@ -216,20 +214,9 @@ export async function transcribeVideo(videoUrl: string): Promise<TranscriptResul
     result = EMPTY;
   }
 
-  // If Groq returned empty text, retry once with warmer temperature
-  if (!result.text) {
-    console.warn("[transcriber] groq returned empty — retrying with temperature=0.2");
-    await sleep(1500);
-    try {
-      result = await transcribeWithGroq(videoUrl);
-    } catch {
-      result = EMPTY;
-    }
-  }
-
-  // If still empty and Deepgram is configured, try it as fallback
+  // If Groq returned empty text or threw, fall back to Deepgram
   if (!result.text && process.env.DEEPGRAM_API_KEY) {
-    console.warn("[transcriber] groq empty after retry — falling back to deepgram");
+    console.warn("[transcriber] groq empty/failed — falling back to deepgram");
     try {
       result = await transcribeWithDeepgram(videoUrl);
     } catch (err) {

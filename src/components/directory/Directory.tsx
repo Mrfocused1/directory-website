@@ -251,7 +251,7 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
 
           {/* Category pills */}
           {allCategories.length > 1 && (
-            <nav aria-label="Filter by category" className="flex justify-center mb-8 animate-fade-in overflow-hidden px-1">
+            <nav aria-label="Filter by category" className="flex justify-center mb-8 animate-fade-in overflow-x-auto px-1">
               <div className="flex items-center gap-1 bg-[color:var(--card)] border border-[color:var(--border)] backdrop-blur-md py-1 px-1 rounded-full shadow-sm overflow-x-auto scrollbar-hide max-w-full">
                 {allCategories.map((c) => {
                   const isActive = category === c;

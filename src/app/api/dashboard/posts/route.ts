@@ -345,7 +345,7 @@ export async function PATCH(request: NextRequest) {
     const { hasFeature } = await import("@/lib/plans");
     const planId = (["free", "creator", "pro", "agency"].includes(owner?.plan as string) ? owner!.plan : "free") as "free" | "creator" | "pro" | "agency";
     if (!hasFeature(planId, "edit_talking_points")) {
-      return NextResponse.json({ error: "Editing talking points requires Pro plan or above", reason: "plan_feature_missing" }, { status: 403 });
+      return NextResponse.json({ error: "Editing talking points requires Creator plan or above", reason: "plan_feature_missing" }, { status: 403 });
     }
 
     const v = body.transcriptSegments;

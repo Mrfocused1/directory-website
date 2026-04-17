@@ -19,6 +19,7 @@ import {
   bookmarks,
   platformConnections,
   customDomains,
+  dubbedVideos,
 } from "./schema";
 
 export const usersRelations = relations(users, ({ many }) => ({
@@ -46,6 +47,7 @@ export const sitesRelations = relations(sites, ({ one, many }) => ({
 export const postsRelations = relations(posts, ({ one, many }) => ({
   site: one(sites, { fields: [posts.siteId], references: [sites.id] }),
   references: many(references),
+  dubbedVideos: many(dubbedVideos),
 }));
 
 export const referencesRelations = relations(references, ({ one }) => ({
@@ -114,4 +116,8 @@ export const platformConnectionsRelations = relations(platformConnections, ({ on
 
 export const customDomainsRelations = relations(customDomains, ({ one }) => ({
   site: one(sites, { fields: [customDomains.siteId], references: [sites.id] }),
+}));
+
+export const dubbedVideosRelations = relations(dubbedVideos, ({ one }) => ({
+  post: one(posts, { fields: [dubbedVideos.postId], references: [posts.id] }),
 }));

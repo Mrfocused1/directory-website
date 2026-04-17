@@ -523,6 +523,26 @@ export const adminAuditLog = pgTable(
   ],
 );
 
+// ─── Dubbed Videos (AI voice-clone + lip-sync cache) ─────────────────
+export const dubbedVideos = pgTable(
+  "dubbed_videos",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => posts.id, { onDelete: "cascade" }),
+    lang: varchar("lang", { length: 10 }).notNull(), // ISO 639-1 e.g. "es", "fr"
+    videoUrl: text("video_url"), // R2 URL of the dubbed video
+    audioUrl: text("audio_url"), // R2 URL of the cloned TTS audio
+    status: varchar("status", { length: 16 }).notNull().default("pending"), // pending | processing | completed | failed
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("dubbed_videos_post_id_idx").on(table.postId),
+    uniqueIndex("dubbed_videos_post_lang_idx").on(table.postId, table.lang),
+  ],
+);
+
 // ─── Stripe Webhook Events (idempotency tracking) ────────────────────
 // Stripe can deliver the same webhook multiple times. We insert event.id
 // before processing side effects; a unique-violation means we've already

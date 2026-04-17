@@ -27,7 +27,8 @@ export type FeatureKey =
   | "sync"
   | "tts"
   | "edit_talking_points"
-  | "qr_codes";
+  | "qr_codes"
+  | "dubbing";
 
 type PlatformLimits = {
   instagram: number; // max accounts per platform
@@ -128,6 +129,7 @@ const PLANS: Record<PlanId, PlanConfig> = {
       "tts",
       "qr_codes",
       "edit_talking_points",
+      "dubbing",
     ]),
     // ~3 syncs/day — serious creators who post multiple times a day.
     monthlySyncs: 100,
@@ -163,6 +165,7 @@ const PLANS: Record<PlanId, PlanConfig> = {
       "tts",
       "qr_codes",
       "edit_talking_points",
+      "dubbing",
     ]),
     // ~10 syncs/day across potentially 10 sites — agency workflow.
     monthlySyncs: 500,
@@ -237,4 +240,5 @@ export const UPGRADE_PROMPTS: Record<FeatureKey, { title: string; desc: string; 
   tts: { title: "Listen in Another Language", desc: "Visitors can listen to translated transcripts read aloud in 5 languages.", benefit: "Reach a global audience effortlessly" },
   edit_talking_points: { title: "Editable Talking Points", desc: "Customize AI-generated talking points and summaries from your dashboard.", benefit: "Full control over how your content is presented" },
   qr_codes: { title: "Shareable QR Codes", desc: "Generate downloadable QR codes for your directory URL, including business card format.", benefit: "Bridge physical and digital with one scan" },
+  dubbing: { title: "AI Video Dubbing", desc: "Voice-clone the creator and lip-sync translated audio onto their videos.", benefit: "Reach global audiences with natural-sounding dubbed videos" },
 };

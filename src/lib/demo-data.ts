@@ -27,6 +27,7 @@ export async function getSiteData(tenantSlug: string): Promise<{
     return getSiteDataFromDB(tenantSlug);
   }
   // Fallback: generate demo data when DB is unavailable
+  if (tenantSlug === "nischa") return getNischaDemoData();
   return getDemoSiteData(tenantSlug);
 }
 
@@ -44,6 +45,7 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
   if (!site) {
     // No site found in DB — fall back to demo for the "demo" slug
     if (tenantSlug === "demo") return getDemoSiteData(tenantSlug);
+    if (tenantSlug === "nischa") return getNischaDemoData();
     return null;
   }
 
@@ -259,5 +261,217 @@ function getDemoSiteData(tenantSlug: string): {
     posts: demoPosts,
     branding: { customBrandName: null, customBrandUrl: null, showPoweredBy: true },
     features: { newsletter: true, requests: true, bookmarks: true },
+  };
+}
+
+// ─── @nischa.me demo ────────────────────────────────────────────────
+function getNischaDemoData(): {
+  siteId: string;
+  site: SiteConfig;
+  posts: SitePost[];
+  branding: SiteBranding;
+  features: { newsletter: boolean; requests: boolean; bookmarks: boolean };
+} {
+  const site: SiteConfig = {
+    slug: "nischa",
+    displayName: "Nischa Shah",
+    bio: "Life is complicated… personal finance doesn't have to be. Ex-investment banker turned creator.",
+    avatarUrl: null,
+    handle: "@nischa.me",
+    platform: "instagram",
+    accentColor: "#1a1a2e",
+    categories: ["Saving", "Investing", "Budgeting", "Mindset"],
+    platforms: [{ id: "ig", platform: "instagram" as Platform, handle: "nischa.me", displayName: "Nischa Shah", avatarUrl: null, postCount: 9, followerCount: 568000, isConnected: true, lastSyncAt: new Date().toISOString(), syncStatus: "idle" as const }],
+  };
+
+  const nischaPosts: SitePost[] = [
+    {
+      id: "n-1",
+      shortcode: "17-habits-rich",
+      type: "video",
+      caption: "17 money habits that changed my life. These aren't complicated — they're just things most people never bother doing. Number 7 alone saved me £12K in one year. Save this and come back to it.",
+      title: "17 Habits That Made Me Rich",
+      category: "Saving",
+      platform: "instagram" as Platform,
+      takenAt: new Date(Date.UTC(2026, 2, 10)).toISOString(),
+      mediaUrl: null,
+      thumbUrl: null,
+      numSlides: 0,
+      slides: null,
+      transcript: "Let me share the 17 habits that genuinely changed my financial life. Number one — automate your savings. The day I set up a standing order to move money the moment I got paid, everything changed. Number two — the 24-hour rule. Before buying anything over fifty pounds, wait 24 hours. You'd be amazed how often you don't actually want it.",
+      platformUrl: null,
+      references: [
+        { kind: "youtube", title: "17 Habits That Made Me Rich", videoId: "K8dTnlVWPZo", note: "Nischa's full YouTube breakdown — 2.8M views" },
+        { kind: "article", title: "50 Money-Saving Habits That Actually Work", url: "https://www.nerdwallet.com/article/finance/money-saving-tips", note: "NerdWallet" },
+      ],
+    },
+    {
+      id: "n-2",
+      shortcode: "65-25-10-rule",
+      type: "video",
+      caption: "Forget the 50/30/20 rule. Here's my updated version that actually works in 2026. The 65/25/10 rule — and why it's better for most people right now.",
+      title: "The 65/25/10 Budget Rule Explained",
+      category: "Budgeting",
+      platform: "instagram" as Platform,
+      takenAt: new Date(Date.UTC(2026, 2, 8)).toISOString(),
+      mediaUrl: null,
+      thumbUrl: null,
+      numSlides: 0,
+      slides: null,
+      transcript: "Everyone talks about the 50/30/20 rule but honestly, in today's economy, it doesn't work for most people. Here's what I use instead — the 65/25/10 rule. 65 percent goes to necessities, 25 percent to savings and investments, and 10 percent to fun money. The reason this works better is because it acknowledges that living costs have gone up.",
+      platformUrl: null,
+      references: [
+        { kind: "article", title: "The 65/20/15 Rule: A Modern Budgeting Framework", url: "https://finance.yahoo.com/news/6-ways-change-finances-6-220009483.html", note: "Yahoo Finance" },
+        { kind: "youtube", title: "The 50/30/20 Rule Is Dead — Do This Instead", videoId: "HQzoZfc3GwQ", note: "Nischa on YouTube" },
+      ],
+    },
+    {
+      id: "n-3",
+      shortcode: "first-1000-invested",
+      type: "video",
+      caption: "How to invest your first £1,000. Step by step, no jargon, no gatekeeping. This is exactly what I'd do if I was starting from zero today.",
+      title: "How to Invest Your First £1,000",
+      category: "Investing",
+      platform: "instagram" as Platform,
+      takenAt: new Date(Date.UTC(2026, 2, 5)).toISOString(),
+      mediaUrl: null,
+      thumbUrl: null,
+      numSlides: 0,
+      slides: null,
+      transcript: "If you have one thousand pounds and you want to start investing, here's exactly what I'd do. Step one — open a stocks and shares ISA. This is a tax-free wrapper, meaning any gains you make inside it are completely tax free. Step two — pick a global index fund. Something like Vanguard FTSE Global All Cap. You're instantly diversified across thousands of companies worldwide.",
+      platformUrl: null,
+      references: [
+        { kind: "article", title: "How to Start Investing in Index Funds", url: "https://www.investopedia.com/articles/investing/090215/index-fund-investopedia.asp", note: "Investopedia" },
+        { kind: "youtube", title: "Investing for Beginners — How I'd Invest £1000", videoId: "gFQNPmLKj1k", note: "Nischa on YouTube" },
+        { kind: "article", title: "Best Stocks & Shares ISAs 2026", url: "https://www.moneysavingexpert.com/savings/stocks-shares-isas/", note: "MoneySavingExpert" },
+      ],
+    },
+    {
+      id: "n-4",
+      shortcode: "mind-hacks-save",
+      type: "video",
+      caption: "5 mind hacks I used to save six figures. These aren't tips — they're psychological shifts that rewire how you think about money.",
+      title: "5 Mind Hacks to Save More Money",
+      category: "Mindset",
+      platform: "instagram" as Platform,
+      takenAt: new Date(Date.UTC(2026, 2, 2)).toISOString(),
+      mediaUrl: null,
+      thumbUrl: null,
+      numSlides: 0,
+      slides: null,
+      transcript: "The first hack is what I call the cost-per-use calculation. Before buying something, divide the price by how many times you'll realistically use it. A hundred pound jacket you wear twice costs fifty pounds per wear. A thirty pound jacket you wear fifty times costs sixty pence per wear. Suddenly expensive things look cheap and cheap things look expensive.",
+      platformUrl: null,
+      references: [
+        { kind: "article", title: "5 Mind Hacks To Save More Money — Nischa Shah", url: "https://finance.yahoo.com/news/money-expert-nischa-5-mind-170155614.html", note: "Yahoo Finance" },
+        { kind: "article", title: "The Psychology of Saving Money", url: "https://www.psychologytoday.com/us/blog/the-science-behind-behavior/202001/the-psychology-saving", note: "Psychology Today" },
+      ],
+    },
+    {
+      id: "n-5",
+      shortcode: "house-lie",
+      type: "video",
+      caption: "They're lying to you about buying a house. Here's the truth nobody in finance wants to tell you — and what I'm doing with my money instead.",
+      title: "The Truth About Buying a House",
+      category: "Investing",
+      platform: "instagram" as Platform,
+      takenAt: new Date(Date.UTC(2026, 1, 28)).toISOString(),
+      mediaUrl: null,
+      thumbUrl: null,
+      numSlides: 0,
+      slides: null,
+      transcript: "Everyone tells you to buy a house as soon as possible. Your parents, your friends, random people on the internet. But here's what they're not telling you. When you factor in mortgage interest, stamp duty, maintenance costs, insurance, and opportunity cost of your deposit — renting and investing the difference often comes out ahead over 10 years.",
+      platformUrl: null,
+      references: [
+        { kind: "youtube", title: "They're Lying to You About Buying a House!", videoId: "Uwl3-jBNEd4", note: "Nischa on YouTube — Diary of a CEO appearance" },
+        { kind: "article", title: "Renting vs Buying: The Maths Nobody Shows You", url: "https://www.ft.com/content/rent-vs-buy-calculator", note: "Financial Times" },
+      ],
+    },
+    {
+      id: "n-6",
+      shortcode: "passive-income-7",
+      type: "video",
+      caption: "7 passive income ideas that actually work in 2026. I've tried all of them — here's what made money and what was a waste of time.",
+      title: "7 Passive Income Ideas That Actually Work",
+      category: "Investing",
+      platform: "instagram" as Platform,
+      takenAt: new Date(Date.UTC(2026, 1, 24)).toISOString(),
+      mediaUrl: null,
+      thumbUrl: null,
+      numSlides: 0,
+      slides: null,
+      transcript: "Passive income idea number one — dividend ETFs. I put money into Vanguard's High Dividend Yield ETF and it pays me quarterly without me doing anything. Number two — a high interest savings account. Boring? Yes. Passive? Absolutely. I'm earning over five percent right now doing literally nothing.",
+      platformUrl: null,
+      references: [
+        { kind: "youtube", title: "7 Passive Income Ideas — How I Make $200K/year", videoId: "M5y69v1RbU0", note: "Nischa on YouTube" },
+        { kind: "article", title: "Best Passive Income Ideas for 2026", url: "https://www.bankrate.com/investing/passive-income-ideas/", note: "Bankrate" },
+      ],
+    },
+    {
+      id: "n-7",
+      shortcode: "spending-tracker",
+      type: "carousel",
+      caption: "How I track every penny I spend — and why it changed everything. My free spending tracker template is in my bio. It takes 5 minutes a week.",
+      title: "My Free Spending Tracker System",
+      category: "Budgeting",
+      platform: "instagram" as Platform,
+      takenAt: new Date(Date.UTC(2026, 1, 20)).toISOString(),
+      mediaUrl: null,
+      thumbUrl: null,
+      numSlides: 5,
+      slides: null,
+      transcript: null,
+      platformUrl: null,
+      references: [
+        { kind: "article", title: "How to Track Your Spending Effectively", url: "https://www.ramseysolutions.com/budgeting/how-to-track-spending", note: "Ramsey Solutions" },
+      ],
+    },
+    {
+      id: "n-8",
+      shortcode: "quit-banking",
+      type: "video",
+      caption: "I quit my £100K+ investment banking job. Here's what happened next — and why I'd do it again in a heartbeat.",
+      title: "Why I Quit Investment Banking",
+      category: "Mindset",
+      platform: "instagram" as Platform,
+      takenAt: new Date(Date.UTC(2026, 1, 15)).toISOString(),
+      mediaUrl: null,
+      thumbUrl: null,
+      numSlides: 0,
+      slides: null,
+      transcript: "I was 28 years old making over six figures in investment banking. On paper my life looked perfect. But I was working 80 hour weeks, I had no time for myself, and I realised I was building someone else's dream. The day I handed in my resignation was terrifying but also the most free I've ever felt.",
+      platformUrl: null,
+      references: [
+        { kind: "article", title: "An Investment Banker Quit to Become a YouTuber — Now Makes Over $1M", url: "https://www.cnbc.com/2024/07/10/investment-banker-who-quit-to-become-a-youtuber-made-over-1-million.html", note: "CNBC" },
+        { kind: "youtube", title: "How to Be Financially Free — Nischa on Diary of a CEO", videoId: "Uwl3-jBNEd4", note: "Steven Bartlett podcast" },
+      ],
+    },
+    {
+      id: "n-9",
+      shortcode: "emergency-fund",
+      type: "video",
+      caption: "How much should your emergency fund actually be? The 3-6 months rule is outdated. Here's what I recommend instead based on your actual situation.",
+      title: "How Big Should Your Emergency Fund Be?",
+      category: "Saving",
+      platform: "instagram" as Platform,
+      takenAt: new Date(Date.UTC(2026, 1, 10)).toISOString(),
+      mediaUrl: null,
+      thumbUrl: null,
+      numSlides: 0,
+      slides: null,
+      transcript: "Everyone says save three to six months of expenses as an emergency fund. But that's way too vague. Here's how I think about it. If you're employed with a stable job, three months is fine. If you're self-employed or freelance, aim for six to nine months. If you have dependents, add two more months on top. And keep it in a high-interest easy-access savings account — not invested.",
+      platformUrl: null,
+      references: [
+        { kind: "article", title: "How Much Emergency Fund Do I Need?", url: "https://www.moneysavingexpert.com/savings/emergency-fund/", note: "MoneySavingExpert" },
+        { kind: "article", title: "Emergency Fund: What It Is and How to Build One", url: "https://www.investopedia.com/terms/e/emergency_fund.asp", note: "Investopedia" },
+      ],
+    },
+  ];
+
+  return {
+    siteId: "nischa",
+    site,
+    posts: nischaPosts,
+    branding: { customBrandName: null, customBrandUrl: null, showPoweredBy: true },
+    features: { newsletter: false, requests: false, bookmarks: false },
   };
 }

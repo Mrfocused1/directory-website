@@ -9,28 +9,21 @@ import ReferencesAccordion from "./ReferencesAccordion";
 import ShareButtons from "./ShareButtons";
 import BookmarkButton from "@/components/bookmarks/BookmarkButton";
 import { SUPPORTED_LANGUAGES } from "@/lib/translate";
-import DubbingButton from "./DubbingButton";
-
 export default function PostModal({
   post,
   onClose,
   siteId,
   ttsEnabled = false,
-  dubbingEnabled = false,
 }: {
   post: SitePost | null;
   onClose: () => void;
   siteId?: string;
   ttsEnabled?: boolean;
-  dubbingEnabled?: boolean;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [dubbedSrc, setDubbedSrc] = useState<{ videoUrl: string | null; audioUrl: string } | null>(null);
-  const dubbedAudioRef = useRef<HTMLAudioElement | null>(null);
-  const originalVideoUrl = useRef<string | null>(null);
 
   useEffect(() => {
     if (!post) return;
@@ -160,61 +153,6 @@ export default function PostModal({
                   </div>
                 ) : null}
 
-                {/* Dubbing overlay — language selector on the video */}
-                {dubbingEnabled && post.type === "video" && post.mediaUrl && post.id && (
-                  <div className="absolute top-3 right-3 z-10">
-                    <DubbingButton
-                      postId={post.id}
-                      siteId={siteId || ""}
-                      hasDubbingFeature={true}
-                      onDubbedVideoReady={(result) => {
-                        setDubbedSrc(result);
-
-                        if (result.videoUrl && videoRef.current) {
-                          // Lip-synced video available — swap the video source
-                          if (!originalVideoUrl.current) {
-                            originalVideoUrl.current = videoRef.current.src;
-                          }
-                          videoRef.current.src = result.videoUrl;
-                          videoRef.current.muted = false;
-                          videoRef.current.currentTime = 0;
-                          videoRef.current.play();
-                        } else if (result.audioUrl && videoRef.current) {
-                          // Audio-only fallback — mute video + play cloned audio in sync
-                          if (!originalVideoUrl.current) {
-                            originalVideoUrl.current = videoRef.current.src;
-                          }
-                          videoRef.current.muted = true;
-                          videoRef.current.currentTime = 0;
-                          videoRef.current.play();
-                          const audio = new Audio(result.audioUrl);
-                          dubbedAudioRef.current = audio;
-                          audio.play();
-                        }
-                      }}
-                    />
-                    {dubbedSrc && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          // Restore original video
-                          if (videoRef.current && originalVideoUrl.current) {
-                            videoRef.current.src = originalVideoUrl.current;
-                            videoRef.current.muted = false;
-                          }
-                          if (dubbedAudioRef.current) {
-                            dubbedAudioRef.current.pause();
-                            dubbedAudioRef.current = null;
-                          }
-                          setDubbedSrc(null);
-                        }}
-                        className="mt-1 w-full text-[10px] text-white/70 hover:text-white bg-black/50 rounded px-2 py-1 transition"
-                      >
-                        Original
-                      </button>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* Chapters */}

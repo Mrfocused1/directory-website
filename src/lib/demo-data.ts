@@ -21,7 +21,7 @@ export async function getSiteData(tenantSlug: string): Promise<{
   site: SiteConfig;
   posts: SitePost[];
   branding: SiteBranding;
-  features: { newsletter: boolean; requests: boolean; bookmarks: boolean; tts: boolean; dubbing: boolean };
+  features: { newsletter: boolean; requests: boolean; bookmarks: boolean; tts: boolean };
 } | null> {
   if (db) {
     return getSiteDataFromDB(tenantSlug);
@@ -36,7 +36,7 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
   site: SiteConfig;
   posts: SitePost[];
   branding: SiteBranding;
-  features: { newsletter: boolean; requests: boolean; bookmarks: boolean; tts: boolean; dubbing: boolean };
+  features: { newsletter: boolean; requests: boolean; bookmarks: boolean; tts: boolean };
 } | null> {
   const site = await db!.query.sites.findFirst({
     where: eq(sites.slug, tenantSlug),
@@ -168,7 +168,6 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
       requests: hasFeature(planId, "requests"),
       bookmarks: hasFeature(planId, "bookmarks"),
       tts: hasFeature(planId, "tts"),
-      dubbing: hasFeature(planId, "dubbing"),
     },
   };
 }
@@ -213,7 +212,7 @@ function getDemoSiteData(tenantSlug: string): {
   site: SiteConfig;
   posts: SitePost[];
   branding: SiteBranding;
-  features: { newsletter: boolean; requests: boolean; bookmarks: boolean; tts: boolean; dubbing: boolean };
+  features: { newsletter: boolean; requests: boolean; bookmarks: boolean; tts: boolean };
 } {
   const name = tenantSlug.charAt(0).toUpperCase() + tenantSlug.slice(1);
 
@@ -265,7 +264,7 @@ function getDemoSiteData(tenantSlug: string): {
     site: demoSite,
     posts: demoPosts,
     branding: { customBrandName: null, customBrandUrl: null, showPoweredBy: true },
-    features: { newsletter: true, requests: true, bookmarks: true, tts: true, dubbing: true },
+    features: { newsletter: true, requests: true, bookmarks: true, tts: true },
   };
 }
 
@@ -275,7 +274,7 @@ function getNischaDemoData(): {
   site: SiteConfig;
   posts: SitePost[];
   branding: SiteBranding;
-  features: { newsletter: boolean; requests: boolean; bookmarks: boolean; tts: boolean; dubbing: boolean };
+  features: { newsletter: boolean; requests: boolean; bookmarks: boolean; tts: boolean };
 } {
   const site: SiteConfig = {
     slug: "nischa",
@@ -495,6 +494,6 @@ function getNischaDemoData(): {
     site,
     posts: nischaPosts,
     branding: { customBrandName: null, customBrandUrl: null, showPoweredBy: true },
-    features: { newsletter: false, requests: false, bookmarks: false, tts: false, dubbing: false },
+    features: { newsletter: false, requests: false, bookmarks: false, tts: false },
   };
 }

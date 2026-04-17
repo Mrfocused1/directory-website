@@ -37,7 +37,7 @@ export async function translateText(
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10_000);
+  const timeout = setTimeout(() => controller.abort(), 30_000);
 
   try {
     const res = await fetch(`${baseUrl}/translate`, {
@@ -45,7 +45,7 @@ export async function translateText(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         q: text,
-        source: "auto",
+        source: "en",
         target: targetLang,
         format: "text",
       }),

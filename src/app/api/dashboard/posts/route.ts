@@ -336,6 +336,21 @@ export async function PATCH(request: NextRequest) {
     updates.isFeatured = body.isFeatured;
   }
 
+  if ("transcriptSegments" in body) {
+    const v = body.transcriptSegments;
+    if (v !== null && !Array.isArray(v)) {
+      return NextResponse.json({ error: "transcriptSegments must be an array or null" }, { status: 400 });
+    }
+    if (Array.isArray(v)) {
+      for (const seg of v) {
+        if (typeof seg.start !== "number" || typeof seg.end !== "number" || typeof seg.text !== "string") {
+          return NextResponse.json({ error: "Each segment must have start (number), end (number), text (string)" }, { status: 400 });
+        }
+      }
+    }
+    updates.transcriptSegments = v;
+  }
+
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "No updatable fields provided" }, { status: 400 });
   }

@@ -7,6 +7,8 @@ import { useSiteContext } from "@/components/dashboard/SiteContext";
 import { usePlan } from "@/components/plans/PlanProvider";
 import EmptyState from "@/components/dashboard/EmptyState";
 
+type TalkingPoint = { start: number; end: number; text: string };
+
 type Post = {
   id: string;
   shortcode: string;
@@ -21,6 +23,7 @@ type Post = {
   isVisible: boolean;
   isFeatured: boolean;
   sortOrder?: number;
+  transcriptSegments?: TalkingPoint[] | null;
   createdAt: string;
 };
 
@@ -627,6 +630,8 @@ function EditModal({
             />
           </div>
 
+          <TalkingPointsEditor postId={post.id} segments={post.transcriptSegments ?? null} />
+
           <ReferencesEditor postId={post.id} />
 
           {error && (
@@ -938,6 +943,160 @@ function RefForm({
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+// ─── Talking Points editor ─────────────────────────────────────────────
+function TalkingPointsEditor({
+  postId,
+  segments: initial,
+}: {
+  postId: string;
+  segments: TalkingPoint[] | null;
+}) {
+  const [points, setPoints] = useState<TalkingPoint[]>(initial ?? []);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  function updatePoint(idx: number, field: keyof TalkingPoint, value: string | number) {
+    setPoints((prev) =>
+      prev.map((p, i) => (i === idx ? { ...p, [field]: value } : p)),
+    );
+    setSaved(false);
+  }
+
+  function addPoint() {
+    const lastEnd = points.length > 0 ? points[points.length - 1].end : 0;
+    setPoints((prev) => [...prev, { start: lastEnd, end: lastEnd + 30, text: "" }]);
+    setSaved(false);
+  }
+
+  function removePoint(idx: number) {
+    setPoints((prev) => prev.filter((_, i) => i !== idx));
+    setSaved(false);
+  }
+
+  function movePoint(idx: number, dir: "up" | "down") {
+    const target = dir === "up" ? idx - 1 : idx + 1;
+    if (target < 0 || target >= points.length) return;
+    const updated = [...points];
+    [updated[idx], updated[target]] = [updated[target], updated[idx]];
+    setPoints(updated);
+    setSaved(false);
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/dashboard/posts?id=${postId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcriptSegments: points.length > 0 ? points : null }),
+      });
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      }
+    } catch {}
+    setSaving(false);
+  }
+
+  function fmtTime(s: number): string {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  }
+
+  function parseTime(str: string): number {
+    const parts = str.split(":").map(Number);
+    if (parts.length === 2) return (parts[0] || 0) * 60 + (parts[1] || 0);
+    return Number(str) || 0;
+  }
+
+  return (
+    <div className="border-t border-[color:var(--border)] pt-4">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-[color:var(--fg-muted)]">
+          Talking Points
+        </h3>
+        <button
+          type="button"
+          onClick={addPoint}
+          className="text-[10px] font-semibold text-purple-600 hover:text-purple-800 transition"
+        >
+          + Add point
+        </button>
+      </div>
+
+      {points.length === 0 ? (
+        <p className="text-[11px] text-[color:var(--fg-subtle)]">
+          No talking points yet. Add timestamps to help viewers navigate the video.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {points.map((pt, i) => (
+            <div key={i} className="flex items-start gap-2 bg-black/[0.02] rounded-lg p-2">
+              <div className="flex flex-col gap-0.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => movePoint(i, "up")}
+                  disabled={i === 0}
+                  className="w-5 h-4 flex items-center justify-center text-[color:var(--fg-subtle)] hover:text-[color:var(--fg)] disabled:opacity-20"
+                  aria-label="Move up"
+                >
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 15l-6-6-6 6" /></svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => movePoint(i, "down")}
+                  disabled={i === points.length - 1}
+                  className="w-5 h-4 flex items-center justify-center text-[color:var(--fg-subtle)] hover:text-[color:var(--fg)] disabled:opacity-20"
+                  aria-label="Move down"
+                >
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M6 9l6 6 6-6" /></svg>
+                </button>
+              </div>
+              <div className="shrink-0 w-14">
+                <input
+                  type="text"
+                  value={fmtTime(pt.start)}
+                  onChange={(e) => updatePoint(i, "start", parseTime(e.target.value))}
+                  className="w-full h-7 px-1.5 text-[11px] font-mono text-center bg-white border border-[color:var(--border)] rounded focus:outline-none focus:border-[color:var(--fg)]"
+                  aria-label="Start time"
+                />
+              </div>
+              <input
+                type="text"
+                value={pt.text}
+                onChange={(e) => updatePoint(i, "text", e.target.value)}
+                placeholder="What's discussed at this point..."
+                className="flex-1 h-7 px-2 text-[11px] bg-white border border-[color:var(--border)] rounded focus:outline-none focus:border-[color:var(--fg)]"
+                aria-label="Talking point text"
+              />
+              <button
+                type="button"
+                onClick={() => removePoint(i)}
+                className="shrink-0 w-6 h-7 flex items-center justify-center text-red-400 hover:text-red-600 transition"
+                aria-label="Remove"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {points.length > 0 && (
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          className="mt-2 h-8 px-3 text-[10px] font-semibold bg-[color:var(--fg)] text-[color:var(--bg)] rounded-lg hover:opacity-90 transition disabled:opacity-50"
+        >
+          {saving ? "Saving..." : saved ? "Saved ✓" : "Save talking points"}
+        </button>
+      )}
     </div>
   );
 }

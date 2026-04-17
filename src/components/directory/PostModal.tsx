@@ -270,7 +270,7 @@ function ChaptersAccordion({
   return (
     <details className="px-4 pt-3">
       <summary className="text-xs font-semibold uppercase tracking-wide text-[color:var(--fg-subtle)] cursor-pointer hover:text-[color:var(--fg)] transition select-none">
-        Chapters &middot; {chapters.length}
+        Talking Points &middot; {chapters.length}
       </summary>
       <ul className="mt-2 space-y-1">
         {chapters.map((ch, i) => (

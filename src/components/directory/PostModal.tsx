@@ -312,7 +312,8 @@ function ChaptersAccordion({
 /*  Transcript with translation support                               */
 /* ------------------------------------------------------------------ */
 
-const TTS_LANGS = ["en", "es", "fr", "de", "pt"];
+// English excluded from TTS — play the original video instead
+const TTS_LANGS = ["es", "fr", "de", "pt"];
 
 function TranscriptSection({ transcript }: { transcript: string }) {
   const [selectedLang, setSelectedLang] = useState("");
@@ -430,8 +431,8 @@ function TranscriptSection({ transcript }: { transcript: string }) {
           </button>
         )}
 
-        {/* Listen button — TTS for translated or original text */}
-        {TTS_LANGS.includes(selectedLang || "en") && (
+        {/* Listen button — TTS for translated text only (not English — play original video) */}
+        {selectedLang && TTS_LANGS.includes(selectedLang) && (
           <button
             type="button"
             disabled={ttsLoading}
@@ -461,7 +462,7 @@ function TranscriptSection({ transcript }: { transcript: string }) {
                 const res = await fetch("/api/tts", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ text: textToSpeak.slice(0, 5000), lang }),
+                  body: JSON.stringify({ text: textToSpeak.slice(0, 5000), lang, gender: "female" }),
                 });
                 if (!res.ok) throw new Error("TTS failed");
                 const blob = await res.blob();

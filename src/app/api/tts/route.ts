@@ -3,14 +3,17 @@ import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 const PIPER_URL = process.env.PIPER_TTS_URL || "";
 
-const SUPPORTED_LANGS = ["en", "es", "fr", "de", "pt"];
+// English excluded — play the original video instead
+const SUPPORTED_LANGS = ["es", "fr", "de", "pt"];
+const SUPPORTED_GENDERS = ["male", "female"];
 
 /**
  * POST /api/tts
- * Body: { text: string, lang: string }
+ * Body: { text: string, lang: string, gender?: "male" | "female" }
  * Returns: audio/wav binary
  *
  * Proxies to the self-hosted Piper TTS server.
+ * Gender defaults to "female" if not specified.
  */
 export async function POST(request: NextRequest) {
   const limited = checkRateLimit(request, apiLimiter);
@@ -21,7 +24,7 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const { text, lang } = body;
+  const { text, lang, gender } = body;
 
   if (!text || typeof text !== "string") {
     return NextResponse.json({ error: "text is required" }, { status: 400 });
@@ -32,6 +35,9 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
+  if (gender && !SUPPORTED_GENDERS.includes(gender)) {
+    return NextResponse.json({ error: "gender must be male or female" }, { status: 400 });
+  }
   if (text.length > 5000) {
     return NextResponse.json({ error: "text too long (max 5000 chars)" }, { status: 400 });
   }
@@ -40,7 +46,7 @@ export async function POST(request: NextRequest) {
     const res = await fetch(`${PIPER_URL}/tts`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, lang }),
+      body: JSON.stringify({ text, lang, gender: gender || "female" }),
       signal: AbortSignal.timeout(60000),
     });
 
@@ -55,7 +61,7 @@ export async function POST(request: NextRequest) {
       headers: {
         "Content-Type": "audio/wav",
         "Content-Length": String(audioBuffer.byteLength),
-        "Cache-Control": "public, max-age=86400", // cache for 24h
+        "Cache-Control": "public, max-age=86400",
       },
     });
   } catch {

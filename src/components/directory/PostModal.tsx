@@ -312,11 +312,17 @@ function ChaptersAccordion({
 /*  Transcript with translation support                               */
 /* ------------------------------------------------------------------ */
 
+const TTS_LANGS = ["en", "es", "fr", "de", "pt"];
+
 function TranscriptSection({ transcript }: { transcript: string }) {
   const [selectedLang, setSelectedLang] = useState("");
   const [translating, setTranslating] = useState(false);
   const [showTranslated, setShowTranslated] = useState(false);
   const [translatedText, setTranslatedText] = useState("");
+  const [ttsLoading, setTtsLoading] = useState(false);
+  const [ttsPlaying, setTtsPlaying] = useState(false);
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsCacheRef = useRef<Record<string, string>>({});
   // Cache: lang code -> translated string
   const cacheRef = useRef<Record<string, string>>({});
 
@@ -421,6 +427,67 @@ function TranscriptSection({ transcript }: { transcript: string }) {
             className="text-xs underline text-[color:var(--fg-subtle)] hover:text-[color:var(--fg)] transition"
           >
             {showTranslated ? "Show original" : "Show translation"}
+          </button>
+        )}
+
+        {/* Listen button — TTS for translated or original text */}
+        {TTS_LANGS.includes(selectedLang || "en") && (
+          <button
+            type="button"
+            disabled={ttsLoading}
+            onClick={async () => {
+              if (ttsPlaying && ttsAudioRef.current) {
+                ttsAudioRef.current.pause();
+                ttsAudioRef.current.currentTime = 0;
+                setTtsPlaying(false);
+                return;
+              }
+
+              const lang = selectedLang || "en";
+              const textToSpeak = (showTranslated && translatedText) ? translatedText : transcript;
+
+              // Check cache
+              if (ttsCacheRef.current[lang + textToSpeak.slice(0, 50)]) {
+                const audio = new Audio(ttsCacheRef.current[lang + textToSpeak.slice(0, 50)]);
+                ttsAudioRef.current = audio;
+                audio.onended = () => setTtsPlaying(false);
+                audio.play();
+                setTtsPlaying(true);
+                return;
+              }
+
+              setTtsLoading(true);
+              try {
+                const res = await fetch("/api/tts", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ text: textToSpeak.slice(0, 5000), lang }),
+                });
+                if (!res.ok) throw new Error("TTS failed");
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                ttsCacheRef.current[lang + textToSpeak.slice(0, 50)] = url;
+                const audio = new Audio(url);
+                ttsAudioRef.current = audio;
+                audio.onended = () => setTtsPlaying(false);
+                audio.play();
+                setTtsPlaying(true);
+              } catch {
+                // silently fail
+              } finally {
+                setTtsLoading(false);
+              }
+            }}
+            className="text-xs flex items-center gap-1 text-[color:var(--fg-subtle)] hover:text-[color:var(--fg)] transition"
+          >
+            {ttsLoading ? (
+              <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+            ) : ttsPlaying ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" /></svg>
+            )}
+            {ttsPlaying ? "Stop" : "Listen"}
           </button>
         )}
       </div>

@@ -25,6 +25,7 @@ type DirectoryFeatures = {
   newsletter?: boolean;
   requests?: boolean;
   bookmarks?: boolean;
+  tts?: boolean;
 };
 
 type DirectoryProps = {
@@ -483,7 +484,7 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
         </main>
       </div>
 
-      <PostModal post={selected} onClose={() => setSelected(null)} siteId={analyticsId} />
+      <PostModal post={selected} onClose={() => setSelected(null)} siteId={analyticsId} ttsEnabled={features?.tts !== false} />
       <BackToTop />
       {features?.newsletter !== false && <FloatingSubscribe siteId={analyticsId} />}
     </div>

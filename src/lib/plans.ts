@@ -24,7 +24,10 @@ export type FeatureKey =
   | "api_access"
   | "export_subscribers"
   | "unlimited_posts"
-  | "sync";
+  | "sync"
+  | "tts"
+  | "edit_talking_points"
+  | "qr_codes";
 
 type PlatformLimits = {
   instagram: number; // max accounts per platform
@@ -87,6 +90,8 @@ const PLANS: Record<PlanId, PlanConfig> = {
       "auto_categorization",
       "custom_domain",
       "sync",
+      "tts",
+      "qr_codes",
     ]),
     // ~1 sync/day. Most creators post once every day or two — this
     // matches the real cadence without burning money on constant
@@ -119,6 +124,9 @@ const PLANS: Record<PlanId, PlanConfig> = {
       "remove_branding",
       "export_subscribers",
       "sync",
+      "tts",
+      "qr_codes",
+      "edit_talking_points",
     ]),
     // ~3 syncs/day — serious creators who post multiple times a day.
     monthlySyncs: 100,
@@ -151,6 +159,9 @@ const PLANS: Record<PlanId, PlanConfig> = {
       "white_label",
       "api_access",
       "sync",
+      "tts",
+      "qr_codes",
+      "edit_talking_points",
     ]),
     // ~10 syncs/day across potentially 10 sites — agency workflow.
     monthlySyncs: 500,
@@ -222,4 +233,7 @@ export const UPGRADE_PROMPTS: Record<FeatureKey, { title: string; desc: string; 
   export_subscribers: { title: "Export Subscribers", desc: "Download your subscriber list as CSV at any time.", benefit: "Your data, your list, no lock-in" },
   unlimited_posts: { title: "Unlimited Posts", desc: "No cap on how many posts your directory can hold.", benefit: "Grow without limits" },
   sync: { title: "Sync Your Content", desc: "Pull in your latest posts on demand. Creator plans include 30 syncs per month, Pro 100, Agency 500.", benefit: "Keep your directory fresh automatically" },
+  tts: { title: "Listen in Another Language", desc: "Visitors can listen to translated transcripts read aloud in 5 languages.", benefit: "Reach a global audience effortlessly" },
+  edit_talking_points: { title: "Editable Talking Points", desc: "Customize AI-generated talking points and summaries from your dashboard.", benefit: "Full control over how your content is presented" },
+  qr_codes: { title: "Shareable QR Codes", desc: "Generate downloadable QR codes for your directory URL, including business card format.", benefit: "Bridge physical and digital with one scan" },
 };

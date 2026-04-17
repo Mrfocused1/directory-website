@@ -14,10 +14,12 @@ export default function PostModal({
   post,
   onClose,
   siteId,
+  ttsEnabled = false,
 }: {
   post: SitePost | null;
   onClose: () => void;
   siteId?: string;
+  ttsEnabled?: boolean;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
@@ -183,7 +185,7 @@ export default function PostModal({
 
                 {/* Transcript */}
                 {post.transcript && (
-                  <TranscriptSection transcript={post.transcript} />
+                  <TranscriptSection transcript={post.transcript} ttsEnabled={ttsEnabled} />
                 )}
 
                 <div className="mt-3 flex items-center gap-3 flex-wrap">
@@ -315,7 +317,7 @@ function ChaptersAccordion({
 // English excluded from TTS — play the original video instead
 const TTS_LANGS = ["es", "fr", "de", "pt"];
 
-function TranscriptSection({ transcript }: { transcript: string }) {
+function TranscriptSection({ transcript, ttsEnabled = false }: { transcript: string; ttsEnabled?: boolean }) {
   const [selectedLang, setSelectedLang] = useState("");
   const [translating, setTranslating] = useState(false);
   const [showTranslated, setShowTranslated] = useState(false);
@@ -438,8 +440,8 @@ function TranscriptSection({ transcript }: { transcript: string }) {
         {showTranslated && !translating ? translatedText : transcript}
       </p>
 
-      {/* Play button — TTS for translated text only (not English) */}
-      {selectedLang && TTS_LANGS.includes(selectedLang) && (
+      {/* Play button — TTS for translated text only (not English, plan-gated) */}
+      {ttsEnabled && selectedLang && TTS_LANGS.includes(selectedLang) && (
         <button
           type="button"
           disabled={ttsLoading || translating}

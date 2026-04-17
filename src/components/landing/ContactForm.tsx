@@ -147,7 +147,7 @@ export default function ContactForm() {
         <button
           type="submit"
           disabled={status === "sending"}
-          className="w-full h-12 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
+          className="w-full h-12 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-full text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
         >
           {status === "sending" ? "Sending..." : "Send message"}
         </button>

@@ -21,7 +21,7 @@ export default function GlobalError({
           <button
             type="button"
             onClick={reset}
-            className="inline-flex h-12 px-8 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold items-center hover:opacity-90 transition"
+            className="inline-flex h-12 px-8 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-full text-sm font-semibold items-center hover:opacity-90 transition"
           >
             Try again
           </button>

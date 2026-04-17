@@ -80,8 +80,9 @@ function LoginContent() {
         if (error) {
           setError(error.message);
         } else {
-          router.push(nextPath);
-          router.refresh();
+          // Use window.location for a full navigation to ensure the
+          // server picks up the new session cookies immediately.
+          window.location.href = nextPath;
         }
       }
     } catch {

@@ -48,7 +48,7 @@ const LESSONS: Lesson[] = [
   {
     id: "upload",
     title: "Manually adding content",
-    description: "Add posts that aren't on Instagram or TikTok.",
+    description: "Add posts that aren't on Instagram.",
     steps: [
       "Go to Posts → \"Add post\" to upload content directly.",
       "Add a thumbnail image so it looks great in the grid.",
@@ -62,9 +62,56 @@ const LESSONS: Lesson[] = [
     description: "Get your directory in front of your audience.",
     steps: [
       "Visit the Share tab for ready-made links, QR codes, and embed snippets.",
-      "Add your directory link to your Instagram or TikTok bio.",
+      "Add your directory link to your Instagram bio.",
       "Share the link in your Stories — viewers can search all your content instantly.",
+      "Download your QR code for events, business cards, or packaging.",
       "Connect a custom domain (Creator plan+) to make it truly yours.",
+    ],
+  },
+  {
+    id: "talking-points",
+    title: "Talking points & summaries",
+    description: "AI-generated highlights that help visitors navigate your videos.",
+    steps: [
+      "Every video is auto-analyzed to detect key talking points — numbered tips, topic shifts, and arguments.",
+      "Visitors can click any talking point to jump to that moment in the video.",
+      "Each post also gets a Key Takeaways summary with bullet points.",
+      "Edit any talking point from the Posts tab — click Edit on a post, then scroll to Talking Points.",
+      "You can rename, reorder, add, or remove talking points to match how you want your content presented.",
+    ],
+  },
+  {
+    id: "translation",
+    title: "Translation & audio",
+    description: "Let visitors read and listen to your content in other languages.",
+    steps: [
+      "Every post transcript can be translated into 9 languages by visitors — Spanish, French, German, and more.",
+      "On Creator plan+, visitors can tap \"Listen\" to hear the translated transcript read aloud.",
+      "The voice automatically matches your gender — female creators get a female voice, and vice versa.",
+      "Translation and audio are powered by self-hosted services, so there's no per-use cost to you.",
+    ],
+  },
+  {
+    id: "email-sender",
+    title: "Custom email sender",
+    description: "Send subscriber emails from your own email or domain.",
+    steps: [
+      "By default, emails to your subscribers come from hello@buildmy.directory.",
+      "Go to Newsletter → Sender Settings to change this.",
+      "Option 1: Enter your email, click the verification link — emails now come from your address.",
+      "Option 2: Add DNS records for your domain — emails come from hello@yourdomain.com with full authentication.",
+      "Your subscribers see your name and email, building trust and recognition.",
+    ],
+  },
+  {
+    id: "references",
+    title: "Smart references",
+    description: "AI finds related articles and YouTube videos for every post.",
+    steps: [
+      "Each post is analyzed to find relevant sources — articles from credible sites and YouTube explainers.",
+      "References appear in the post modal with clickable links and embeddable YouTube players.",
+      "The AI searches the web in real-time using SearXNG to find the most relevant, up-to-date sources.",
+      "YouTube references are validated before saving — only real, working video IDs make it through.",
     ],
   },
 ];

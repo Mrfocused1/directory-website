@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
 import Link from "next/link";
@@ -55,8 +55,49 @@ function OnboardingContent() {
   const [handle, setHandle] = useState(() => {
     return searchParams.get("handle")?.replace(/^@/, "") || "";
   });
+
+  // Instagram profile lookup
+  type ProfileHit = { username: string; fullName: string; avatarUrl: string; isVerified: boolean };
+  const [profileResults, setProfileResults] = useState<ProfileHit[]>([]);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [confirmedProfile, setConfirmedProfile] = useState<ProfileHit | null>(null);
+  const lookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const searchProfiles = useCallback((query: string) => {
+    if (lookupTimer.current) clearTimeout(lookupTimer.current);
+    setConfirmedProfile(null);
+
+    const clean = query.replace(/^@/, "").trim();
+    if (clean.length < 2) {
+      setProfileResults([]);
+      return;
+    }
+
+    lookupTimer.current = setTimeout(async () => {
+      setProfileLoading(true);
+      try {
+        const res = await fetch(`/api/instagram/lookup?q=${encodeURIComponent(clean)}`);
+        const data = await res.json();
+        setProfileResults(data.profiles || []);
+      } catch {
+        setProfileResults([]);
+      } finally {
+        setProfileLoading(false);
+      }
+    }, 400); // debounce 400ms
+  }, []);
+
   const [slug, setSlug] = useState("");
   const [displayName, setDisplayName] = useState("");
+
+  const selectProfile = useCallback((profile: ProfileHit) => {
+    setHandle(profile.username);
+    setConfirmedProfile(profile);
+    setProfileResults([]);
+    if (!slug) setSlug(profile.username.toLowerCase().replace(/[^a-z0-9-]/g, ""));
+    if (!displayName) setDisplayName(profile.fullName || profile.username);
+  }, [slug, displayName]);
+
   const [pipelineStatus, setPipelineStatus] = useState<{
     step: string;
     progress: number;
@@ -66,9 +107,14 @@ function OnboardingContent() {
   const handleSubmitHandle = (e: React.FormEvent) => {
     e.preventDefault();
     if (!handle.trim()) return;
+    if (!confirmedProfile) {
+      // Trigger search if not confirmed yet
+      searchProfiles(handle);
+      return;
+    }
     const cleanHandle = handle.replace(/^@/, "").trim();
     if (!slug) setSlug(cleanHandle.toLowerCase().replace(/[^a-z0-9-]/g, ""));
-    if (!displayName) setDisplayName(cleanHandle);
+    if (!displayName) setDisplayName(confirmedProfile.fullName || cleanHandle);
     setStep("customize");
   };
 
@@ -393,10 +439,10 @@ function OnboardingContent() {
                 {/* Platform — Instagram only for now */}
                 <input type="hidden" name="platform" value="instagram" />
 
-                {/* Handle input */}
+                {/* Handle input with profile search */}
                 <div>
-                  <label htmlFor="handle" className="eyebrow text-[color:var(--bd-dark)] mb-3">
-                    Your handle
+                  <label htmlFor="handle" className="block text-xs uppercase tracking-wider font-semibold text-[color:var(--bd-dark)] mb-3">
+                    Your Instagram handle
                   </label>
                   <div className="relative mt-2">
                     <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[color:var(--bd-grey)] text-base font-medium">
@@ -406,19 +452,108 @@ function OnboardingContent() {
                       id="handle"
                       type="text"
                       value={handle}
-                      onChange={(e) => setHandle(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/^@/, "");
+                        setHandle(val);
+                        searchProfiles(val);
+                      }}
                       placeholder="yourhandle"
                       required
-                      className="w-full h-14 pl-10 pr-4 bg-white border-2 border-[color:var(--bd-dark-faded)] rounded-full text-lg font-medium placeholder:text-[color:var(--bd-grey)] focus:outline-none focus:border-[color:var(--bd-dark)] transition"
+                      autoComplete="off"
+                      className="w-full h-14 pl-10 pr-12 bg-white border-2 border-neutral-200 rounded-full text-lg font-medium placeholder:text-neutral-400 focus:outline-none focus:border-[color:var(--bd-dark)] transition"
                     />
+                    {profileLoading && (
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                        <div className="w-5 h-5 border-2 border-neutral-300 border-t-neutral-600 rounded-full animate-spin" />
+                      </div>
+                    )}
                   </div>
+
+                  {/* Profile dropdown results */}
+                  {profileResults.length > 0 && !confirmedProfile && (
+                    <div className="mt-2 bg-white border border-neutral-200 rounded-2xl shadow-lg overflow-hidden">
+                      {profileResults.map((p) => (
+                        <button
+                          key={p.username}
+                          type="button"
+                          onClick={() => selectProfile(p)}
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-neutral-50 transition text-left"
+                        >
+                          {p.avatarUrl ? (
+                            <img
+                              src={p.avatarUrl}
+                              alt=""
+                              className="w-10 h-10 rounded-full object-cover bg-neutral-100 shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-neutral-200 shrink-0 flex items-center justify-center text-neutral-400 text-sm font-bold">
+                              {p.username[0]?.toUpperCase()}
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-semibold text-[color:var(--bd-dark)] truncate">
+                                {p.fullName || p.username}
+                              </span>
+                              {p.isVerified && (
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="#3897f0" aria-label="Verified"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                              )}
+                            </div>
+                            <span className="text-xs text-neutral-500">@{p.username}</span>
+                          </div>
+                          <span className="text-xs text-neutral-400 shrink-0">Select</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Confirmed profile card */}
+                  {confirmedProfile && (
+                    <div className="mt-3 flex items-center gap-3 bg-white border-2 border-[color:var(--bd-lime)] rounded-2xl px-4 py-3">
+                      {confirmedProfile.avatarUrl ? (
+                        <img
+                          src={confirmedProfile.avatarUrl}
+                          alt=""
+                          className="w-11 h-11 rounded-full object-cover bg-neutral-100 shrink-0"
+                        />
+                      ) : (
+                        <div className="w-11 h-11 rounded-full bg-neutral-200 shrink-0 flex items-center justify-center text-neutral-400 font-bold">
+                          {confirmedProfile.username[0]?.toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-semibold text-[color:var(--bd-dark)] truncate">
+                            {confirmedProfile.fullName || confirmedProfile.username}
+                          </span>
+                          {confirmedProfile.isVerified && (
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="#3897f0" aria-label="Verified"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                          )}
+                        </div>
+                        <span className="text-xs text-neutral-500">@{confirmedProfile.username} on Instagram</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setConfirmedProfile(null);
+                          setHandle("");
+                          setSlug("");
+                          setDisplayName("");
+                        }}
+                        className="text-xs text-neutral-400 hover:text-neutral-600 transition shrink-0"
+                      >
+                        Change
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full h-14 bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] rounded-full text-base font-semibold hover:opacity-90 transition"
+                  disabled={!confirmedProfile}
+                  className="w-full h-14 bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] rounded-full text-base font-semibold hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Continue
+                  {confirmedProfile ? "Continue" : "Search & select your account"}
                 </button>
               </form>
             </div>

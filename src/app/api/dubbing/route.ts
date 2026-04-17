@@ -68,7 +68,11 @@ export async function POST(request: NextRequest) {
     where: and(eq(dubbedVideos.postId, postId), eq(dubbedVideos.lang, targetLang)),
   });
   if (cached?.status === "completed" && cached.audioUrl) {
-    return NextResponse.json({ audioUrl: cached.audioUrl, cached: true });
+    return NextResponse.json({
+      audioUrl: cached.audioUrl,
+      videoUrl: cached.videoUrl ?? null,
+      cached: true,
+    });
   }
   if (cached?.status === "processing") {
     return NextResponse.json({ error: "Dubbing already in progress" }, { status: 409 });
@@ -100,7 +104,11 @@ export async function POST(request: NextRequest) {
       videoUrl: result.videoUrl,
     }).where(eq(dubbedVideos.id, rowId));
 
-    return NextResponse.json({ audioUrl: result.audioUrl, cached: false });
+    return NextResponse.json({
+      audioUrl: result.audioUrl,
+      videoUrl: result.videoUrl,
+      cached: false,
+    });
   } catch (err) {
     console.error("[dubbing] Failed:", err);
     await db.update(dubbedVideos).set({ status: "failed" }).where(eq(dubbedVideos.id, rowId));

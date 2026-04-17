@@ -13,8 +13,8 @@ interface DubbingButtonProps {
   siteId: string;
   /** Whether the site owner's plan includes the "dubbing" feature */
   hasDubbingFeature: boolean;
-  /** Callback to swap the video player's src to the dubbed URL */
-  onDubbedVideoReady: (url: string) => void;
+  /** Callback when dubbed content is ready — videoUrl is the lip-synced video, audioUrl is fallback */
+  onDubbedVideoReady: (result: { videoUrl: string | null; audioUrl: string }) => void;
 }
 
 interface DubbedLang {
@@ -74,9 +74,10 @@ export default function DubbingButton({
           return;
         }
 
-        // Phase 1: audio only — pass audioUrl to parent
-        // Phase 2: will use data.dubbedVideoUrl for lip-synced video
-        onDubbedVideoReady(data.audioUrl || data.dubbedVideoUrl);
+        onDubbedVideoReady({
+          videoUrl: data.videoUrl || null,
+          audioUrl: data.audioUrl,
+        });
       } catch {
         setError("Network error — please try again");
       } finally {

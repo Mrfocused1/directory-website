@@ -1,8 +1,8 @@
 /**
  * Dubbing Service — voice cloning via Vast.ai GPU.
  *
- * Phase 1: Cloned voice audio (Chatterbox TTS on GPU)
- * Phase 2: Lip-synced video (MuseTalk — future)
+ * Phase 1: Cloned voice audio (Chatterbox TTS) ✅
+ * Phase 2: Lip-synced video (MuseTalk) — TODO
  *
  * Flow:
  * 1. Translate transcript via LibreTranslate

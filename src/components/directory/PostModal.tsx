@@ -28,8 +28,9 @@ export default function PostModal({
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [dubbedSrc, setDubbedSrc] = useState<string | null>(null);
+  const [dubbedSrc, setDubbedSrc] = useState<{ videoUrl: string | null; audioUrl: string } | null>(null);
   const dubbedAudioRef = useRef<HTMLAudioElement | null>(null);
+  const originalVideoUrl = useRef<string | null>(null);
 
   useEffect(() => {
     if (!post) return;
@@ -166,29 +167,46 @@ export default function PostModal({
                       postId={post.id}
                       siteId={siteId || ""}
                       hasDubbingFeature={true}
-                      onDubbedVideoReady={(audioUrl) => {
-                        setDubbedSrc(audioUrl);
-                        // Mute video + play cloned audio in sync
-                        if (videoRef.current) {
+                      onDubbedVideoReady={(result) => {
+                        setDubbedSrc(result);
+
+                        if (result.videoUrl && videoRef.current) {
+                          // Lip-synced video available — swap the video source
+                          if (!originalVideoUrl.current) {
+                            originalVideoUrl.current = videoRef.current.src;
+                          }
+                          videoRef.current.src = result.videoUrl;
+                          videoRef.current.muted = false;
+                          videoRef.current.currentTime = 0;
+                          videoRef.current.play();
+                        } else if (result.audioUrl && videoRef.current) {
+                          // Audio-only fallback — mute video + play cloned audio in sync
+                          if (!originalVideoUrl.current) {
+                            originalVideoUrl.current = videoRef.current.src;
+                          }
                           videoRef.current.muted = true;
                           videoRef.current.currentTime = 0;
                           videoRef.current.play();
+                          const audio = new Audio(result.audioUrl);
+                          dubbedAudioRef.current = audio;
+                          audio.play();
                         }
-                        const audio = new Audio(audioUrl);
-                        dubbedAudioRef.current = audio;
-                        audio.play();
                       }}
                     />
                     {dubbedSrc && (
                       <button
                         type="button"
                         onClick={() => {
-                          setDubbedSrc(null);
-                          if (videoRef.current) videoRef.current.muted = false;
+                          // Restore original video
+                          if (videoRef.current && originalVideoUrl.current) {
+                            videoRef.current.src = originalVideoUrl.current;
+                            videoRef.current.muted = false;
+                          }
                           if (dubbedAudioRef.current) {
                             dubbedAudioRef.current.pause();
                             dubbedAudioRef.current = null;
                           }
+                          setDubbedSrc(null);
                         }}
                         className="mt-1 w-full text-[10px] text-white/70 hover:text-white bg-black/50 rounded px-2 py-1 transition"
                       >

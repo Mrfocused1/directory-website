@@ -125,9 +125,10 @@ function VideoTile({
     <div
       className="rounded-lg overflow-hidden relative flex items-end p-1.5 text-[8px] font-semibold aspect-square"
       style={{
-        background: visible ? video.bg : "rgba(0,0,0,0.05)",
-        color: visible ? (video.darkText ? "var(--bd-dark)" : "white") : "transparent",
+        background: "transparent",
+        color: "transparent",
         animation: visible ? `bd-pop-in 0.45s ${delay}ms cubic-bezier(0.2,0.9,0.4,1.2) both` : undefined,
+        visibility: visible ? "visible" : "hidden",
       }}
     >
       {visible && video.src && (

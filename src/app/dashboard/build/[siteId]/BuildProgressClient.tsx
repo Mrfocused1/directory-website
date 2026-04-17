@@ -229,14 +229,14 @@ export default function BuildProgressClient({
 
         {status.failed && (
           <>
-            <div className="max-w-sm mx-auto mt-6 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-800 text-left">
+            <div className="max-w-sm mx-auto mt-6 bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-sm text-red-700 text-left">
               {status.message}
             </div>
             <div className="max-w-sm mx-auto mt-6 flex flex-col sm:flex-row gap-3">
               <button
                 type="button"
                 onClick={() => router.push(`/onboarding?existing=${siteId}`)}
-                className="flex-1 h-12 border-2 border-[color:var(--border)] rounded-xl text-sm font-semibold hover:bg-black/5 transition"
+                className="flex-1 h-12 border-2 border-neutral-200 rounded-full text-sm font-semibold text-[color:var(--fg)] hover:bg-neutral-50 transition"
               >
                 Change handle
               </button>
@@ -244,14 +244,14 @@ export default function BuildProgressClient({
                 type="button"
                 onClick={retry}
                 disabled={retrying}
-                className="flex-1 h-12 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
+                className="flex-1 h-12 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-full text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
               >
                 {retrying ? "Retrying…" : "Retry with same handle"}
               </button>
             </div>
             <Link
               href="/dashboard"
-              className="block mt-4 text-xs text-[color:var(--fg-muted)] hover:text-[color:var(--fg)]"
+              className="block mt-4 text-sm text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] transition"
             >
               ← Back to dashboard
             </Link>

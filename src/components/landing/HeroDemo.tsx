@@ -90,9 +90,6 @@ export default function HeroDemo() {
             <span className="text-[10px] sm:text-xs font-semibold text-[color:var(--bd-grey)]">
               buildmy.directory/you
             </span>
-            <span className="w-5 h-5 rounded-full bg-[color:var(--bd-lime)] flex items-center justify-center text-[color:var(--bd-dark)] text-[8px] font-bold">
-              Y
-            </span>
           </div>
 
           {/* Content area */}

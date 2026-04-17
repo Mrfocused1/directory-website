@@ -159,13 +159,18 @@ WEBSITE references (kind: "article"):
 - Companies, organizations, regulators (e.g. "HMRC", "Companies House", "PensionWise")
 - Books, podcasts, documentaries (link to Amazon/publisher)
 - Articles or studies referenced (link to source if known, otherwise Google)
-- url: official site if known (e.g. https://www.vanguard.co.uk), otherwise https://www.google.com/search?q=<urlencoded name>
+- url: MUST be the official/real URL (e.g. https://www.vanguard.co.uk, https://www.investopedia.com/terms/i/isa.asp)
+- NEVER use google.com/search URLs — those are not real references
+- If you don't know the real URL for something, skip it entirely
 
 YOUTUBE references (kind: "youtube"):
 - For at least 2 of the references (when topic warrants), find a high-quality EXPLAINER YOUTUBE VIDEO on the topic from a CREDIBLE channel
-- Credible channels: official brand channels, BBC News, CNBC, Bloomberg Television, The Wall Street Journal, Financial Times, Forbes, TED, official institution channels (HMRC, Bank of England, etc.), well-established educators (>500K subs)
-- url: MUST be a real YouTube watch URL of the form https://www.youtube.com/watch?v=<11-char-id> from a known credible channel
-- If you don't know a specific real video on the topic, DO NOT make one up — instead use a YouTube SEARCH URL: https://www.youtube.com/results?search_query=<urlencoded topic>+<credible source>
+- Credible channels: official brand channels, BBC News, CNBC, Bloomberg Television, The Wall Street Journal, Financial Times, Forbes, TED, official institution channels, well-established educators (>500K subs)
+- url: MUST be a real YouTube watch URL of the form https://www.youtube.com/watch?v=<REAL-11-char-id>
+- You MUST use a REAL video ID that you are confident exists. Think of well-known popular videos on the topic.
+- NEVER use YouTube search URLs (youtube.com/results?search_query=...) — those cannot be embedded
+- NEVER use Google search URLs — those are useless as references
+- If you cannot think of a specific real YouTube video ID, skip it entirely — better to have fewer references than broken ones
 
 DO NOT extract:
 - Generic concepts ("inflation", "savings", "stock market", "ISA", "FIRE" — these are topics, not references)
@@ -225,10 +230,14 @@ ${text}`;
       const note = typeof o.note === "string" ? o.note.trim().slice(0, 200) : null;
       if (!title || !url) continue;
 
-      // Validate URL — drop anything that's not http(s)
+      // Validate URL — drop anything that's not http(s), and reject search URLs
       try {
         const u = new URL(url);
         if (u.protocol !== "http:" && u.protocol !== "https:") continue;
+        // Reject Google search URLs — not real references
+        if (u.hostname.includes("google.com") && u.pathname.includes("/search")) continue;
+        // Reject YouTube search/results URLs — can't embed these
+        if (u.hostname.includes("youtube.com") && u.pathname.includes("/results")) continue;
       } catch {
         continue;
       }

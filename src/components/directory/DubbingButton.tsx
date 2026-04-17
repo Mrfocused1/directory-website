@@ -74,7 +74,9 @@ export default function DubbingButton({
           return;
         }
 
-        onDubbedVideoReady(data.dubbedVideoUrl);
+        // Phase 1: audio only — pass audioUrl to parent
+        // Phase 2: will use data.dubbedVideoUrl for lip-synced video
+        onDubbedVideoReady(data.audioUrl || data.dubbedVideoUrl);
       } catch {
         setError("Network error — please try again");
       } finally {

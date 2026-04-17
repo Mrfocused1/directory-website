@@ -1,208 +1,186 @@
 /**
- * Vast.ai GPU rental client for on-demand voice cloning + lip sync.
+ * Vast.ai GPU rental client — real SSH implementation.
  *
- * Lifecycle: search cheapest GPU -> rent instance -> wait until ready ->
- * run setup + processing commands via SSH -> destroy instance.
- *
+ * Lifecycle: find GPU → rent → wait for ready → SSH commands → destroy.
  * Requires env: VAST_API_KEY
  */
 
-const VAST_BASE_URL = "https://console.vast.ai/api/v0";
+import { Client } from "ssh2";
 
-function getApiKey(): string {
-  const key = process.env.VAST_API_KEY;
-  if (!key) throw new Error("[vast] VAST_API_KEY is not configured");
-  return key;
+const VAST_BASE = "https://console.vast.ai/api/v0";
+
+function apiKey(): string {
+  const k = process.env.VAST_API_KEY;
+  if (!k) throw new Error("VAST_API_KEY not set");
+  return k;
 }
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 export interface VastInstance {
   id: number;
-  status: string; // "running" | "loading" | "exited" etc.
+  status: string;
   sshHost: string;
   sshPort: number;
-  publicIpaddr: string;
 }
 
-interface BundleResult {
-  id: number;
-  dph_total: number; // dollars per hour
-  gpu_ram: number;
-  gpu_name: string;
-}
+// ─── API helpers ────────────────────────────────────────────────────
 
-// ---------------------------------------------------------------------------
-// API helpers
-// ---------------------------------------------------------------------------
-
-async function vastFetch<T>(
-  path: string,
-  opts: RequestInit = {},
-): Promise<T> {
-  const key = getApiKey();
+async function vastFetch(path: string, init?: RequestInit) {
   const sep = path.includes("?") ? "&" : "?";
-  const url = `${VAST_BASE_URL}${path}${sep}api_key=${key}`;
-
-  const res = await fetch(url, {
-    ...opts,
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      ...opts.headers,
-    },
-    signal: AbortSignal.timeout(30_000),
-  });
-
+  const url = `${VAST_BASE}${path}${sep}api_key=${apiKey()}`;
+  const res = await fetch(url, { ...init, redirect: "follow" });
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`[vast] ${res.status} ${res.statusText}: ${body}`);
+    const text = await res.text().catch(() => "");
+    throw new Error(`Vast API ${res.status}: ${text.slice(0, 200)}`);
   }
-
-  return res.json() as Promise<T>;
+  return res.json();
 }
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
-/**
- * Find the cheapest available GPU instance with >= 20 GB VRAM.
- * Prefers RTX 3090 / RTX 4090 / A6000 class cards.
- */
-export async function findCheapestGpu(): Promise<BundleResult> {
-  const query = JSON.stringify({
-    gpu_ram: ">=20",
-    rentable: true,
-    order: [["dph_total", "asc"]],
+/** Find cheapest GPU with ≥20GB VRAM and fast internet */
+export async function findGpu(): Promise<{ id: number; gpu: string; price: number }> {
+  const q = encodeURIComponent(JSON.stringify({
+    gpu_ram: { gte: 20000 },
+    inet_down: { gte: 400 },
+    disk_space: { gte: 20 },
+    rentable: { eq: true },
+    dph_total: { lte: 0.15 },
+    order: [["inet_down", "desc"]],
     limit: 1,
+  }));
+  const data = await vastFetch(`/bundles/?q=${q}`);
+  const offers = data.offers || [];
+  if (offers.length === 0) throw new Error("No GPU available on Vast.ai");
+  const o = offers[0];
+  return { id: o.id, gpu: o.gpu_name, price: o.dph_total };
+}
+
+/** Rent a GPU instance */
+export async function rentGpu(offerId: number): Promise<number> {
+  const data = await vastFetch(`/asks/${offerId}/`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client_id: "me",
+      image: "pytorch/pytorch:2.1.0-cuda12.1-cudnn8-devel",
+      disk: 20,
+      label: "bmd-dub",
+    }),
   });
-
-  const bundles = await vastFetch<BundleResult[]>(
-    `/bundles?q=${encodeURIComponent(query)}`,
-  );
-
-  if (!bundles.length) {
-    throw new Error("[vast] No available GPU instances found");
-  }
-
-  return bundles[0];
+  if (!data.success) throw new Error("Failed to rent GPU: " + JSON.stringify(data));
+  return data.new_contract;
 }
 
-/**
- * Rent a specific GPU bundle. Returns the instance ID.
- */
-export async function rentInstance(bundleId: number): Promise<number> {
-  const key = getApiKey();
-  const result = await vastFetch<{ new_contract: number }>(
-    `/asks/${bundleId}/?api_key=${key}`,
-    {
-      method: "PUT",
-      body: JSON.stringify({
-        client_id: "me",
-        image: "pytorch/pytorch:2.1.0-cuda12.1-cudnn8-devel",
-        disk: 20,
-        label: "bmd-dubbing",
-      }),
-    },
-  );
-
-  return result.new_contract;
-}
-
-/**
- * Poll until the rented instance reaches "running" status.
- * Times out after ~5 minutes.
- */
-export async function waitForReady(
-  instanceId: number,
-  maxWaitMs = 5 * 60 * 1000,
-): Promise<VastInstance> {
-  const key = getApiKey();
+/** Wait for instance to reach "running" state */
+export async function waitForReady(instanceId: number, timeoutMs = 300_000): Promise<VastInstance> {
   const start = Date.now();
-
-  while (Date.now() - start < maxWaitMs) {
-    const instances = await vastFetch<VastInstance[]>(
-      `/instances?api_key=${key}`,
-    );
-
-    const inst = instances.find((i) => i.id === instanceId);
-    if (inst && inst.status === "running") {
-      return inst;
+  while (Date.now() - start < timeoutMs) {
+    const data = await vastFetch("/instances/");
+    const instances = data.instances || [];
+    const inst = instances.find((i: Record<string, unknown>) => i.id === instanceId);
+    if (inst && inst.actual_status === "running") {
+      return {
+        id: inst.id,
+        status: "running",
+        sshHost: inst.ssh_host || "",
+        sshPort: inst.ssh_port || 22,
+      };
     }
-
-    // Wait 10 seconds between polls
+    if (inst && (inst.actual_status === "exited" || inst.actual_status === "error")) {
+      throw new Error(`Instance ${instanceId} failed: ${inst.actual_status}`);
+    }
     await new Promise((r) => setTimeout(r, 10_000));
   }
-
-  throw new Error(
-    `[vast] Instance ${instanceId} did not become ready within ${maxWaitMs / 1000}s`,
-  );
+  throw new Error(`Instance ${instanceId} timed out after ${timeoutMs / 1000}s`);
 }
 
-/**
- * Run a command on the instance via SSH.
- *
- * NOTE: In production this would shell out to `ssh` or use an SSH library
- * (e.g. `ssh2`). For now this is a placeholder that logs the command.
- * The actual SSH execution will be wired up when the Vast.ai API key is
- * provisioned and the GPU pipeline is tested end-to-end.
- */
-export async function runSshCommand(
-  instance: VastInstance,
+/** Destroy an instance immediately */
+export async function destroyGpu(instanceId: number): Promise<void> {
+  await vastFetch(`/instances/${instanceId}/`, { method: "DELETE" });
+  console.log(`[vast] Instance ${instanceId} destroyed`);
+}
+
+// ─── SSH execution ──────────────────────────────────────────────────
+
+/** Run a command on the GPU instance via SSH. Returns stdout. */
+export function sshExec(
+  host: string,
+  port: number,
   command: string,
+  timeoutMs = 300_000,
 ): Promise<string> {
-  // TODO: Replace with real SSH execution using instance.sshHost + instance.sshPort
-  // Example: spawn(`ssh -p ${instance.sshPort} root@${instance.sshHost} "${command}"`)
-  console.log(
-    `[vast] SSH → ${instance.sshHost}:${instance.sshPort} $ ${command}`,
-  );
+  return new Promise((resolve, reject) => {
+    const conn = new Client();
+    let stdout = "";
+    let stderr = "";
+    const timer = setTimeout(() => {
+      conn.end();
+      reject(new Error(`SSH command timed out after ${timeoutMs / 1000}s`));
+    }, timeoutMs);
 
-  // Placeholder return — real implementation returns stdout
-  return `[placeholder] Would run on ${instance.sshHost}: ${command}`;
-}
+    // Read SSH private key — Vast.ai uses key-based auth
+    const fs = require("fs");
+    const homeDir = process.env.HOME || "/root";
+    let privateKey: Buffer | undefined;
+    for (const keyFile of ["id_ed25519", "id_rsa"]) {
+      const keyPath = `${homeDir}/.ssh/${keyFile}`;
+      try { privateKey = fs.readFileSync(keyPath); break; } catch {}
+    }
 
-/**
- * Upload a file to the instance via SCP.
- *
- * NOTE: Placeholder — same SSH-library caveat as runSshCommand.
- */
-export async function scpUpload(
-  instance: VastInstance,
-  localPath: string,
-  remotePath: string,
-): Promise<void> {
-  // TODO: Replace with real SCP using instance.sshHost + instance.sshPort
-  console.log(
-    `[vast] SCP ${localPath} → ${instance.sshHost}:${instance.sshPort}:${remotePath}`,
-  );
-}
-
-/**
- * Download a file from the instance via SCP.
- *
- * NOTE: Placeholder — same SSH-library caveat as runSshCommand.
- */
-export async function scpDownload(
-  instance: VastInstance,
-  remotePath: string,
-  localPath: string,
-): Promise<void> {
-  // TODO: Replace with real SCP using instance.sshHost + instance.sshPort
-  console.log(
-    `[vast] SCP ${instance.sshHost}:${instance.sshPort}:${remotePath} → ${localPath}`,
-  );
-}
-
-/**
- * Destroy (terminate) a rented instance. Always call this in a finally block.
- */
-export async function destroyInstance(instanceId: number): Promise<void> {
-  const key = getApiKey();
-  await vastFetch<unknown>(`/instances/${instanceId}/?api_key=${key}`, {
-    method: "DELETE",
+    conn
+      .on("ready", () => {
+        conn.exec(command, (err, stream) => {
+          if (err) { clearTimeout(timer); conn.end(); reject(err); return; }
+          stream
+            .on("close", () => {
+              clearTimeout(timer);
+              conn.end();
+              if (stderr && !stdout) reject(new Error(stderr.slice(0, 500)));
+              else resolve(stdout);
+            })
+            .on("data", (data: Buffer) => {
+              stdout += data.toString();
+              process.stdout.write(data); // live logging
+            })
+            .stderr.on("data", (data: Buffer) => {
+              stderr += data.toString();
+            });
+        });
+      })
+      .on("error", (err) => {
+        clearTimeout(timer);
+        reject(err);
+      })
+      .connect({
+        host,
+        port,
+        username: "root",
+        privateKey,
+        readyTimeout: 30_000,
+        algorithms: { serverHostKey: ["ssh-rsa", "ssh-ed25519", "ecdsa-sha2-nistp256"] },
+      } as Parameters<Client["connect"]>[0]);
   });
-  console.log(`[vast] Destroyed instance ${instanceId}`);
+}
+
+// ─── Convenience: full lifecycle ────────────────────────────────────
+
+/** Rent a GPU, run a job, destroy it. Returns job output. */
+export async function withGpu<T>(
+  job: (instance: VastInstance) => Promise<T>,
+): Promise<T> {
+  console.log("[vast] Finding cheapest GPU...");
+  const offer = await findGpu();
+  console.log(`[vast] Renting ${offer.gpu} at $${offer.price.toFixed(3)}/hr...`);
+
+  const contractId = await rentGpu(offer.id);
+  console.log(`[vast] Instance ${contractId} rented. Waiting for boot...`);
+
+  try {
+    const instance = await waitForReady(contractId);
+    console.log(`[vast] Instance ready: ${instance.sshHost}:${instance.sshPort}`);
+
+    const result = await job(instance);
+    return result;
+  } finally {
+    console.log(`[vast] Destroying instance ${contractId}...`);
+    await destroyGpu(contractId).catch((e) => console.error("[vast] Destroy failed:", e));
+  }
 }

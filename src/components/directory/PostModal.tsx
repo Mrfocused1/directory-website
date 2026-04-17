@@ -29,6 +29,7 @@ export default function PostModal({
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [dubbedSrc, setDubbedSrc] = useState<string | null>(null);
+  const dubbedAudioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (!post) return;
@@ -136,8 +137,8 @@ export default function PostModal({
                 {post.type === "video" && post.mediaUrl ? (
                   <video
                     ref={videoRef}
-                    key={dubbedSrc || post.shortcode}
-                    src={dubbedSrc || post.mediaUrl}
+                    key={post.shortcode}
+                    src={post.mediaUrl}
                     poster={post.thumbUrl || undefined}
                     controls
                     playsInline
@@ -165,12 +166,30 @@ export default function PostModal({
                       postId={post.id}
                       siteId={siteId || ""}
                       hasDubbingFeature={true}
-                      onDubbedVideoReady={(url) => setDubbedSrc(url)}
+                      onDubbedVideoReady={(audioUrl) => {
+                        setDubbedSrc(audioUrl);
+                        // Mute video + play cloned audio in sync
+                        if (videoRef.current) {
+                          videoRef.current.muted = true;
+                          videoRef.current.currentTime = 0;
+                          videoRef.current.play();
+                        }
+                        const audio = new Audio(audioUrl);
+                        dubbedAudioRef.current = audio;
+                        audio.play();
+                      }}
                     />
                     {dubbedSrc && (
                       <button
                         type="button"
-                        onClick={() => setDubbedSrc(null)}
+                        onClick={() => {
+                          setDubbedSrc(null);
+                          if (videoRef.current) videoRef.current.muted = false;
+                          if (dubbedAudioRef.current) {
+                            dubbedAudioRef.current.pause();
+                            dubbedAudioRef.current = null;
+                          }
+                        }}
                         className="mt-1 w-full text-[10px] text-white/70 hover:text-white bg-black/50 rounded px-2 py-1 transition"
                       >
                         Original

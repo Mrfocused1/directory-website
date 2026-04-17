@@ -95,9 +95,9 @@ export default function HowItWorks() {
           {STEPS.map((s, i) => (
             <div
               key={s.num}
-              className="bg-white/[0.04] border border-white/[0.06] rounded-[2rem] p-8 sm:p-12 grid md:grid-cols-[1fr_1fr] gap-10 items-center"
+              className="bg-white/[0.04] border border-white/[0.06] rounded-[2rem] p-6 sm:p-12 grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10 items-center"
             >
-              <div className={i % 2 === 1 ? "md:order-2" : ""}>
+              <div className={`min-w-0 ${i % 2 === 1 ? "md:order-2" : ""}`}>
                 <div className="eyebrow text-white/60 mb-4">
                   <span
                     className="w-2 h-2 rounded-full"
@@ -131,7 +131,7 @@ export default function HowItWorks() {
               </div>
 
               <div
-                className={`${i % 2 === 1 ? "md:order-1" : ""} w-full h-[180px] sm:h-[200px]`}
+                className={`min-w-0 ${i % 2 === 1 ? "md:order-1" : ""} w-full h-[180px] sm:h-[200px]`}
                 aria-hidden="true"
               >
                 <s.Demo />

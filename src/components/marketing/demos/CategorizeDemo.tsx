@@ -72,8 +72,8 @@ export default function CategorizeDemo() {
         </div>
       </div>
 
-      {/* Category pill tabs — horizontal scrollable like the real directory */}
-      <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-1 mb-3">
+      {/* Category pill tabs — wrap on mobile, scrollable on desktop */}
+      <div className="flex flex-wrap items-center gap-1.5 py-1 mb-3">
         {/* All tab */}
         <div
           className="relative shrink-0 text-[10px] font-semibold px-3 py-1.5 rounded-full whitespace-nowrap transition-all duration-300"

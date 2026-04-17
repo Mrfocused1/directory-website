@@ -205,9 +205,9 @@ export default function LandingPage() {
           {FEATURES.map((f, i) => (
             <div
               key={f.eyebrow}
-              className="bg-white rounded-[2rem] p-8 sm:p-12 grid md:grid-cols-[1fr_1fr] gap-10 items-center"
+              className="bg-white rounded-[2rem] p-6 sm:p-12 grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10 items-center"
             >
-              <div className={i % 2 === 1 ? "md:order-2" : ""}>
+              <div className={`min-w-0 ${i % 2 === 1 ? "md:order-2" : ""}`}>
                 <div className="eyebrow text-[color:var(--bd-dark)] mb-4">
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: f.accent }} />
                   {f.eyebrow}
@@ -219,7 +219,7 @@ export default function LandingPage() {
                   {f.desc}
                 </p>
               </div>
-              <div className={i % 2 === 1 ? "md:order-1" : ""}>
+              <div className={`min-w-0 ${i % 2 === 1 ? "md:order-1" : ""}`}>
                 <f.Demo />
               </div>
             </div>

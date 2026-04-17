@@ -16,7 +16,7 @@ export default function DemoFrame({
 }) {
   return (
     <div
-      className={`aspect-[5/4] rounded-2xl relative overflow-hidden ${className}`}
+      className={`aspect-square sm:aspect-[5/4] rounded-2xl relative overflow-hidden ${className}`}
       style={{ backgroundColor: accent + "22" }}
     >
       <div

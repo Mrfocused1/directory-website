@@ -279,24 +279,15 @@ export default function HeroDemo() {
                     <span className="text-[8px] text-[color:var(--bd-grey)] font-medium">Back</span>
                   </div>
 
-                  <div className="rounded-xl aspect-video relative overflow-hidden mb-3 bg-[#0f0f0f] shrink-0">
-                    <motion.div
-                      className="absolute inset-0"
-                      style={{ background: "linear-gradient(135deg, #1a1a2e, #16213e, #0f3460)" }}
-                      animate={{ background: [
-                        "linear-gradient(135deg, #1a1a2e, #16213e, #0f3460)",
-                        "linear-gradient(135deg, #0f3460, #1a1a2e, #16213e)",
-                        "linear-gradient(135deg, #16213e, #0f3460, #1a1a2e)",
-                      ]}}
-                      transition={{ duration: 3, repeat: Infinity }}
+                  <div className="rounded-xl aspect-video relative overflow-hidden mb-3 bg-black shrink-0">
+                    <video
+                      src="/demo-scrape-4.mp4"
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      className="absolute inset-0 w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <motion.div
-                        className="w-8 h-12 rounded-full bg-white/20"
-                        animate={{ scaleY: [1, 1.2, 0.9, 1], rotate: [0, 5, -5, 0] }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                      />
-                    </div>
                     <div className="absolute bottom-0 left-0 right-0">
                       <div className="h-0.5 bg-white/20">
                         <motion.div className="h-full bg-red-500" initial={{ width: "0%" }} animate={{ width: "100%" }} transition={{ duration: 3, ease: "linear" }} />

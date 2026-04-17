@@ -9,22 +9,26 @@ import ReferencesAccordion from "./ReferencesAccordion";
 import ShareButtons from "./ShareButtons";
 import BookmarkButton from "@/components/bookmarks/BookmarkButton";
 import { SUPPORTED_LANGUAGES } from "@/lib/translate";
+import DubbingButton from "./DubbingButton";
 
 export default function PostModal({
   post,
   onClose,
   siteId,
   ttsEnabled = false,
+  dubbingEnabled = false,
 }: {
   post: SitePost | null;
   onClose: () => void;
   siteId?: string;
   ttsEnabled?: boolean;
+  dubbingEnabled?: boolean;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [dubbedSrc, setDubbedSrc] = useState<string | null>(null);
 
   useEffect(() => {
     if (!post) return;
@@ -132,8 +136,8 @@ export default function PostModal({
                 {post.type === "video" && post.mediaUrl ? (
                   <video
                     ref={videoRef}
-                    key={post.shortcode}
-                    src={post.mediaUrl}
+                    key={dubbedSrc || post.shortcode}
+                    src={dubbedSrc || post.mediaUrl}
                     poster={post.thumbUrl || undefined}
                     controls
                     playsInline
@@ -154,6 +158,27 @@ export default function PostModal({
                   </div>
                 ) : null}
               </div>
+
+              {/* Dubbing — watch in another language */}
+              {dubbingEnabled && post.type === "video" && post.mediaUrl && post.id && (
+                <div className="px-4 pt-2">
+                  <DubbingButton
+                    postId={post.id}
+                    siteId={siteId || ""}
+                    hasDubbingFeature={true}
+                    onDubbedVideoReady={(url) => setDubbedSrc(url)}
+                  />
+                  {dubbedSrc && (
+                    <button
+                      type="button"
+                      onClick={() => setDubbedSrc(null)}
+                      className="mt-1 text-xs text-[color:var(--fg-subtle)] hover:text-[color:var(--fg)] transition"
+                    >
+                      Switch back to original
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Chapters */}
               {post.transcriptSegments && post.transcriptSegments.length > 0 && (

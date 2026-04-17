@@ -789,16 +789,16 @@ function OnboardingContent() {
                 </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 max-w-sm mx-auto">
+              <div className="max-w-sm mx-auto space-y-3">
                 <Link
                   href={`/${slug}`}
-                  className="flex-1 h-12 bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] rounded-full text-sm font-semibold flex items-center justify-center hover:opacity-90 transition"
+                  className="block w-full h-12 bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] rounded-full text-sm font-semibold leading-[3rem] text-center hover:opacity-90 transition"
                 >
                   View Directory
                 </Link>
                 <Link
                   href="/dashboard"
-                  className="flex-1 h-12 border-2 border-[color:var(--bd-dark-faded)] rounded-full text-sm font-semibold flex items-center justify-center text-[color:var(--bd-dark)] hover:bg-white transition"
+                  className="block w-full h-12 border-2 border-neutral-200 rounded-full text-sm font-semibold leading-[2.75rem] text-center text-[color:var(--bd-dark)] hover:bg-white transition"
                 >
                   Go to Dashboard
                 </Link>

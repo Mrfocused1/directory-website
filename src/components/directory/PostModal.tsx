@@ -99,16 +99,6 @@ export default function PostModal({
               <span className="text-xs font-semibold uppercase tracking-wide bg-[color:var(--fg)] text-[color:var(--bg)] px-2 py-1 rounded">
                 {post.category}
               </span>
-              {post.platformUrl && (
-                <a
-                  href={post.platformUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] hidden sm:inline"
-                >
-                  View original
-                </a>
-              )}
               <div className="ml-auto flex items-center gap-1">
                 <BookmarkButton shortcode={post.shortcode} size="md" className="hover:bg-[color:var(--fg)]/10" />
               </div>
@@ -179,16 +169,6 @@ export default function PostModal({
                     <ShareButtons url={shareUrl} title={post.title} siteId={siteId} postShortcode={post.shortcode} />
                   </div>
                 </div>
-                {post.platformUrl && (
-                  <a
-                    href={post.platformUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="sm:hidden inline-block mt-3 text-xs text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] underline"
-                  >
-                    View original
-                  </a>
-                )}
               </section>
 
               {/* References */}

@@ -10,7 +10,7 @@ import { apiLimiter, checkRateLimit } from "@/lib/rate-limit-middleware";
  * Returns: { translated: string }
  */
 export async function POST(request: NextRequest) {
-  const limited = checkRateLimit(request, apiLimiter);
+  const limited = await checkRateLimit(request, apiLimiter);
   if (limited) return limited;
 
   try {

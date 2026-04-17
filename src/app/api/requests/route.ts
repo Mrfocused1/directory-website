@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/requests — Submit a new content request
 export async function POST(request: NextRequest) {
-  const limited = checkRateLimit(request, apiLimiter);
+  const limited = await checkRateLimit(request, apiLimiter);
   if (limited) return limited;
 
   try {

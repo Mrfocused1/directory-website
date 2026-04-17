@@ -17,7 +17,7 @@ import { authLimiter, checkRateLimit } from "@/lib/rate-limit-middleware";
  * account existence).
  */
 export async function POST(request: NextRequest) {
-  const limited = checkRateLimit(request, authLimiter);
+  const limited = await checkRateLimit(request, authLimiter);
   if (limited) return limited;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;

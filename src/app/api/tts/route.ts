@@ -16,7 +16,7 @@ const SUPPORTED_GENDERS = ["male", "female"];
  * Gender defaults to "female" if not specified.
  */
 export async function POST(request: NextRequest) {
-  const limited = checkRateLimit(request, apiLimiter);
+  const limited = await checkRateLimit(request, apiLimiter);
   if (limited) return limited;
 
   if (!PIPER_URL) {

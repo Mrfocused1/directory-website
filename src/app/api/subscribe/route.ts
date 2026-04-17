@@ -11,7 +11,7 @@ import { emailLimiter, checkRateLimit } from "@/lib/rate-limit-middleware";
 
 // POST /api/subscribe — Subscribe to a directory
 export async function POST(request: NextRequest) {
-  const limited = checkRateLimit(request, emailLimiter);
+  const limited = await checkRateLimit(request, emailLimiter);
   if (limited) return limited;
 
   try {

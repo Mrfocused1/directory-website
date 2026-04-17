@@ -13,7 +13,7 @@ const VALID_TOPICS = ["general", "sales", "support", "feedback", "press"];
  * Body: { name: string; email: string; topic: string; message: string }
  */
 export async function POST(request: NextRequest) {
-  const limited = checkRateLimit(request, emailLimiter);
+  const limited = await checkRateLimit(request, emailLimiter);
   if (limited) return limited;
   try {
     const body = await request.json();

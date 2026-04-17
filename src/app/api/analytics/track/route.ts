@@ -14,7 +14,7 @@ const MAX_PAYLOAD_SIZE = 10_000; // 10KB limit for analytics payloads
  * Writes to the database tables for persistence.
  */
 export async function POST(request: NextRequest) {
-  const limited = checkRateLimit(request, apiLimiter);
+  const limited = await checkRateLimit(request, apiLimiter);
   if (limited) return limited;
   try {
     // Content-length guard against oversized payloads

@@ -4,6 +4,7 @@ import { posts, sites } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
 import { revalidateTenantBySiteId } from "@/lib/cache";
+import { deleteFile } from "@/lib/pipeline/storage";
 
 /**
  * POST /api/dashboard/posts/bulk
@@ -58,9 +59,16 @@ export async function POST(request: NextRequest) {
     case "unfeature":
       await db.update(posts).set({ isFeatured: false }).where(inArray(posts.id, ownedIds));
       break;
-    case "delete":
+    case "delete": {
+      // Clean up media files before deleting rows
+      const toDelete = await db.select({ thumbUrl: posts.thumbUrl, mediaUrl: posts.mediaUrl }).from(posts).where(inArray(posts.id, ownedIds));
+      await Promise.all(toDelete.flatMap(p => [
+        p.thumbUrl ? deleteFile(p.thumbUrl) : null,
+        p.mediaUrl ? deleteFile(p.mediaUrl) : null,
+      ].filter(Boolean)));
       await db.delete(posts).where(inArray(posts.id, ownedIds));
       break;
+    }
     case "recategorize": {
       if (typeof category !== "string" || !category.trim()) {
         return NextResponse.json({ error: "category required for recategorize" }, { status: 400 });

@@ -4,6 +4,8 @@ import { db } from "@/db";
 import { users, stripeEvents } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { captureError } from "@/lib/error";
+import { resend } from "@/lib/email/resend";
+import { invoiceEmail } from "@/lib/email/templates";
 
 // Plan ID mapping from Stripe price amounts (cents) to plan IDs
 const PRICE_TO_PLAN: Record<number, string> = {
@@ -102,6 +104,37 @@ export async function POST(request: NextRequest) {
           }
 
           console.log(`[SUBSCRIPTION] User ${userId || "unknown"} upgraded to ${plan} (customer: ${customerId})`);
+
+          // Send invoice PDF link by email (non-blocking)
+          try {
+            const invoiceId = typeof session.invoice === "string" ? session.invoice : null;
+            if (resend && stripe && invoiceId) {
+              const invoice = await stripe.invoices.retrieve(invoiceId);
+              const pdfUrl = invoice.invoice_pdf;
+              // Look up user email from DB
+              const targetUser = db
+                ? await db.query.users.findFirst({
+                    where: customerId
+                      ? eq(users.stripeCustomerId, customerId)
+                      : userId && userId !== "anonymous"
+                        ? eq(users.id, userId)
+                        : undefined!,
+                    columns: { email: true },
+                  })
+                : null;
+              if (pdfUrl && targetUser?.email) {
+                const template = invoiceEmail({ invoicePdfUrl: pdfUrl });
+                await resend.emails.send({
+                  from: "BuildMy.Directory <hello@buildmy.directory>",
+                  to: targetUser.email,
+                  subject: template.subject,
+                  html: template.html,
+                });
+              }
+            }
+          } catch (invoiceErr) {
+            captureError(invoiceErr, { context: "stripe-invoice-email", eventId: event.id });
+          }
         }
 
         break;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createServiceRoleClient } from "@supabase/supabase-js";
 import { resend } from "@/lib/email/resend";
-import { signupConfirmEmail } from "@/lib/email/templates";
+import { signupConfirmEmail, platformWelcomeEmail } from "@/lib/email/templates";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { captureServer } from "@/lib/analytics/posthog-server";
@@ -91,6 +91,21 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error("[auth/signup] Failed to create app-side users row:", err);
       // Don't fail signup over this — /auth/callback will retry the insert.
+    }
+  }
+
+  // Send a welcome email (non-blocking — never fails signup)
+  if (resend) {
+    try {
+      const template = platformWelcomeEmail();
+      await resend.emails.send({
+        from: "BuildMy.Directory <hello@buildmy.directory>",
+        to: email,
+        subject: template.subject,
+        html: template.html,
+      });
+    } catch (welcomeErr) {
+      console.error("[auth/signup] Welcome email failed:", welcomeErr);
     }
   }
 

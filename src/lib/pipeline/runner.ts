@@ -481,11 +481,11 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     await updateJob(siteId, "complete", "completed", 100, "Your directory is ready!");
     await report("complete", 100, "Your directory is ready!");
 
-    // Notify the site owner by email (non-blocking)
+    // Notify the site owner by email on FIRST build only (not syncs)
     try {
       const { resend } = await import("@/lib/email/resend");
       const { pipelineCompleteNotification } = await import("@/lib/email/templates");
-      if (resend && owner) {
+      if (resend && owner && !isSync) {
         const ownerFull = await database.query.users.findFirst({
           where: eq(users.id, site.userId),
           columns: { email: true },

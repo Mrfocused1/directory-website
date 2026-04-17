@@ -34,7 +34,7 @@ const VIDEOS: { src: string; bg: string; label: string; darkText?: boolean }[] =
     label: "Q&A reel",
   },
   {
-    src: "",
+    src: "/demo-scrape-6.mp4",
     bg: "var(--bd-cream-2)",
     label: "Get ready",
     darkText: true,

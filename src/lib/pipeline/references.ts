@@ -130,6 +130,64 @@ async function fetchArticleTitle(url: string): Promise<string | null> {
   }
 }
 
+// ─── SearXNG Web Search ─────────────────────────────────────────────
+
+const SEARXNG_URL = process.env.SEARXNG_URL || "";
+
+type SearchResult = { title: string; url: string };
+
+/**
+ * Search via self-hosted SearXNG. Returns top results.
+ * categories: "general" for articles, "videos" for YouTube.
+ */
+async function webSearch(query: string, category: "general" | "videos", limit = 5): Promise<SearchResult[]> {
+  if (!SEARXNG_URL) return [];
+  try {
+    const params = new URLSearchParams({ q: query, format: "json", categories: category });
+    const res = await fetch(`${SEARXNG_URL}/search?${params}`, {
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const results = (data.results || []) as { title?: string; url?: string }[];
+    return results
+      .filter((r) => r.title && r.url)
+      .slice(0, limit)
+      .map((r) => ({ title: r.title!, url: r.url! }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Search for a YouTube video on a topic. Returns the first result with a
+ * valid video ID, verified via noembed.
+ */
+async function findYouTubeVideo(query: string): Promise<{ videoId: string; title: string; channel: string } | null> {
+  const results = await webSearch(query, "videos", 8);
+  for (const r of results) {
+    const videoId = extractYouTubeId(r.url);
+    if (!videoId) continue;
+    const meta = await fetchYouTubeMeta(videoId);
+    if (meta) return { videoId, title: meta.title, channel: meta.channel };
+  }
+  return null;
+}
+
+/**
+ * Search for an article on a topic. Returns the first credible result.
+ */
+async function findArticle(query: string): Promise<{ url: string; title: string } | null> {
+  const results = await webSearch(query, "general", 10);
+  // Prefer credible domains
+  const credible = /investopedia|nerdwallet|bankrate|forbes|cnbc|bbc|ft\.com|moneysavingexpert|yahoo\.finance|reuters|bloomberg|wsj|economist|psychologytoday/i;
+  const good = results.find((r) => credible.test(r.url));
+  if (good) return good;
+  // Fall back to first non-social, non-search result
+  const fallback = results.find((r) => !/(google|facebook|twitter|instagram|tiktok|reddit)\.com/i.test(r.url));
+  return fallback || null;
+}
+
 /**
  * Ask Claude to identify named references in caption + transcript.
  *
@@ -137,9 +195,8 @@ async function fetchArticleTitle(url: string): Promise<string | null> {
  * brands, products, tools, books, podcasts, YouTube channels, articles,
  * websites — even when the creator didn't say a literal URL.
  *
- * Each entity comes back with a kind ("youtube" | "article") and a
- * destination URL: official URL when known/inferrable, otherwise a
- * Google search query for the entity name.
+ * Each entity comes back as a topic + kind. We then resolve real URLs
+ * via SearXNG web search (self-hosted, free, unlimited).
  */
 async function inferReferencesViaLLM(
   post: PostInput,
@@ -152,41 +209,24 @@ async function inferReferencesViaLLM(
 
   const prompt = `You're identifying things a viewer would want to look up after watching this short-form video.
 
-Read the caption + transcript below. Extract up to 6 NAMED references — a mix of WEBSITES and YOUTUBE VIDEOS — that a viewer would benefit from a clickable link to.
-
-WEBSITE references (kind: "article"):
-- Specific brands, products, tools, services (e.g. "Vanguard", "InvestEngine", "Hargreaves Lansdown")
-- Companies, organizations, regulators (e.g. "HMRC", "Companies House", "PensionWise")
-- Books, podcasts, documentaries (link to Amazon/publisher)
-- Articles or studies referenced (link to source if known, otherwise Google)
-- url: MUST be the official/real URL (e.g. https://www.vanguard.co.uk, https://www.investopedia.com/terms/i/isa.asp)
-- NEVER use google.com/search URLs — those are not real references
-- If you don't know the real URL for something, skip it entirely
-
-YOUTUBE references (kind: "youtube"):
-- For at least 2 of the references (when topic warrants), find a high-quality EXPLAINER YOUTUBE VIDEO on the topic from a CREDIBLE channel
-- Credible channels: official brand channels, BBC News, CNBC, Bloomberg Television, The Wall Street Journal, Financial Times, Forbes, TED, official institution channels, well-established educators (>500K subs)
-- url: MUST be a real YouTube watch URL of the form https://www.youtube.com/watch?v=<REAL-11-char-id>
-- You MUST use a REAL video ID that you are confident exists. Think of well-known popular videos on the topic.
-- NEVER use YouTube search URLs (youtube.com/results?search_query=...) — those cannot be embedded
-- NEVER use Google search URLs — those are useless as references
-- If you cannot think of a specific real YouTube video ID, skip it entirely — better to have fewer references than broken ones
-
-DO NOT extract:
-- Generic concepts ("inflation", "savings", "stock market", "ISA", "FIRE" — these are topics, not references)
-- The creator themselves or their handle
-- The platform (Instagram, TikTok)
-- Numbers, percentages, prices, dates
+Read the caption + transcript below. Extract up to 6 references — a mix of articles and YouTube video topics.
 
 For each reference, produce one JSON object:
 {
   "kind": "youtube" | "article",
+  "searchQuery": "the search query to find this reference (be specific, e.g. 'Vanguard index fund ISA UK' not just 'investing')",
   "title": "display name (1-6 words)",
-  "url": "destination URL — see rules above",
   "note": "why a viewer would click — 1 short sentence"
 }
 
-Output ONLY a JSON array. Empty array [] if nothing concrete to reference.
+Rules:
+- "article" kind: brands, products, tools, books, podcasts, studies, organizations mentioned
+- "youtube" kind: topics that would benefit from a video explainer (aim for 2-3 of these)
+- searchQuery should be specific enough to find the right result on the first try
+- DO NOT extract generic concepts, the creator themselves, or platform names
+- For YouTube, add terms like "explained" or "guide" and a credible source name (BBC, CNBC, etc.)
+
+Output ONLY a JSON array. Empty array [] if nothing concrete.
 
 Caption + transcript:
 ${text}`;
@@ -226,59 +266,36 @@ ${text}`;
       const o = item as Record<string, unknown>;
       const kind = o.kind === "youtube" ? "youtube" : "article";
       const title = typeof o.title === "string" ? o.title.trim().slice(0, 200) : "";
-      const url = typeof o.url === "string" ? o.url.trim() : "";
+      const searchQuery = typeof o.searchQuery === "string" ? o.searchQuery.trim() : "";
       const note = typeof o.note === "string" ? o.note.trim().slice(0, 200) : null;
-      if (!title || !url) continue;
-
-      // Validate URL — drop anything that's not http(s), and reject search URLs
-      try {
-        const u = new URL(url);
-        if (u.protocol !== "http:" && u.protocol !== "https:") continue;
-        // Reject Google search URLs — not real references
-        if (u.hostname.includes("google.com") && u.pathname.includes("/search")) continue;
-        // Reject YouTube search/results URLs — can't embed these
-        if (u.hostname.includes("youtube.com") && u.pathname.includes("/results")) continue;
-      } catch {
-        continue;
-      }
+      if (!title || !searchQuery) continue;
 
       if (kind === "youtube") {
-        const videoId = extractYouTubeId(url);
-        if (videoId) {
-          // Validate the video actually exists via noembed — drops
-          // hallucinated 11-char IDs Claude may invent.
-          const meta = await fetchYouTubeMeta(videoId);
-          if (!meta) continue;
+        // Search SearXNG for a real YouTube video
+        const video = await findYouTubeVideo(searchQuery);
+        if (video) {
           out.push({
             postId: post.postId,
             kind: "youtube",
-            title: meta.title || title,
+            title: video.title,
             url: null,
-            videoId,
-            note: note || meta.channel || null,
+            videoId: video.videoId,
+            note: note || video.channel || null,
           });
-        } else {
-          // Not an embeddable URL — could be a YouTube search/results
-          // URL or a channel URL. Store as a YouTube ref with the URL
-          // (UI renders these as link-only refs, no embed).
+        }
+      } else {
+        // Search SearXNG for a real article
+        const article = await findArticle(searchQuery);
+        if (article) {
           out.push({
             postId: post.postId,
-            kind: "youtube",
-            title,
-            url, // search/channel URL
+            kind: "article",
+            title: article.title.slice(0, 200),
+            url: article.url,
             videoId: null,
             note,
           });
         }
-      } else {
-        out.push({
-          postId: post.postId,
-          kind: "article",
-          title,
-          url,
-          videoId: null,
-          note,
-        });
       }
     }
     return out;

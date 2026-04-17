@@ -514,27 +514,27 @@ function TranscriptSection({ transcript, ttsEnabled = false }: { transcript: str
               setTtsLoading(false);
             }
           }}
-          className="mt-3 w-full h-11 flex items-center justify-center gap-2 rounded-xl text-sm font-semibold transition disabled:opacity-50 bg-[color:var(--fg)] text-[color:var(--bg)] hover:opacity-90"
+          className="mt-3 w-full h-11 flex items-center justify-center gap-2 rounded-xl text-sm font-semibold transition disabled:opacity-50 bg-[color:var(--fg)] text-[color:var(--bg)] hover:opacity-90 whitespace-nowrap overflow-hidden"
         >
           {translating ? (
             <>
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-              Translating...
+              <svg className="animate-spin h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+              <span>Translating...</span>
             </>
           ) : ttsLoading ? (
             <>
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-              Generating audio...
+              <svg className="animate-spin h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+              <span>Generating audio...</span>
             </>
           ) : ttsPlaying ? (
             <>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
-              Stop listening
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="shrink-0"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
+              <span>Stop listening</span>
             </>
           ) : (
             <>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-              Listen in {SUPPORTED_LANGUAGES.find(l => l.code === selectedLang)?.name || selectedLang}
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="shrink-0"><path d="M8 5v14l11-7z" /></svg>
+              <span>Listen in {SUPPORTED_LANGUAGES.find(l => l.code === selectedLang)?.name || selectedLang}</span>
             </>
           )}
         </button>

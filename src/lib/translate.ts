@@ -13,13 +13,9 @@ export interface SupportedLanguage {
 export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [
   { code: "es", name: "Spanish" },
   { code: "fr", name: "French" },
-  { code: "de", name: "German" },
   { code: "pt", name: "Portuguese" },
   { code: "ar", name: "Arabic" },
   { code: "zh", name: "Chinese" },
-  { code: "ja", name: "Japanese" },
-  { code: "ko", name: "Korean" },
-  { code: "hi", name: "Hindi" },
 ];
 
 /**

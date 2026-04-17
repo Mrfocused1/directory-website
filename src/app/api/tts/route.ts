@@ -4,7 +4,7 @@ import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 const PIPER_URL = process.env.PIPER_TTS_URL || "";
 
 // English excluded — play the original video instead
-const SUPPORTED_LANGS = ["es", "fr", "de", "pt"];
+const SUPPORTED_LANGS = ["es", "fr", "pt"];
 const SUPPORTED_GENDERS = ["male", "female"];
 
 /**

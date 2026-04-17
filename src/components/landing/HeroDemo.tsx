@@ -94,6 +94,36 @@ export default function HeroDemo() {
 
           {/* Content area */}
           <div className="flex-1 px-3 sm:px-4 pb-3 sm:pb-4 overflow-hidden relative">
+            {/* Animated cursor */}
+            <AnimatePresence>
+              {(phase === "filtered" || phase === "scrolled") && (
+                <motion.div
+                  key={`cursor-${phase}`}
+                  className="absolute z-50 pointer-events-none"
+                  initial={{ opacity: 0, x: "30%", y: "20%" }}
+                  animate={{
+                    opacity: 1,
+                    x: phase === "filtered" ? "25%" : "50%",
+                    y: phase === "filtered" ? "45%" : "75%",
+                  }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.8, ease: "easeInOut" }}
+                >
+                  {/* Cursor SVG */}
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M5 3l14 8-6 2-3 7z" fill="#1a0a2e" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+                  </svg>
+                  {/* Click ripple */}
+                  <motion.div
+                    className="absolute top-2 left-2 w-4 h-4 rounded-full border-2 border-[color:var(--bd-lime)]"
+                    initial={{ scale: 0, opacity: 1 }}
+                    animate={{ scale: 2.5, opacity: 0 }}
+                    transition={{ duration: 0.6, delay: 0.8 }}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <AnimatePresence mode="wait">
               {/* ── Grid view ── */}
               {showGrid && (

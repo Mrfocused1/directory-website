@@ -170,23 +170,21 @@ export function sanitizeFromName(name: string): string {
  * flow would.
  */
 export function signupConfirmEmail(opts: { confirmUrl: string }) {
-  return {
-    subject: "Confirm your BuildMy.Directory account",
-    html: `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
-        <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 8px;">Welcome to BuildMy.Directory</h1>
-        <p style="color: #666; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
-          Click below to confirm your email and finish creating your account.
-        </p>
-        <a href="${escUrl(opts.confirmUrl)}" style="display: inline-block; background: #000; color: #fff; padding: 12px 32px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none;">
-          Confirm my email
-        </a>
-        <p style="color: #999; font-size: 12px; margin-top: 32px;">
-          If you didn't try to create an account, you can safely ignore this email.
-        </p>
-      </div>
-    `,
-  };
+  return brandedEmail(
+    `<h1 style="font-size: 24px; font-weight: 800; color: ${BD_DARK}; margin: 0 0 8px;">Welcome to BuildMy.Directory</h1>
+    <p style="color: ${BD_GREY}; font-size: 15px; line-height: 1.6; margin: 0 0 28px;">
+      You're one click away from turning your content into a beautiful, searchable directory. Confirm your email to get started.
+    </p>
+    <div style="text-align: center; margin: 0 0 28px;">
+      <a href="${escUrl(opts.confirmUrl)}" style="display: inline-block; background: ${BD_LIME}; color: ${BD_DARK}; padding: 14px 36px; border-radius: 50px; font-size: 14px; font-weight: 700; text-decoration: none;">
+        Confirm my email
+      </a>
+    </div>
+    <p style="color: #999; font-size: 12px; margin: 0;">
+      If you didn't create an account, you can safely ignore this email.
+    </p>`,
+    "Confirm your BuildMy.Directory account",
+  );
 }
 
 /**
@@ -195,23 +193,21 @@ export function signupConfirmEmail(opts: { confirmUrl: string }) {
  * admin.generateLink({ type: 'recovery' }).
  */
 export function passwordResetEmail(opts: { resetUrl: string }) {
-  return {
-    subject: "Reset your BuildMy.Directory password",
-    html: `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
-        <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 8px;">Reset your password</h1>
-        <p style="color: #666; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
-          Click below to choose a new password. The link is valid for 1 hour.
-        </p>
-        <a href="${escUrl(opts.resetUrl)}" style="display: inline-block; background: #000; color: #fff; padding: 12px 32px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none;">
-          Reset my password
-        </a>
-        <p style="color: #999; font-size: 12px; margin-top: 32px;">
-          If you didn't request a password reset, you can safely ignore this email.
-        </p>
-      </div>
-    `,
-  };
+  return brandedEmail(
+    `<h1 style="font-size: 24px; font-weight: 800; color: ${BD_DARK}; margin: 0 0 8px;">Reset your password</h1>
+    <p style="color: ${BD_GREY}; font-size: 15px; line-height: 1.6; margin: 0 0 28px;">
+      Click below to choose a new password. The link is valid for 1 hour.
+    </p>
+    <div style="text-align: center; margin: 0 0 28px;">
+      <a href="${escUrl(opts.resetUrl)}" style="display: inline-block; background: ${BD_LIME}; color: ${BD_DARK}; padding: 14px 36px; border-radius: 50px; font-size: 14px; font-weight: 700; text-decoration: none;">
+        Reset my password
+      </a>
+    </div>
+    <p style="color: #999; font-size: 12px; margin: 0;">
+      If you didn't request a password reset, you can safely ignore this email.
+    </p>`,
+    "Reset your BuildMy.Directory password",
+  );
 }
 
 export function verificationEmail(opts: {

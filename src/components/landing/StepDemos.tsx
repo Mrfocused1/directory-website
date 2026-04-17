@@ -8,8 +8,8 @@ export function DemoHandleInput() {
   const [text, setText] = useState("");
   const [platform, setPlatform] = useState(0);
   const full = "@creativemind";
-  const platforms = ["instagram", "tiktok", "youtube"];
-  const platformColors = ["#e1306c", "#1a0a2e", "#ff0000"];
+  const platforms = ["instagram", "tiktok"];
+  const platformColors = ["#e1306c", "#1a0a2e"];
 
   useEffect(() => {
     let i = 0;
@@ -21,7 +21,7 @@ export function DemoHandleInput() {
         if (i >= full.length) {
           typing = false;
           setTimeout(() => {
-            setPlatform((p) => (p + 1) % 3);
+            setPlatform((p) => (p + 1) % 2);
             i = 0;
             setText("");
             typing = true;

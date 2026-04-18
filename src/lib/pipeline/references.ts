@@ -236,49 +236,57 @@ async function findArticle(query: string): Promise<{ url: string; title: string 
 }
 
 /**
- * Ask Claude to identify named references in caption + transcript.
+ * Ask Claude to identify named references for a BATCH of posts.
+ *
+ * Batching 10-15 posts per call instead of 1-per-call cuts Claude
+ * costs by ~85% (fewer calls = less per-request overhead tokens).
  *
  * Returns entities a viewer would benefit from clicking through to —
  * brands, products, tools, books, podcasts, YouTube channels, articles,
  * websites — even when the creator didn't say a literal URL.
- *
- * Each entity comes back as a topic + kind. We then resolve real URLs
- * via SearXNG web search (self-hosted, free, unlimited).
  */
-async function inferReferencesViaLLM(
-  post: PostInput,
+async function inferReferencesViaLLMBatch(
+  posts: PostInput[],
 ): Promise<ReferenceRow[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return [];
 
-  const text = `${post.caption || ""}\n${post.transcript || ""}`.slice(0, 6000);
-  if (text.trim().length < 40) return [];
+  // Build batch prompt with post indices
+  const postTexts = posts.map((post, idx) => {
+    const text = `${post.caption || ""}\n${post.transcript || ""}`.slice(0, 1500);
+    if (text.trim().length < 40) return null;
+    return `[POST ${idx}]\n${text}`;
+  }).filter(Boolean);
 
-  const prompt = `You're identifying things a viewer would want to look up after watching this short-form video.
+  if (postTexts.length === 0) return [];
 
-Read the caption + transcript below. Extract up to 6 references — a mix of articles and YouTube video topics.
+  const prompt = `You're identifying things a viewer would want to look up after watching these short-form videos.
+
+For each post below, extract up to 4 references — a mix of articles and YouTube video topics.
 
 For each reference, produce one JSON object:
 {
+  "postIdx": 0,
   "kind": "youtube" | "article",
-  "searchQuery": "the search query to find this reference (be specific, e.g. 'Vanguard index fund ISA UK' not just 'investing')",
+  "searchQuery": "specific search query to find this reference",
   "title": "display name (1-6 words)",
   "note": "why a viewer would click — 1 short sentence"
 }
 
 Rules:
 - "article" kind: brands, products, tools, books, podcasts, studies, organizations mentioned
-- "youtube" kind: topics that would benefit from a video explainer (aim for 2-3 of these)
+- "youtube" kind: topics that would benefit from a video explainer
 - searchQuery should be specific enough to find the right result on the first try
 - DO NOT extract generic concepts, the creator themselves, or platform names
-- For YouTube, add terms like "explained" or "guide" and a credible source name (BBC, CNBC, etc.)
+- Posts with very little content can have 0 references
 
 Output ONLY a JSON array. Empty array [] if nothing concrete.
 
-Caption + transcript:
-${text}`;
+${postTexts.join("\n\n")}`;
 
   try {
+    // Scale max_tokens with batch size
+    const maxTokens = Math.min(200 * posts.length, 4000);
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -288,10 +296,10 @@ ${text}`;
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 800,
+        max_tokens: maxTokens,
         messages: [{ role: "user", content: prompt }],
       }),
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.timeout(30_000),
     });
     if (!res.ok) return [];
     const data = await res.json();
@@ -311,6 +319,10 @@ ${text}`;
     for (const item of parsed) {
       if (!item || typeof item !== "object") continue;
       const o = item as Record<string, unknown>;
+      const postIdx = typeof o.postIdx === "number" ? o.postIdx : -1;
+      if (postIdx < 0 || postIdx >= posts.length) continue;
+
+      const post = posts[postIdx];
       const kind = o.kind === "youtube" ? "youtube" : "article";
       const title = typeof o.title === "string" ? o.title.trim().slice(0, 200) : "";
       const searchQuery = typeof o.searchQuery === "string" ? o.searchQuery.trim() : "";
@@ -318,40 +330,16 @@ ${text}`;
       if (!title || !searchQuery) continue;
 
       if (kind === "youtube") {
-        // Search for a real YouTube video
         const video = await findYouTubeVideo(searchQuery);
         if (video) {
-          out.push({
-            postId: post.postId,
-            kind: "youtube",
-            title: video.title,
-            url: null,
-            videoId: video.videoId,
-            note: note || video.channel || null,
-          });
+          out.push({ postId: post.postId, kind: "youtube", title: video.title, url: null, videoId: video.videoId, note: note || video.channel || null });
         } else {
-          // YouTube search failed — fall back to article with YouTube search link
-          out.push({
-            postId: post.postId,
-            kind: "article",
-            title,
-            url: `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`,
-            videoId: null,
-            note: note || "Search on YouTube",
-          });
+          out.push({ postId: post.postId, kind: "article", title, url: `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`, videoId: null, note: note || "Search on YouTube" });
         }
       } else {
-        // Search for a real article (always returns something now — Google fallback)
         const article = await findArticle(searchQuery);
         if (article) {
-          out.push({
-            postId: post.postId,
-            kind: "article",
-            title: article.title.slice(0, 200),
-            url: article.url,
-            videoId: null,
-            note,
-          });
+          out.push({ postId: post.postId, kind: "article", title: article.title.slice(0, 200), url: article.url, videoId: null, note });
         }
       }
     }
@@ -361,107 +349,95 @@ ${text}`;
   }
 }
 
+/** Single-post wrapper for backward compat with extractReferencesForPost */
+async function inferReferencesViaLLM(post: PostInput): Promise<ReferenceRow[]> {
+  return inferReferencesViaLLMBatch([post]);
+}
+
 /**
- * Extract references from a single post. Combines:
- *   1. Regex extraction of literal URLs in caption + transcript
- *   2. Claude inference of named entities a viewer would want to click
- * Returns the rows to insert into the `references` table, deduped
- * within the post.
+ * Extract references from a single post (wrapper around batch version).
  */
 export async function extractReferencesForPost(
   post: PostInput,
 ): Promise<ReferenceRow[]> {
-  const text = `${post.caption || ""}\n${post.transcript || ""}`;
-  const raw = text.match(URL_REGEX) || [];
-  const urls = Array.from(new Set(raw.map(cleanUrl))).filter((u) => u.length > 0);
-
-  const out: ReferenceRow[] = [];
-  const seenYouTube = new Set<string>();
-  const seenArticle = new Set<string>();
-
-  // ── Pass 1: explicit URLs ────────────────────────────────────────
-  for (const url of urls) {
-    const videoId = extractYouTubeId(url);
-    if (videoId) {
-      if (seenYouTube.has(videoId)) continue;
-      seenYouTube.add(videoId);
-      const meta = await fetchYouTubeMeta(videoId);
-      out.push({
-        postId: post.postId,
-        kind: "youtube",
-        title: meta?.title || `YouTube video ${videoId}`,
-        url: null,
-        videoId,
-        note: meta?.channel || null,
-      });
-    } else {
-      if (seenArticle.has(url)) continue;
-      seenArticle.add(url);
-      const title = await fetchArticleTitle(url);
-      let displayTitle = title;
-      if (!displayTitle) {
-        try {
-          displayTitle = new URL(url).hostname.replace(/^www\./, "");
-        } catch {
-          displayTitle = url;
-        }
-      }
-      out.push({
-        postId: post.postId,
-        kind: "article",
-        title: displayTitle,
-        url,
-        videoId: null,
-        note: null,
-      });
+  const urlRefs = await extractExplicitUrls(post);
+  const llmRefs = await inferReferencesViaLLM(post);
+  // Dedupe
+  const seen = new Set(urlRefs.map(r => r.kind === "youtube" ? r.videoId : r.url));
+  for (const ref of llmRefs) {
+    const key = ref.kind === "youtube" ? ref.videoId : ref.url;
+    if (key && !seen.has(key)) {
+      seen.add(key);
+      urlRefs.push(ref);
     }
   }
-
-  // ── Pass 2: Claude-inferred named entities ───────────────────────
-  // Skipped if no Anthropic key. Dedupes against pass 1 by URL/title.
-  const inferred = await inferReferencesViaLLM(post);
-  for (const ref of inferred) {
-    const dedupeKey =
-      ref.kind === "youtube" ? ref.videoId || ref.title : ref.url || ref.title;
-    if (!dedupeKey) continue;
-    if (ref.kind === "youtube") {
-      if (seenYouTube.has(dedupeKey)) continue;
-      seenYouTube.add(dedupeKey);
-    } else {
-      if (seenArticle.has(dedupeKey)) continue;
-      seenArticle.add(dedupeKey);
-    }
-    out.push(ref);
-  }
-
-  return out;
+  return urlRefs;
 }
 
 /**
  * Build references for a batch of posts in parallel (small concurrency
  * to avoid overwhelming third-party endpoints).
  */
+/**
+ * Build references for a batch of posts. Batches Claude calls (10 posts
+ * per LLM call) to reduce cost by ~85% vs 1-per-post.
+ */
 export async function extractReferencesForPosts(
   posts: PostInput[],
   onProgress?: (completed: number, total: number) => void,
 ): Promise<ReferenceRow[]> {
   const all: ReferenceRow[] = [];
-  const CONCURRENCY = 4;
-  let idx = 0;
-  let done = 0;
 
-  async function worker() {
-    while (idx < posts.length) {
-      const myIdx = idx++;
-      const refs = await extractReferencesForPost(posts[myIdx]).catch(() => []);
-      all.push(...refs);
-      done++;
-      onProgress?.(done, posts.length);
-    }
+  // Pass 1: Extract explicit URLs from captions (no LLM needed, very fast)
+  for (const post of posts) {
+    const refs = await extractExplicitUrls(post);
+    all.push(...refs);
   }
 
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, posts.length) }, worker));
+  // Pass 2: Batch Claude inference — 10 posts per call
+  const BATCH_SIZE = 10;
+  let done = 0;
+  for (let i = 0; i < posts.length; i += BATCH_SIZE) {
+    const batch = posts.slice(i, i + BATCH_SIZE);
+    const batchRefs = await inferReferencesViaLLMBatch(batch).catch(() => []);
+
+    // Dedupe against pass 1 refs
+    for (const ref of batchRefs) {
+      const dedupeKey = ref.kind === "youtube" ? ref.videoId || ref.title : ref.url || ref.title;
+      if (!dedupeKey) continue;
+      const isDupe = all.some(
+        (r) => r.postId === ref.postId && ((r.kind === "youtube" && (r.videoId === dedupeKey || r.title === dedupeKey)) || (r.kind === "article" && (r.url === dedupeKey || r.title === dedupeKey))),
+      );
+      if (!isDupe) all.push(ref);
+    }
+
+    done += batch.length;
+    onProgress?.(done, posts.length);
+  }
+
   return all;
+}
+
+/** Extract explicit URLs from a post's caption + transcript (no LLM) */
+async function extractExplicitUrls(post: PostInput): Promise<ReferenceRow[]> {
+  const text = `${post.caption || ""}\n${post.transcript || ""}`;
+  const raw = text.match(URL_REGEX) || [];
+  const urls = Array.from(new Set(raw.map(cleanUrl))).filter((u) => u.length > 0);
+  const out: ReferenceRow[] = [];
+
+  for (const url of urls) {
+    const videoId = extractYouTubeId(url);
+    if (videoId) {
+      const meta = await fetchYouTubeMeta(videoId);
+      out.push({ postId: post.postId, kind: "youtube", title: meta?.title || `YouTube video ${videoId}`, url: null, videoId, note: meta?.channel || null });
+    } else {
+      const title = await fetchArticleTitle(url);
+      let displayTitle = title;
+      if (!displayTitle) { try { displayTitle = new URL(url).hostname.replace(/^www\./, ""); } catch { displayTitle = url; } }
+      out.push({ postId: post.postId, kind: "article", title: displayTitle, url, videoId: null, note: null });
+    }
+  }
+  return out;
 }
 
 // ─────────────────────────────────────────────────────────────────────

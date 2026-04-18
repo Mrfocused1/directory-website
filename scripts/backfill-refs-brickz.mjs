@@ -28,19 +28,32 @@ const refCounts = new Map(
 const targets = posts.filter((p) => (refCounts.get(p.id) ?? 0) < 4);
 console.log(`${posts.length} posts total, ${targets.length} need more references (< 4 each)`);
 
-// Reject results that are obviously non-English: foreign-locale TLDs,
-// known non-English hosts, or titles where >20% of characters are
-// outside the basic Latin ASCII range. SearXNG's language filter is
-// a partial solution — this catches the stragglers.
-const NON_ENGLISH_HOST = /\.(cn|jp|kr|ru|tw|vn|th)$|(baidu|zhihu|qq|sohu|sina|naver|yandex)\.com/i;
+// Whitelist of TLDs we trust to serve primarily English content.
+const ENGLISH_TLD = /\.(com|org|net|edu|gov|io|ai|co|dev|app|tech|info|news|me|tv|xyz|site|blog|uk|us|ca|au|nz|ie|za|in|ph|sg|directory)$/i;
+const NON_ENGLISH_HOST = /(baidu|zhihu|qq|sohu|sina|naver|yandex|rakuten|goo)\.(com|co\.jp|com\.cn|ne\.jp)/i;
 
 function isEnglishResult(title, url) {
   try {
-    if (NON_ENGLISH_HOST.test(new URL(url).hostname)) return false;
-  } catch {}
+    const hostname = new URL(url).hostname.toLowerCase();
+    if (NON_ENGLISH_HOST.test(hostname)) return false;
+    if (!ENGLISH_TLD.test(hostname)) return false;
+  } catch { return false; }
   if (!title) return true;
   const nonAscii = (title.match(/[^\x00-\x7F]/g) || []).length;
-  return nonAscii / title.length < 0.2;
+  return nonAscii / title.length < 0.05;
+}
+
+const STOPWORDS = new Set([
+  "a","an","and","the","of","to","in","on","for","with","is","are",
+  "how","why","what","when","where","who","uk","us","guide","tips",
+]);
+function isRelevantToQuery(title, query) {
+  const words = (s) => new Set(s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter((w) => w.length >= 4 && !STOPWORDS.has(w)));
+  const qw = words(query);
+  const tw = words(title);
+  if (qw.size === 0) return true;
+  for (const w of qw) if (tw.has(w)) return true;
+  return false;
 }
 
 async function searxSearch(query, category) {
@@ -54,7 +67,7 @@ async function searxSearch(query, category) {
     if (!res.ok) return [];
     const data = await res.json();
     return (data.results || [])
-      .filter((r) => r.title && r.url && isEnglishResult(r.title, r.url))
+      .filter((r) => r.title && r.url && isEnglishResult(r.title, r.url) && isRelevantToQuery(r.title, query))
       .slice(0, 3);
   } catch {
     return [];
@@ -95,6 +108,9 @@ For each reference, produce one JSON object:
 Rules:
 - "article" kind: brands, products, tools, books, podcasts, studies, organizations, concepts, strategies, investing ideas, historical events, legal/business concepts
 - "youtube" kind: topics that benefit from a video explainer (3-4 per post)
+- searchQuery MUST be specific, English-only, and 4-8 words. Short queries like "UK statistics" or "credit score" return generic or foreign results — write "first time buyer credit score UK guide" instead
+- Include the post's specific topic word(s) in EVERY searchQuery so downstream relevance filtering keeps the result
+- The audience is English-speaking (UK/US). Never write a query likely to surface German, French, Spanish, Chinese, or Japanese sources
 - Think broadly: if a post is about a topic (e.g. Dubai geopolitics, S&P 500, entrepreneurship), include articles + videos about adjacent concepts even if not explicitly named
 - DO NOT extract the creator themselves or platform names
 - DO NOT skip posts with real content just because they're short — even a 15-second clip about business often deserves 6+ references

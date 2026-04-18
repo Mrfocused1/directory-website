@@ -140,21 +140,57 @@ type SearchResult = { title: string; url: string };
  * Search via self-hosted SearXNG. Returns top results.
  * categories: "general" for articles, "videos" for YouTube.
  */
-// SearXNG's language filter catches most non-English results but
-// occasionally leaks Baidu / Yandex / foreign-TLD pages through. We
-// reject those here: known non-English hosts, foreign-locale TLDs,
-// or titles where >20% of characters fall outside basic Latin ASCII.
-const NON_ENGLISH_HOST = /\.(cn|jp|kr|ru|tw|vn|th)$|(baidu|zhihu|qq|sohu|sina|naver|yandex)\.com/i;
+// Whitelist of TLDs we trust to serve primarily English content. Any
+// host outside this list is rejected — much stricter than a blacklist,
+// but worth it after a German employment-agency login page showed up
+// as a reference for a UK credit-score post. If a legit English site
+// ever slips out of this list (e.g. a new niche TLD), the blacklist
+// below catches obvious offenders as a backup.
+const ENGLISH_TLD = /\.(com|org|net|edu|gov|io|ai|co|dev|app|tech|info|news|me|tv|xyz|site|blog|uk|us|ca|au|nz|ie|za|in|ph|sg|directory)$/i;
+
+// Explicit reject list for hosts we've seen produce non-English
+// content even when their TLD looks generic.
+const NON_ENGLISH_HOST = /(baidu|zhihu|qq|sohu|sina|naver|yandex|rakuten|goo)\.(com|co\.jp|com\.cn|ne\.jp)/i;
 
 function isEnglishResult(title: string, url: string): boolean {
   try {
-    if (NON_ENGLISH_HOST.test(new URL(url).hostname)) return false;
+    const hostname = new URL(url).hostname.toLowerCase();
+    if (NON_ENGLISH_HOST.test(hostname)) return false;
+    if (!ENGLISH_TLD.test(hostname)) return false;
   } catch {
-    /* ignore malformed URLs */
+    return false;
   }
   if (!title) return true;
+  // Any non-Latin-ASCII character in the title is a strong signal
+  // the content is a foreign-language page; reject at ~5% threshold.
   const nonAscii = (title.match(/[^\x00-\x7F]/g) || []).length;
-  return nonAscii / title.length < 0.2;
+  return nonAscii / title.length < 0.05;
+}
+
+/**
+ * Reject results whose title shares no meaningful word with the
+ * search query. Catches cases like Statista returning a generic
+ * "United Kingdom - statistics & facts" page in response to a
+ * "first-time buyer credit score UK" query.
+ */
+const STOPWORDS = new Set([
+  "a", "an", "and", "the", "of", "to", "in", "on", "for", "with", "is", "are",
+  "how", "why", "what", "when", "where", "who", "uk", "us", "guide", "tips",
+]);
+function isRelevantToQuery(title: string, query: string): boolean {
+  const words = (str: string) =>
+    new Set(
+      str
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ")
+        .split(/\s+/)
+        .filter((w) => w.length >= 4 && !STOPWORDS.has(w)),
+    );
+  const qw = words(query);
+  const tw = words(title);
+  if (qw.size === 0) return true; // can't judge — accept
+  for (const w of qw) if (tw.has(w)) return true;
+  return false;
 }
 
 async function webSearch(query: string, category: "general" | "videos", limit = 5): Promise<SearchResult[]> {
@@ -174,7 +210,7 @@ async function webSearch(query: string, category: "general" | "videos", limit = 
         const data = await res.json();
         const results = (data.results || []) as { title?: string; url?: string }[];
         const filtered = results
-          .filter((r) => r.title && r.url && isEnglishResult(r.title, r.url))
+          .filter((r) => r.title && r.url && isEnglishResult(r.title, r.url) && isRelevantToQuery(r.title, query))
           .slice(0, limit)
           .map((r) => ({ title: r.title!, url: r.url! }));
         if (filtered.length > 0) return filtered;
@@ -294,7 +330,9 @@ For each reference, produce one JSON object:
 Rules:
 - "article" kind: brands, products, tools, books, podcasts, studies, organizations, concepts, strategies, investing ideas, historical events, legal or business concepts
 - "youtube" kind: topics that benefit from a video explainer (3-4 per post)
-- searchQuery should be specific enough to find the right result on the first try
+- searchQuery MUST be specific, English-only, and 4-8 words. Short queries ("UK statistics", "credit score") return generic or foreign results — write queries like "first time buyer credit score UK guide" or "how mortgage underwriting works for FTB"
+- Include the post's specific topic word(s) in EVERY searchQuery so downstream relevance filtering keeps the result
+- The audience is English-speaking (UK/US). Never generate a searchQuery likely to surface German, French, Spanish, Chinese, or Japanese sources
 - Think broadly: if a post is about a topic (e.g. Dubai geopolitics, S&P 500, entrepreneurship), include articles + videos about adjacent concepts even if not explicitly named
 - DO NOT extract the creator themselves or platform names
 - DO NOT skip posts with real content just because they're short — a 15-second clip about business often deserves 6+ references

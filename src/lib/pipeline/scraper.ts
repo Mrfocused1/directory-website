@@ -127,9 +127,11 @@ async function scrapeViaVPS(
   if (!vpsUrl || !vpsKey) return null;
 
   try {
-    console.log(`[scraper] trying VPS at ${vpsUrl} for @${handle}`);
+    // Scale timeout with post count: 60s base + 1s per post requested
+    const timeoutMs = Math.min(60_000 + maxPosts * 1000, 300_000);
+    console.log(`[scraper] trying VPS at ${vpsUrl} for @${handle} (max ${maxPosts}, timeout ${timeoutMs / 1000}s)`);
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60_000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     const res = await fetch(`${vpsUrl}/scrape`, {
       method: "POST",
       headers: {
@@ -192,10 +194,18 @@ export async function scrapeProfile(config: ScraperConfig): Promise<ScrapedPost[
   if (provider === "crawlee" && platform === "instagram") {
     const vpsPosts = await scrapeViaVPS(handle, platform, maxPosts);
     if (vpsPosts && vpsPosts.length > 0) {
-      console.log(`[scraper] VPS returned ${vpsPosts.length} posts — skipping Apify`);
-      return vpsPosts;
+      // If we requested many posts but VPS returned very few, the VPS
+      // likely timed out or hit a limit. Fall back to Apify for a
+      // more complete scrape.
+      const gotEnough = vpsPosts.length >= maxPosts * 0.5 || vpsPosts.length >= 50;
+      if (gotEnough) {
+        console.log(`[scraper] VPS returned ${vpsPosts.length}/${maxPosts} posts — sufficient`);
+        return vpsPosts;
+      }
+      console.log(`[scraper] VPS returned only ${vpsPosts.length}/${maxPosts} posts — falling back to Apify for fuller scrape`);
+    } else {
+      console.log("[scraper] VPS returned nothing — falling back to Apify");
     }
-    console.log("[scraper] VPS returned nothing — falling back to Apify");
   }
 
   // Apify path (original or fallback)

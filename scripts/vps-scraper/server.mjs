@@ -52,6 +52,121 @@ async function authenticatePage(page) {
   // proxy auth handled by proxy-chain tunnel — no page.authenticate needed
 }
 
+// Known post-login prompts IG shows. We try them in order each round
+// until nothing matches. Text patterns are case-insensitive.
+const CHALLENGE_PATTERNS = [
+  // Cookie banner
+  { match: /^(allow all|allow essential|accept all|accept)$/i, label: "accept-cookies" },
+  // "Save your login info?"
+  { match: /^not now$/i, label: "not-now" },
+  // "Was this you?" — confirm legitimate login
+  { match: /^(this was me|yes,? it was me|yes it was me|continue as |it was me)$/i, label: "this-was-me" },
+  // Generic Continue on intermediate pages
+  { match: /^continue$/i, label: "continue" },
+  // Turn on notifications?
+  { match: /^(not now|skip|maybe later)$/i, label: "skip-notifications" },
+];
+
+/**
+ * Click through the small set of predictable post-login prompts IG
+ * shows. Returns one of:
+ *   { done: true }              — no clickable prompts found, stable state
+ *   { done: false }             — still clicked something this round, retry
+ *   { fatal: "2fa_required" }   — hit a screen we can't resolve without a human
+ */
+async function handleCommonChallenges(page) {
+  const bodyText = await page.evaluate(() => document.body?.innerText || "").catch(() => "");
+
+  // Hard-fail on screens we know we can't handle without a human
+  if (/enter the code|6-digit|security code|two[- ]factor|confirm it's you with a|verification code/i.test(bodyText)) {
+    return { fatal: "2fa_required" };
+  }
+  if (/captcha|verify you('re| are) human|i('m| am) not a robot/i.test(bodyText)) {
+    return { fatal: "captcha_required" };
+  }
+
+  const buttons = await page.$$('button, [role="button"]');
+  for (const btn of buttons) {
+    let txt = "";
+    try {
+      txt = (await page.evaluate(el => (el.textContent || "").trim(), btn)) || "";
+    } catch { continue; }
+    if (!txt || txt.length > 40) continue;
+    for (const p of CHALLENGE_PATTERNS) {
+      if (p.match.test(txt)) {
+        try {
+          console.log(`[login] clicking "${txt}" (${p.label})`);
+          await btn.click();
+          await new Promise(r => setTimeout(r, 2500));
+          return { done: false };
+        } catch {}
+      }
+    }
+  }
+  return { done: true };
+}
+
+/**
+ * Optional Claude vision fallback. Only runs if ANTHROPIC_API_KEY is
+ * set on this host. Sends a screenshot and asks for a single action.
+ * Returning null means "no AI available" or "model bailed" — the
+ * caller treats that the same as no-more-actions.
+ */
+async function askClaudeVision(page, hint) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return null;
+  let screenshot;
+  try {
+    screenshot = await page.screenshot({ type: "png", fullPage: false });
+  } catch { return null; }
+  const base64 = screenshot.toString("base64");
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 200,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: "image/png", data: base64 } },
+            { type: "text", text: `You're helping a script log into Instagram. ${hint}\n\nReturn ONLY JSON: {"click":"<exact visible button text>"} or {"give_up":"<short reason>"}.\nGive up if the screen asks for a 2FA / SMS / email code (we can't receive those).` },
+          ],
+        }],
+      }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const raw = data?.content?.[0]?.text?.trim() || "";
+    const m = raw.match(/\{[\s\S]*\}/);
+    if (!m) return null;
+    const parsed = JSON.parse(m[0]);
+    if (parsed.give_up) return { giveUp: parsed.give_up };
+    if (typeof parsed.click === "string") return { click: parsed.click };
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function clickByVisibleText(page, text) {
+  const buttons = await page.$$('button, [role="button"], a');
+  for (const el of buttons) {
+    const t = await page.evaluate(e => (e.textContent || "").trim(), el).catch(() => "");
+    if (t && t.toLowerCase() === text.toLowerCase()) {
+      try { await el.click(); await new Promise(r => setTimeout(r, 2500)); return true; } catch {}
+    }
+  }
+  return false;
+}
+
 async function loginAndSaveCookies(username, password) {
   console.log("[ig] logging in as", username, PROXY ? "(via proxy)" : "(direct)");
   const browser = await launchBrowser();
@@ -61,45 +176,70 @@ async function loginAndSaveCookies(username, password) {
     await page.goto("https://www.instagram.com/accounts/login/", { waitUntil: "networkidle2", timeout: 45000 });
     await new Promise(r => setTimeout(r, 4000));
 
-    // Accept cookies banner if present
-    try {
-      const btns = await page.$$("button");
-      for (const btn of btns) {
-        const txt = await page.evaluate(el => el.textContent || "", btn);
-        if (/allow|accept|essential/i.test(txt)) { await btn.click(); break; }
-      }
-    } catch {}
-    await new Promise(r => setTimeout(r, 2000));
+    // Cookie banner may cover the form — handle it as a pre-flight.
+    await handleCommonChallenges(page);
+    await new Promise(r => setTimeout(r, 1500));
 
-    // Find login inputs — try multiple selectors
     const usernameInput = await page.$('input[name="username"], input[name="email"]') || await page.$('input[aria-label*="username" i]') || await page.$('input[aria-label*="phone" i]');
     const passwordInput = await page.$('input[name="password"], input[name="pass"]') || await page.$('input[type="password"]');
 
     if (!usernameInput || !passwordInput) {
-      const html = await page.content();
       console.warn("[ig] login page inputs not found. Title:", await page.title());
-      return { success: false, error: "Login form not found — Instagram may be showing a different page" };
+      return { success: false, reason: "login_form_not_found" };
     }
 
     await usernameInput.type(username, { delay: 80 });
     await passwordInput.type(password, { delay: 80 });
     await new Promise(r => setTimeout(r, 1000));
-
-    const submitBtn = await page.$('button[type="submit"], input[type="submit"]');
     await page.keyboard.press("Enter");
-    await new Promise(r => setTimeout(r, 10000));
+    await new Promise(r => setTimeout(r, 8000));
 
-    // Check for login errors
-    const bodyText = await page.evaluate(() => document.body.innerText);
-    if (/incorrect|wrong password|invalid|unusual login/i.test(bodyText)) {
-      return { success: false, error: "Login rejected — check credentials or handle suspicious-login verification" };
+    // Fast-fail on obvious credential rejection before we start clicking
+    // through prompts — otherwise "Try Again" buttons get treated as
+    // normal challenges and we click in a loop.
+    const firstBody = await page.evaluate(() => document.body.innerText || "").catch(() => "");
+    if (/(password was incorrect|incorrect password|wrong password)/i.test(firstBody)) {
+      return { success: false, reason: "invalid_credentials" };
     }
 
-    const cookies = await page.cookies();
-    const sessionCookie = cookies.find(c => c.name === "sessionid");
+    // Level 1: hardcoded challenge clickers. Cheap, covers ~80% of
+    // recoveries. Runs up to 5 rounds — each round clicks one thing
+    // and waits for the next screen.
+    for (let round = 0; round < 5; round++) {
+      const r = await handleCommonChallenges(page);
+      if (r.fatal) return { success: false, reason: r.fatal };
+      if (r.done) break;
+    }
+
+    // Are we in yet?
+    let cookies = await page.cookies();
+    let sessionCookie = cookies.find(c => c.name === "sessionid");
+
+    // Level 2: Claude vision fallback — only invoked if level 1 left us
+    // on an unfamiliar screen. Costs ~$0.01 per call and only fires
+    // when ANTHROPIC_API_KEY is present on the VPS.
     if (!sessionCookie) {
-      console.warn("[ig] no sessionid cookie after login — might need 2FA or verification");
-      return { success: false, error: "No session cookie — Instagram may require verification. Log in manually from a browser first, then try again." };
+      for (let round = 0; round < 2; round++) {
+        const action = await askClaudeVision(page, "Post-login screen. Click what progresses toward the Instagram feed.");
+        if (!action) break;
+        if (action.giveUp) {
+          const reason = /code|sms|2fa|email/i.test(action.giveUp) ? "2fa_required" : "captcha_required";
+          return { success: false, reason, detail: action.giveUp };
+        }
+        const clicked = await clickByVisibleText(page, action.click);
+        if (!clicked) break;
+        // Give the next screen a moment, then re-run level 1 in case
+        // Claude's click surfaced another known prompt.
+        await handleCommonChallenges(page);
+        cookies = await page.cookies();
+        sessionCookie = cookies.find(c => c.name === "sessionid");
+        if (sessionCookie) break;
+      }
+    }
+
+    if (!sessionCookie) {
+      console.warn("[ig] no sessionid cookie after login — challenge not resolved");
+      return { success: false, reason: "no_session" };
     }
 
     fs.writeFileSync(COOKIE_FILE, JSON.stringify(cookies, null, 2));
@@ -107,7 +247,7 @@ async function loginAndSaveCookies(username, password) {
     return { success: true, cookies: cookies.length };
   } catch (err) {
     console.error("[ig] login failed:", err.message);
-    return { success: false, error: err.message };
+    return { success: false, reason: "unknown", detail: err.message };
   } finally {
     await browser.close();
   }
@@ -420,6 +560,31 @@ const server = http.createServer(async (req, res) => {
     }
     const result = await scrapeInstagram(handle, maxPosts || 9);
     res.writeHead(result.success ? 200 : 500, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(result));
+    return;
+  }
+
+  if (req.method === "GET" && req.url === "/check-session") {
+    const result = await checkSession();
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify(result));
+    return;
+  }
+
+  // Self-contained recovery: loads stored creds, runs the enhanced
+  // login flow (hardcoded prompts + optional Claude vision fallback),
+  // writes fresh cookies if successful. Caller gets a structured
+  // reason when a human is required (2fa/captcha/invalid creds).
+  if (req.method === "POST" && req.url === "/recover") {
+    const creds = loadCreds();
+    if (!creds || !creds.username || !creds.password) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: false, reason: "no_stored_creds" }));
+      return;
+    }
+    const result = await loginAndSaveCookies(creds.username, creds.password);
+    const status = result.success ? 200 : (result.reason === "2fa_required" || result.reason === "captcha_required" || result.reason === "invalid_credentials") ? 409 : 500;
+    res.writeHead(status, { "Content-Type": "application/json" });
     res.end(JSON.stringify(result));
     return;
   }

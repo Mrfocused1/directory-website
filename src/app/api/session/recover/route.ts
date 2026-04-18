@@ -1,18 +1,19 @@
 /**
  * POST /api/session/recover
  *
- * Thin orchestrator:
- *   1. Ask the VPS if its Instagram session is still valid.
- *   2. If not, tell the VPS to re-login itself. The VPS now has
- *      hardcoded challenge clickers and an optional Claude vision
- *      fallback, so 90%+ of recoveries finish there.
- *   3. On unrecoverable failure (2FA / captcha / invalid creds), email
- *      the operator so a human can resolve it.
+ * Session-dead notifier. Wire this to a cron/Inngest job.
  *
- * We intentionally don't run the browser on Vercel — all the heavy
- * lifting lives on the VPS to reuse its residential proxy and stealth
- * setup, and to keep this endpoint free. Triggered by header auth;
- * wire it to Inngest or a cron when you're happy with the happy path.
+ *   1. Hits the VPS /check-session to learn if the Instagram session is still alive.
+ *   2. If dead, emails the operator with a one-line command they can run on
+ *      their Mac (scripts/ig-session-refresh.sh) to log back in from a
+ *      residential IP and push fresh cookies to the VPS.
+ *
+ * We used to try the VPS-side /recover endpoint first, but in practice
+ * Instagram always challenges a login attempt from the Hetzner DC IP. So
+ * that's now skipped — the Mac-based refresh is the only path that
+ * reliably restores a session. Pass ?tryVpsFirst=1 to attempt the legacy
+ * flow anyway (useful if you've restored IPRoyal and want to give it a
+ * shot before pinging yourself).
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -23,12 +24,9 @@ const VPS_KEY = process.env.SCRAPER_VPS_API_KEY;
 const RECOVERY_KEY = process.env.SESSION_RECOVERY_KEY;
 const ALERT_EMAIL = process.env.SESSION_RECOVERY_ALERT_EMAIL;
 
-export const maxDuration = 300; // VPS login + challenge resolution can take a minute
+export const maxDuration = 60;
 
 type VpsSessionCheck = { valid: boolean; reason?: string };
-type VpsRecoverResult =
-  | { success: true; cookies: number }
-  | { success: false; reason: string; detail?: string };
 
 async function vpsFetch(path: string, init?: RequestInit): Promise<Response> {
   if (!VPS_URL || !VPS_KEY) throw new Error("VPS not configured");
@@ -38,25 +36,55 @@ async function vpsFetch(path: string, init?: RequestInit): Promise<Response> {
   });
 }
 
-async function notifyOperator(subject: string, body: string) {
-  if (!resend || !ALERT_EMAIL) return;
-  await resend.emails
+function buildRefreshEmail(reason: string | undefined) {
+  const subject = "[IG scraper] Session expired — run refresh script";
+  const text = [
+    "Your Instagram scraper's session on the Hetzner VPS is no longer valid.",
+    `Reason reported by /check-session: ${reason || "(none)"}`,
+    "",
+    "Scraping is paused for authenticated endpoints (anything > 12 posts per account).",
+    "To restore, run this on your Mac — takes ~30 seconds:",
+    "",
+    '  cd "/Users/paulbridges/Desktop/new directory/directory-website" && bash scripts/ig-session-refresh.sh',
+    "",
+    "The script opens a headed Chromium, auto-logs into Instagram using the",
+    "stored credentials, and pushes fresh cookies to the VPS. If it hits a",
+    "2FA or email-verification challenge it'll say so, and you can fall back",
+    "to `node scripts/ig-session-capture.mjs` to log in interactively.",
+    "",
+    "Once the script prints \"Session refreshed\", the pipeline resumes.",
+  ].join("\n");
+  return { subject, text };
+}
+
+async function notifyOperator(subject: string, text: string) {
+  if (!resend || !ALERT_EMAIL) return false;
+  const result = await resend.emails
     .send({
       from: "BuildMy.Directory <alerts@buildmy.directory>",
       to: ALERT_EMAIL,
       subject,
-      text: body,
+      text,
     })
-    .catch(() => {}); // Best-effort
+    .catch((err) => {
+      console.warn("[session-recover] email failed:", err);
+      return null;
+    });
+  return !!result;
 }
 
 export async function POST(request: NextRequest) {
   if (!RECOVERY_KEY || request.headers.get("x-recovery-key") !== RECOVERY_KEY) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const force = request.nextUrl.searchParams.get("force") === "1";
+
+  const url = request.nextUrl;
+  const force = url.searchParams.get("force") === "1";
+  const tryVpsFirst = url.searchParams.get("tryVpsFirst") === "1";
 
   try {
+    // Step 1: session health check
+    let reason: string | undefined;
     if (!force) {
       const checkRes = await vpsFetch("/check-session");
       if (checkRes.ok) {
@@ -64,33 +92,32 @@ export async function POST(request: NextRequest) {
         if (data.valid) {
           return NextResponse.json({ recovered: false, reason: "session_already_valid" });
         }
+        reason = data.reason;
       }
     }
 
-    const recoverRes = await vpsFetch("/recover", { method: "POST" });
-    const result = (await recoverRes.json()) as VpsRecoverResult;
-
-    if (result.success) {
-      return NextResponse.json({ recovered: true, cookieCount: result.cookies });
+    // Step 2 (optional): legacy VPS-side re-login. Historically fails on IG
+    // challenges from DC IPs; kept behind a flag for the day IPRoyal or
+    // another residential proxy comes back online.
+    if (tryVpsFirst) {
+      const recoverRes = await vpsFetch("/recover", { method: "POST" });
+      if (recoverRes.ok) {
+        const data = await recoverRes.json().catch(() => ({}));
+        if (data?.success) {
+          return NextResponse.json({ recovered: true, via: "vps", cookieCount: data.cookies });
+        }
+      }
     }
 
-    // Reasons that need a human
-    const humanReasons = new Set(["2fa_required", "captcha_required", "invalid_credentials"]);
-    if (humanReasons.has(result.reason)) {
-      await notifyOperator(
-        `[IG scraper] Manual intervention required: ${result.reason}`,
-        `Automated session recovery bailed because: ${result.reason}.\n\n` +
-          `Detail: ${result.detail || "(none)"}\n\n` +
-          `Next steps:\n` +
-          `  • Log in to Instagram from your normal browser\n` +
-          `  • Clear any "Was this you?" / 2FA challenge IG shows\n` +
-          `  • Re-run POST /api/session/recover (it should succeed)`,
-      );
-    }
-    return NextResponse.json(
-      { recovered: false, reason: result.reason, detail: result.detail },
-      { status: 502 },
-    );
+    // Step 3: email the operator — the Mac-side flow is the only reliable path.
+    const { subject, text } = buildRefreshEmail(reason);
+    const emailed = await notifyOperator(subject, text);
+    return NextResponse.json({
+      recovered: false,
+      reason: reason || "session_invalid",
+      action_required: "run_mac_refresh_script",
+      emailed,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 500 });

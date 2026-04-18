@@ -9,6 +9,7 @@ import {
   monitorHealthFunction,
 } from "@/lib/inngest/functions";
 import { doctorCheckFunction } from "@/lib/inngest/doctor";
+import { sessionCheckFunction } from "@/lib/inngest/session-check";
 import {
   seoWatchdogFunction,
   spamDetectionFunction,
@@ -34,6 +35,7 @@ export const { GET, POST, PUT } = serve({
     reconcileStripeFunction,
     monitorHealthFunction,
     doctorCheckFunction,
+    sessionCheckFunction,
     seoWatchdogFunction,
     spamDetectionFunction,
     analyticsInsightsFunction,

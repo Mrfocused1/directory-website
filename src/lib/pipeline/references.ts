@@ -212,27 +212,20 @@ async function findYouTubeVideo(query: string): Promise<{ videoId: string; title
 }
 
 /**
- * Search for an article on a topic. Returns the first credible result.
- * Falls back to a Google search link if no direct URL is found.
+ * Search for an article on a topic. Returns the first credible result,
+ * or null if no results are found.
  */
 async function findArticle(query: string): Promise<{ url: string; title: string } | null> {
   const results = await webSearch(query, "general", 10);
-  if (results.length > 0) {
-    // Prefer credible domains
-    const credible = /investopedia|nerdwallet|bankrate|forbes|cnbc|bbc|ft\.com|moneysavingexpert|yahoo\.finance|reuters|bloomberg|wsj|economist|psychologytoday/i;
-    const good = results.find((r) => credible.test(r.url));
-    if (good) return good;
-    // Fall back to first non-social, non-search result
-    const fallback = results.find((r) => !/(google|facebook|twitter|instagram|tiktok|reddit)\.com/i.test(r.url));
-    if (fallback) return fallback;
-    return results[0];
-  }
-  // No search results at all — return a Google search link as fallback
-  // so the reference is still clickable and useful
-  return {
-    url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
-    title: query.slice(0, 80),
-  };
+  if (results.length === 0) return null;
+  // Prefer credible domains
+  const credible = /investopedia|nerdwallet|bankrate|forbes|cnbc|bbc|ft\.com|moneysavingexpert|yahoo\.finance|reuters|bloomberg|wsj|economist|psychologytoday/i;
+  const good = results.find((r) => credible.test(r.url));
+  if (good) return good;
+  // Fall back to first non-social, non-search result
+  const fallback = results.find((r) => !/(google|facebook|twitter|instagram|tiktok|reddit)\.com/i.test(r.url));
+  if (fallback) return fallback;
+  return results[0];
 }
 
 /**
@@ -333,9 +326,8 @@ ${postTexts.join("\n\n")}`;
         const video = await findYouTubeVideo(searchQuery);
         if (video) {
           out.push({ postId: post.postId, kind: "youtube", title: video.title, url: null, videoId: video.videoId, note: note || video.channel || null });
-        } else {
-          out.push({ postId: post.postId, kind: "article", title, url: `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`, videoId: null, note: note || "Search on YouTube" });
         }
+        // findYouTubeVideo returned null — skip this reference entirely
       } else {
         const article = await findArticle(searchQuery);
         if (article) {

@@ -247,15 +247,15 @@ async function inferReferencesViaLLMBatch(
   // Build batch prompt with post indices
   const postTexts = posts.map((post, idx) => {
     const text = `${post.caption || ""}\n${post.transcript || ""}`.slice(0, 1500);
-    if (text.trim().length < 40) return null;
+    if (text.trim().length < 20) return null;
     return `[POST ${idx}]\n${text}`;
   }).filter(Boolean);
 
   if (postTexts.length === 0) return [];
 
-  const prompt = `You're identifying things a viewer would want to look up after watching these short-form videos.
+  const prompt = `You're identifying things a viewer would want to look up after watching these short-form videos. Be GENEROUS with references — aim for 3-6 per post.
 
-For each post below, extract up to 4 references — a mix of articles and YouTube video topics.
+For each post below, extract 3 to 6 references — a good mix of articles and YouTube video topics. Every post should have at least 2 references. Think broadly: what would a viewer want to learn more about after seeing this content?
 
 For each reference, produce one JSON object:
 {
@@ -267,19 +267,20 @@ For each reference, produce one JSON object:
 }
 
 Rules:
-- "article" kind: brands, products, tools, books, podcasts, studies, organizations mentioned
-- "youtube" kind: topics that would benefit from a video explainer
+- "article" kind: brands, products, tools, books, podcasts, studies, organizations, concepts, strategies mentioned or implied
+- "youtube" kind: topics that would benefit from a video explainer (aim for 2-3 per post)
 - searchQuery should be specific enough to find the right result on the first try
-- DO NOT extract generic concepts, the creator themselves, or platform names
-- Posts with very little content can have 0 references
+- Include related educational content even if not explicitly mentioned — e.g. if someone talks about S&P 500, reference articles about index investing and YouTube videos about how the S&P works
+- DO NOT extract the creator themselves or platform names
+- Even short captions about investing/finance should get 2-3 references about the topic discussed
 
-Output ONLY a JSON array. Empty array [] if nothing concrete.
+Output ONLY a JSON array. Never return an empty array — every post about a real topic deserves references.
 
 ${postTexts.join("\n\n")}`;
 
   try {
     // Scale max_tokens with batch size
-    const maxTokens = Math.min(200 * posts.length, 4000);
+    const maxTokens = Math.min(400 * posts.length, 4096);
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {

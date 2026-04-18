@@ -373,6 +373,35 @@ ${postTexts.join("\n\n")}`;
     if (!Array.isArray(parsed)) return [];
 
     const out: ReferenceRow[] = [];
+    // Per-post dedup — different Claude queries can land on the same
+    // SearXNG result (e.g. both "first-time buyer guide UK" and
+    // "GOV.UK first homes scheme" return the same article). Without
+    // this we show the same link two or three times.
+    const seenPerPost = new Map<
+      string,
+      { urls: Set<string>; videoIds: Set<string>; titles: Set<string> }
+    >();
+    const getSeen = (postId: string) => {
+      let s = seenPerPost.get(postId);
+      if (!s) {
+        s = { urls: new Set(), videoIds: new Set(), titles: new Set() };
+        seenPerPost.set(postId, s);
+      }
+      return s;
+    };
+    const normalizeTitle = (t: string) => t.toLowerCase().replace(/\s+/g, " ").trim();
+    const normalizeUrl = (u: string | null) => {
+      if (!u) return "";
+      try {
+        const p = new URL(u);
+        return (p.hostname.replace(/^www\./, "") + p.pathname)
+          .toLowerCase()
+          .replace(/\/+$/, "");
+      } catch {
+        return u.toLowerCase();
+      }
+    };
+
     for (const item of parsed) {
       if (!item || typeof item !== "object") continue;
       const o = item as Record<string, unknown>;
@@ -380,6 +409,7 @@ ${postTexts.join("\n\n")}`;
       if (postIdx < 0 || postIdx >= posts.length) continue;
 
       const post = posts[postIdx];
+      const seen = getSeen(post.postId);
       const kind = o.kind === "youtube" ? "youtube" : "article";
       const title = typeof o.title === "string" ? o.title.trim().slice(0, 200) : "";
       const searchQuery = typeof o.searchQuery === "string" ? o.searchQuery.trim() : "";
@@ -388,15 +418,35 @@ ${postTexts.join("\n\n")}`;
 
       if (kind === "youtube") {
         const video = await findYouTubeVideo(searchQuery);
-        if (video) {
-          out.push({ postId: post.postId, kind: "youtube", title: video.title, url: null, videoId: video.videoId, note: note || video.channel || null });
-        }
-        // findYouTubeVideo returned null — skip this reference entirely
+        if (!video) continue;
+        const titleKey = normalizeTitle(video.title);
+        if (seen.videoIds.has(video.videoId) || seen.titles.has(titleKey)) continue;
+        seen.videoIds.add(video.videoId);
+        seen.titles.add(titleKey);
+        out.push({
+          postId: post.postId,
+          kind: "youtube",
+          title: video.title,
+          url: null,
+          videoId: video.videoId,
+          note: note || video.channel || null,
+        });
       } else {
         const article = await findArticle(searchQuery);
-        if (article) {
-          out.push({ postId: post.postId, kind: "article", title: article.title.slice(0, 200), url: article.url, videoId: null, note });
-        }
+        if (!article) continue;
+        const urlKey = normalizeUrl(article.url);
+        const titleKey = normalizeTitle(article.title);
+        if (seen.urls.has(urlKey) || seen.titles.has(titleKey)) continue;
+        seen.urls.add(urlKey);
+        seen.titles.add(titleKey);
+        out.push({
+          postId: post.postId,
+          kind: "article",
+          title: article.title.slice(0, 200),
+          url: article.url,
+          videoId: null,
+          note,
+        });
       }
     }
     return out;

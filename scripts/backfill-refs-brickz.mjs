@@ -157,11 +157,33 @@ ${postTexts.join("\n\n")}`;
   if (!Array.isArray(parsed)) return [];
 
   const refs = [];
+  // Per-post dedup sets: different search queries from Claude can
+  // resolve to the same SearXNG result, and we don't want the same
+  // "First Homes scheme - GOV.UK" appearing three times on one post.
+  const seenPerPost = new Map(); // postId → { urls: Set, videoIds: Set, titles: Set }
+  const getSeen = (postId) => {
+    if (!seenPerPost.has(postId)) {
+      seenPerPost.set(postId, { urls: new Set(), videoIds: new Set(), titles: new Set() });
+    }
+    return seenPerPost.get(postId);
+  };
+  const normalizeTitle = (t) => (t || "").toLowerCase().replace(/\s+/g, " ").trim();
+  const normalizeUrl = (u) => {
+    if (!u) return "";
+    try {
+      const p = new URL(u);
+      return (p.hostname.replace(/^www\./, "") + p.pathname).toLowerCase().replace(/\/+$/, "");
+    } catch {
+      return u.toLowerCase();
+    }
+  };
+
   for (const item of parsed) {
     if (!item || typeof item !== "object") continue;
     const postIdx = typeof item.postIdx === "number" ? item.postIdx : -1;
     if (postIdx < 0 || postIdx >= batch.length) continue;
     const post = batch[postIdx];
+    const seen = getSeen(post.id);
     const kind = item.kind === "youtube" ? "youtube" : "article";
     const title = typeof item.title === "string" ? item.title.trim().slice(0, 200) : "";
     const searchQuery = typeof item.searchQuery === "string" ? item.searchQuery.trim() : "";
@@ -173,14 +195,23 @@ ${postTexts.join("\n\n")}`;
       for (const r of results) {
         const vid = extractYouTubeId(r.url);
         if (vid) {
+          if (seen.videoIds.has(vid) || seen.titles.has(normalizeTitle(r.title))) break;
+          seen.videoIds.add(vid);
+          seen.titles.add(normalizeTitle(r.title));
           refs.push({ postId: post.id, kind: "youtube", title: r.title, url: null, videoId: vid, note });
           break;
         }
       }
     } else {
       const results = await searxSearch(searchQuery, "general");
-      if (results[0]) {
-        refs.push({ postId: post.id, kind: "article", title: results[0].title.slice(0, 200), url: results[0].url, videoId: null, note });
+      for (const r of results) {
+        const urlKey = normalizeUrl(r.url);
+        const titleKey = normalizeTitle(r.title);
+        if (seen.urls.has(urlKey) || seen.titles.has(titleKey)) continue;
+        seen.urls.add(urlKey);
+        seen.titles.add(titleKey);
+        refs.push({ postId: post.id, kind: "article", title: r.title.slice(0, 200), url: r.url, videoId: null, note });
+        break;
       }
     }
   }

@@ -210,8 +210,9 @@ async function scrapeInstagram(handle, maxPosts = 9) {
     let maxId = null;
     let feedPage = 0;
     let consecutiveEmpty = 0;
+    let httpErrorCount = 0;
 
-    while (allPosts.length < maxPosts && consecutiveEmpty < 2) {
+    while (allPosts.length < maxPosts && consecutiveEmpty < 3) {
       feedPage++;
       const feedUrl = maxId
         ? `https://www.instagram.com/api/v1/feed/user/${userId}/?count=33&max_id=${maxId}`
@@ -225,7 +226,7 @@ async function scrapeInstagram(handle, maxPosts = 9) {
               headers: { "X-IG-App-ID": "936619743392459", "X-Requested-With": "XMLHttpRequest" },
               credentials: "include",
             });
-            if (!res.ok) return { error: `HTTP ${res.status}` };
+            if (!res.ok) return { error: `HTTP ${res.status}`, status: res.status };
             return await res.json();
           } catch (e) {
             return { error: e.message };
@@ -234,15 +235,29 @@ async function scrapeInstagram(handle, maxPosts = 9) {
 
         if (feedResult.error) {
           console.warn(`[scrape] feed page ${feedPage}: ${feedResult.error}`);
+          // On 429/401 back off and retry once — IG occasionally hiccups
+          if ((feedResult.status === 429 || feedResult.status === 401) && httpErrorCount === 0) {
+            httpErrorCount++;
+            console.log(`[scrape] backing off 30s then retrying page ${feedPage}`);
+            await new Promise(r => setTimeout(r, 30_000));
+            feedPage--; // re-attempt this page
+            continue;
+          }
           break;
         }
 
         const items = feedResult?.items || [];
 
         if (items.length === 0) {
-          console.log(`[scrape] feed page ${feedPage}: no items`);
+          // Silent empty: 200 OK but zero items. If more_available is true
+          // this usually means IG is rate-limiting us via silent degradation.
+          console.log(
+            `[scrape] feed page ${feedPage}: no items (more_available=${feedResult.more_available})`,
+          );
           consecutiveEmpty++;
           if (!feedResult.more_available) break;
+          // Longer cooldown on suspected silent rate-limit
+          await new Promise(r => setTimeout(r, 10_000 + Math.random() * 5000));
           continue;
         }
         consecutiveEmpty = 0;
@@ -262,8 +277,14 @@ async function scrapeInstagram(handle, maxPosts = 9) {
         maxId = feedResult.next_max_id;
         if (!maxId) break;
 
-        // Rate limit: 2-3s between pages
-        await new Promise(r => setTimeout(r, 2000 + Math.random() * 1500));
+        // Adaptive pacing — jitter 3-7s between pages, add a 30s cooldown
+        // every 10 pages to stay under IG's soft rate limits. Scraping
+        // hundreds of posts without this consistently gets throttled after
+        // ~8 pages.
+        const baseDelay = 3000 + Math.random() * 4000;
+        const cooldown = feedPage > 0 && feedPage % 10 === 0 ? 30_000 : 0;
+        if (cooldown) console.log(`[scrape] cooldown pause ${cooldown / 1000}s after ${feedPage} pages`);
+        await new Promise(r => setTimeout(r, baseDelay + cooldown));
       } catch (err) {
         console.warn(`[scrape] feed page ${feedPage} failed: ${err.message}`);
         break;

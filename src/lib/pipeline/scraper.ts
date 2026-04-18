@@ -1,22 +1,19 @@
 /**
- * Content Scraper Module — talks to Apify via direct REST calls
+ * Content Scraper — two-tier fallback for Instagram, TikTok disabled.
  *
- * Using `fetch` against Apify's HTTP API instead of the `apify-client`
- * SDK. The SDK has a transitive dependency on `proxy-agent` that
- * Next.js/Vercel can't reliably bundle in the serverless output —
- * `apify-client` loads `proxy-agent` via a dynamic require at runtime
- * and it ends up missing from /var/task, crashing the pipeline with
- * `Cannot find module 'proxy-agent'`. The REST API has no such
- * dependency and behaves identically for our use case.
+ * Tier 1: Public `web_profile_info` endpoint. Free, no auth, returns
+ *   profile + ~12 latest posts in one HTTP call. Used as a fast seed
+ *   so a directory has content even if the VPS is slow or down.
  *
- * Actors used:
- * - Instagram: apify/instagram-scraper (posts, not profile metadata)
- * - TikTok:    clockworks/tiktok-profile-scraper
+ * Tier 2: Self-hosted VPS (Puppeteer + IPRoyal residential proxy)
+ *   paginating through `v1/feed/user/{userId}`. Scrapes hundreds of
+ *   posts with proper pacing. Slower, more moving parts, but the only
+ *   path that returns more than ~12 posts.
+ *
+ * Apify has been removed. See git history for the previous fallback.
  */
 
 import { captureError } from "@/lib/error";
-
-const APIFY_TOKEN = process.env.APIFY_API_TOKEN;
 
 export type ScrapedPost = {
   shortcode: string;
@@ -35,104 +32,104 @@ export type ScraperConfig = {
   maxPosts?: number;
 };
 
-/**
- * Call Apify's `run-sync-get-dataset-items` endpoint, which starts an
- * actor run, waits for it to finish, and returns the resulting dataset
- * items in a single HTTP call. This is equivalent to what the SDK's
- * `actor(id).call()` + `dataset(id).listItems()` pair does, but without
- * the SDK's problematic transitive deps.
- *
- * Timeout: we give the call up to 4 minutes; anything longer and we
- * surface a clear timeout error to the user instead of letting the
- * serverless invocation hit Vercel's own 5-min limit.
- */
-async function runApifyActor(
-  actorId: string,
-  input: Record<string, unknown>,
-  timeoutMs = 240_000,
-): Promise<Record<string, unknown>[]> {
-  if (!APIFY_TOKEN) return [];
+type IgEdgeNode = {
+  shortcode?: string;
+  is_video?: boolean;
+  __typename?: string;
+  display_url?: string;
+  video_url?: string;
+  thumbnail_src?: string;
+  taken_at_timestamp?: number;
+  edge_media_to_caption?: { edges?: { node?: { text?: string } }[] };
+  edge_sidecar_to_children?: { edges?: unknown[] };
+};
 
-  // Actor IDs contain a "/" when sent by the SDK; the REST API uses "~"
-  // to separate username and actor name.
-  const actorPath = actorId.replace("/", "~");
-  // Request 512 MB per run. Apify's default for instagram-scraper is
-  // 1024 MB; halving it doubles our concurrent capacity within the
-  // same Apify memory budget without any quality hit on small
-  // profiles (<100 posts). Combined with the Inngest concurrency:4
-  // cap above, 4 × 512 = 2048 MB — comfortably under the 8 GB ceiling.
-  const url =
-    `https://api.apify.com/v2/acts/${actorPath}/run-sync-get-dataset-items` +
-    `?token=${encodeURIComponent(APIFY_TOKEN)}&memory=512`;
-
-  const controller = new AbortController();
-  const abortTimer = setTimeout(() => controller.abort(), timeoutMs);
-
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-      signal: controller.signal,
-    });
-  } catch (err) {
-    clearTimeout(abortTimer);
-    if (err instanceof Error && err.name === "AbortError") {
-      throw new Error("Apify run timed out after 4 minutes");
-    }
-    throw err;
-  }
-  clearTimeout(abortTimer);
-
-  if (!res.ok) {
-    // Apify returns structured errors with { error: { message } }. Surface
-    // that so the user sees the real reason (rate limit, invalid input,
-    // actor failure) instead of a generic HTTP code.
-    let detail = `Apify returned HTTP ${res.status}`;
-    try {
-      const body = await res.json();
-      detail = body?.error?.message || body?.error?.type || detail;
-    } catch {
-      const text = await res.text().catch(() => "");
-      if (text) detail = text.slice(0, 180);
-    }
-    throw new Error(detail);
-  }
-
-  const items = await res.json();
-  if (!Array.isArray(items)) {
-    throw new Error("Unexpected Apify response shape");
-  }
-  return items as Record<string, unknown>[];
+function nodeToPost(node: IgEdgeNode): ScrapedPost | null {
+  if (!node.shortcode) return null;
+  const type: ScrapedPost["type"] = node.is_video
+    ? "video"
+    : node.__typename === "GraphSidecar"
+      ? "carousel"
+      : "image";
+  const mediaUrls: string[] = [];
+  if (node.video_url) mediaUrls.push(node.video_url);
+  if (node.display_url) mediaUrls.push(node.display_url);
+  return {
+    shortcode: node.shortcode,
+    type,
+    caption: node.edge_media_to_caption?.edges?.[0]?.node?.text || "",
+    takenAt: node.taken_at_timestamp
+      ? new Date(node.taken_at_timestamp * 1000)
+      : new Date(),
+    mediaUrls,
+    thumbUrl: node.thumbnail_src || node.display_url || "",
+    numSlides: node.edge_sidecar_to_children?.edges?.length || 0,
+    platformUrl: `https://www.instagram.com/p/${node.shortcode}/`,
+  };
 }
 
-/**
- * Try the self-hosted VPS scraper first (Hetzner + IPRoyal residential
- * proxy). Falls back to Apify if the VPS is unreachable, errors, or
- * returns 0 posts.
- *
- * SCRAPER_PROVIDER env:
- *   "crawlee" → VPS first, Apify fallback (default when VPS is configured)
- *   "apify"   → Apify only (skip VPS)
- *   unset     → Apify only
- */
+async function quickScrapeInstagram(
+  handle: string,
+  maxPosts: number,
+): Promise<ScrapedPost[]> {
+  try {
+    const res = await fetch(
+      `https://i.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(handle)}`,
+      {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+          "X-IG-App-ID": "936619743392459",
+          Accept: "*/*",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+        signal: AbortSignal.timeout(15_000),
+      },
+    );
+    if (!res.ok) {
+      console.warn(`[scraper] quick tier: HTTP ${res.status}`);
+      return [];
+    }
+    const data = await res.json();
+    const edges: { node?: IgEdgeNode }[] =
+      data?.data?.user?.edge_owner_to_timeline_media?.edges || [];
+    const posts: ScrapedPost[] = [];
+    for (const edge of edges) {
+      if (posts.length >= maxPosts) break;
+      const p = edge.node ? nodeToPost(edge.node) : null;
+      if (p) posts.push(p);
+    }
+    return posts;
+  } catch (err) {
+    console.warn(
+      `[scraper] quick tier failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return [];
+  }
+}
+
 async function scrapeViaVPS(
   handle: string,
   platform: string,
   maxPosts: number,
-): Promise<ScrapedPost[] | null> {
+): Promise<ScrapedPost[]> {
   const vpsUrl = process.env.SCRAPER_VPS_URL;
   const vpsKey = process.env.SCRAPER_VPS_API_KEY;
-  if (!vpsUrl || !vpsKey) return null;
+  if (!vpsUrl || !vpsKey) {
+    throw new Error("VPS scraper not configured (SCRAPER_VPS_URL/SCRAPER_VPS_API_KEY missing)");
+  }
 
+  // Scale timeout with post count; hard ceiling 5 min for Vercel budget
+  const timeoutMs = Math.min(60_000 + maxPosts * 1500, 300_000);
+  console.log(
+    `[scraper] VPS ${vpsUrl} → @${handle} (max ${maxPosts}, timeout ${timeoutMs / 1000}s)`,
+  );
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  let res: Response;
   try {
-    // Scale timeout with post count: 60s base + 1s per post requested
-    const timeoutMs = Math.min(60_000 + maxPosts * 1000, 300_000);
-    console.log(`[scraper] trying VPS at ${vpsUrl} for @${handle} (max ${maxPosts}, timeout ${timeoutMs / 1000}s)`);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    const res = await fetch(`${vpsUrl}/scrape`, {
+    res = await fetch(`${vpsUrl}/scrape`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -141,178 +138,97 @@ async function scrapeViaVPS(
       body: JSON.stringify({ handle, platform, maxPosts }),
       signal: controller.signal,
     });
+  } finally {
     clearTimeout(timeout);
-
-    if (!res.ok) {
-      const body = await res.text().catch(() => "");
-      console.warn(`[scraper] VPS returned ${res.status}: ${body.slice(0, 120)}`);
-      return null;
-    }
-
-    const data = await res.json();
-    if (!data.success || !data.posts?.length) {
-      console.warn(`[scraper] VPS success=${data.success} posts=${data.posts?.length || 0} error=${data.error || ""}`);
-      return null;
-    }
-
-    // Map VPS response shape to ScrapedPost[]
-    return data.posts.map((p: Record<string, unknown>) => ({
-      shortcode: (p.shortcode as string) || `vps-${Date.now()}`,
-      type:
-        p.type === "video"
-          ? ("video" as const)
-          : p.type === "carousel"
-            ? ("carousel" as const)
-            : ("image" as const),
-      caption: (p.caption as string) || "",
-      takenAt: p.takenAt ? new Date(p.takenAt as string) : new Date(),
-      mediaUrls: Array.isArray(p.mediaUrls)
-        ? (p.mediaUrls as string[])
-        : p.videoUrl
-          ? [p.videoUrl as string]
-          : p.displayUrl
-            ? [p.displayUrl as string]
-            : [],
-      thumbUrl: (p.thumbUrl as string) || (p.displayUrl as string) || "",
-      numSlides: (p.numSlides as number) || 0,
-      platformUrl: (p.platformUrl as string) || "",
-    }));
-  } catch (err) {
-    console.warn(
-      `[scraper] VPS failed: ${err instanceof Error ? err.message : String(err)} — falling back to Apify`,
-    );
-    return null;
   }
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`VPS returned ${res.status}: ${body.slice(0, 180)}`);
+  }
+
+  const data = await res.json();
+  if (!data.success) {
+    throw new Error(data.error || "VPS reported failure");
+  }
+
+  const rawPosts = Array.isArray(data.posts) ? data.posts : [];
+  return rawPosts.map((p: Record<string, unknown>) => ({
+    shortcode: (p.shortcode as string) || `vps-${Date.now()}`,
+    type:
+      p.type === "video"
+        ? ("video" as const)
+        : p.type === "carousel"
+          ? ("carousel" as const)
+          : ("image" as const),
+    caption: (p.caption as string) || "",
+    takenAt: p.takenAt ? new Date(p.takenAt as string) : new Date(),
+    mediaUrls: Array.isArray(p.mediaUrls)
+      ? (p.mediaUrls as string[])
+      : p.videoUrl
+        ? [p.videoUrl as string]
+        : p.displayUrl
+          ? [p.displayUrl as string]
+          : [],
+    thumbUrl: (p.thumbUrl as string) || (p.displayUrl as string) || "",
+    numSlides: (p.numSlides as number) || 0,
+    platformUrl: (p.platformUrl as string) || "",
+  }));
 }
 
 export async function scrapeProfile(config: ScraperConfig): Promise<ScrapedPost[]> {
   const { platform, handle } = config;
   const maxPosts = config.maxPosts || 50;
-  const provider = (process.env.SCRAPER_PROVIDER || "apify").toLowerCase();
+  const cleanHandle = handle.replace(/^@/, "");
 
-  // Try VPS first for Instagram when provider is "crawlee"
-  if (provider === "crawlee" && platform === "instagram") {
-    const vpsPosts = await scrapeViaVPS(handle, platform, maxPosts);
-    if (vpsPosts && vpsPosts.length > 0) {
-      // If we requested many posts but VPS returned very few, the VPS
-      // likely timed out or hit a limit. Fall back to Apify for a
-      // more complete scrape.
-      const gotEnough = vpsPosts.length >= maxPosts * 0.5 || vpsPosts.length >= 50;
-      if (gotEnough) {
-        console.log(`[scraper] VPS returned ${vpsPosts.length}/${maxPosts} posts — sufficient`);
-        return vpsPosts;
-      }
-      console.log(`[scraper] VPS returned only ${vpsPosts.length}/${maxPosts} posts — falling back to Apify for fuller scrape`);
-    } else {
-      console.log("[scraper] VPS returned nothing — falling back to Apify");
-    }
-  }
-
-  // Apify path (original or fallback)
-  if (!APIFY_TOKEN) {
-    console.warn("[scraper] APIFY_API_TOKEN not set — returning empty results");
+  if (platform === "tiktok") {
+    console.warn("[scraper] TikTok scraping is disabled — VPS supports Instagram only");
     return [];
   }
 
-  if (platform === "instagram") {
-    return scrapeInstagram(handle, maxPosts);
+  // Tier 1: fast public-API scrape (up to ~12 posts). Used both as a
+  // quick seed and as a safety net if the VPS fails.
+  const quickPosts = await quickScrapeInstagram(cleanHandle, maxPosts);
+  console.log(`[scraper] tier 1 (public API): ${quickPosts.length} posts`);
+
+  // If the plan only needs what quick already got, skip the VPS.
+  // web_profile_info returns ~12 edges, so plans with postLimit ≤ 12
+  // (currently Free = 9) finish here in ~5s with zero VPS load.
+  if (quickPosts.length >= maxPosts) {
+    return quickPosts.slice(0, maxPosts);
   }
-  return scrapeTikTok(handle, maxPosts);
-}
 
-async function scrapeInstagram(handle: string, maxPosts: number): Promise<ScrapedPost[]> {
-  const cleanHandle = handle.replace(/^@/, "");
-
-  let items: Record<string, unknown>[] = [];
+  // Tier 2: deep VPS scrape. If it fails, use quick results as fallback.
+  let vpsPosts: ScrapedPost[] = [];
   try {
-    items = await runApifyActor("apify/instagram-scraper", {
-      directUrls: [`https://www.instagram.com/${cleanHandle}/`],
-      resultsType: "posts",
-      resultsLimit: maxPosts,
-      addParentData: false,
-    });
+    vpsPosts = await scrapeViaVPS(cleanHandle, platform, maxPosts);
+    console.log(`[scraper] tier 2 (VPS): ${vpsPosts.length} posts`);
   } catch (error) {
-    captureError(error, { context: "scraper-instagram", handle: cleanHandle });
+    captureError(error, { context: "scraper-instagram-deep", handle: cleanHandle });
+    console.warn(
+      `[scraper] VPS failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    if (quickPosts.length > 0) {
+      console.log(
+        `[scraper] returning ${quickPosts.length} tier-1 posts as fallback`,
+      );
+      return quickPosts;
+    }
     const detail = error instanceof Error ? error.message : String(error);
     throw new Error(
       `Instagram scrape failed for @${cleanHandle}: ${detail.slice(0, 180)}`,
     );
   }
 
-  return items.map((item) => {
-    const shortcode =
-      (item.shortCode as string) || (item.id as string) || `ig-${Date.now()}`;
-    const type =
-      item.type === "Video"
-        ? ("video" as const)
-        : item.type === "Sidecar"
-          ? ("carousel" as const)
-          : ("image" as const);
-
-    const mediaUrls: string[] = [];
-    if (item.videoUrl) mediaUrls.push(item.videoUrl as string);
-    if (item.displayUrl) mediaUrls.push(item.displayUrl as string);
-    if (Array.isArray(item.images)) {
-      mediaUrls.push(...(item.images as string[]));
+  // Merge tiers. VPS entries come first because their payload is richer
+  // (video URLs, full carousel children) than edges from web_profile_info.
+  const seen = new Set<string>();
+  const combined: ScrapedPost[] = [];
+  for (const p of [...vpsPosts, ...quickPosts]) {
+    if (!seen.has(p.shortcode)) {
+      seen.add(p.shortcode);
+      combined.push(p);
     }
-
-    return {
-      shortcode,
-      type,
-      caption: (item.caption as string) || "",
-      takenAt: new Date((item.timestamp as string) || Date.now()),
-      mediaUrls,
-      thumbUrl:
-        (item.displayUrl as string) || (item.thumbnailUrl as string) || "",
-      numSlides:
-        type === "carousel" && Array.isArray(item.childPosts)
-          ? (item.childPosts as unknown[]).length
-          : 0,
-      platformUrl:
-        (item.url as string) || `https://www.instagram.com/p/${shortcode}/`,
-    } satisfies ScrapedPost;
-  });
-}
-
-async function scrapeTikTok(handle: string, maxPosts: number): Promise<ScrapedPost[]> {
-  const cleanHandle = handle.replace(/^@/, "");
-
-  let items: Record<string, unknown>[] = [];
-  try {
-    items = await runApifyActor("clockworks/tiktok-profile-scraper", {
-      profiles: [cleanHandle],
-      resultsPerPage: maxPosts,
-    });
-  } catch (error) {
-    captureError(error, { context: "scraper-tiktok", handle: cleanHandle });
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      `TikTok scrape failed for @${cleanHandle}: ${detail.slice(0, 180)}`,
-    );
   }
-
-  return items.map((item) => {
-    const id = (item.id as string) || `tt-${Date.now()}`;
-    const video = item.video as Record<string, unknown> | undefined;
-
-    return {
-      shortcode: id,
-      type: "video" as const,
-      caption: (item.text as string) || (item.desc as string) || "",
-      takenAt: new Date(
-        ((item.createTime as number) || 0) * 1000 || Date.now(),
-      ),
-      mediaUrls: [
-        (item.videoUrl as string) ||
-          ((video?.downloadAddr as string) ?? "") ||
-          "",
-      ].filter(Boolean),
-      thumbUrl:
-        (item.coverUrl as string) || ((video?.cover as string) ?? ""),
-      numSlides: 0,
-      platformUrl:
-        (item.webVideoUrl as string) ||
-        `https://www.tiktok.com/@${cleanHandle}/video/${id}`,
-    } satisfies ScrapedPost;
-  });
+  return combined.slice(0, maxPosts);
 }

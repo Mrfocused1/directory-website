@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { sites, posts, references, platformConnections, users } from "@/db/schema";
-import { eq, inArray } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import type { SiteConfig, SitePost, Reference, PlatformConnection, Platform } from "@/lib/types";
 import { hasFeature, type PlanId } from "@/lib/plans";
 
@@ -74,7 +74,7 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
   // Fetch posts with references. Order: pinned first, then by manual
   // sortOrder if the creator has reordered, then by takenAt (newest).
   const sitePosts = await db!.query.posts.findMany({
-    where: eq(posts.siteId, site.id),
+    where: and(eq(posts.siteId, site.id), eq(posts.isVisible, true)),
     orderBy: (posts, { desc, asc }) => [
       desc(posts.isFeatured),
       asc(posts.sortOrder),

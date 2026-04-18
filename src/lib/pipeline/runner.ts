@@ -94,6 +94,84 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
       return;
     }
 
+    // Determine which posts need uploading before filtering
+    let postsToUpload = isSync ? newPosts : scrapedPosts;
+
+    // ── Step 1.5: RELEVANCE FILTER ───────────────────────────────────
+    // Use Claude to filter out posts that don't match the account's core
+    // topic. Personal posts (birthdays, selfies, memes) get marked as
+    // not visible so they don't appear in the directory. This runs BEFORE
+    // media upload to avoid wasting money on irrelevant content.
+    if (canAutoCategorize && postsToUpload.length > 0) {
+      await report("scrape", 100, "Filtering irrelevant posts...");
+      const apiKey = process.env.ANTHROPIC_API_KEY;
+      if (apiKey) {
+        try {
+          // Sample captions to determine account niche
+          const sampleCaptions = scrapedPosts.slice(0, 20).map((p) => p.caption.slice(0, 150)).filter((c) => c.length > 20).join("\n");
+          const nicheRes = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+            body: JSON.stringify({
+              model: "claude-haiku-4-5-20251001",
+              max_tokens: 100,
+              messages: [{ role: "user", content: `What is the primary niche/topic of this Instagram account? Answer in 2-5 words only.\n\n${sampleCaptions}` }],
+            }),
+            signal: AbortSignal.timeout(10_000),
+          });
+          const niche = nicheRes.ok ? ((await nicheRes.json()).content?.[0]?.text || "").trim() : "general content";
+
+          // Batch filter posts for relevance (20 per call)
+          const FILTER_BATCH = 20;
+          const irrelevantShortcodes = new Set<string>();
+
+          for (let fi = 0; fi < postsToUpload.length; fi += FILTER_BATCH) {
+            const batch = postsToUpload.slice(fi, fi + FILTER_BATCH);
+            const batchCaptions = batch.map((p, idx) => `[${idx}] ${p.caption.slice(0, 300)}`).join("\n\n");
+
+            const filterRes = await fetch("https://api.anthropic.com/v1/messages", {
+              method: "POST",
+              headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+              body: JSON.stringify({
+                model: "claude-haiku-4-5-20251001",
+                max_tokens: 400,
+                messages: [{ role: "user", content: `This account's niche is: ${niche}\n\nFor each post, output ONLY a JSON array of indices that are OFF-TOPIC (personal posts, birthdays, selfies, memes, unrelated lifestyle content that doesn't fit the niche). Empty array [] if all posts are relevant.\n\nPosts:\n${batchCaptions}` }],
+              }),
+              signal: AbortSignal.timeout(15_000),
+            });
+
+            if (filterRes.ok) {
+              const filterData = await filterRes.json();
+              const filterText = (filterData.content?.[0]?.text || "").trim();
+              const match = filterText.match(/\[[\s\S]*?\]/);
+              if (match) {
+                try {
+                  const indices = JSON.parse(match[0]);
+                  if (Array.isArray(indices)) {
+                    for (const idx of indices) {
+                      if (typeof idx === "number" && idx >= 0 && idx < batch.length) {
+                        irrelevantShortcodes.add(batch[idx].shortcode);
+                      }
+                    }
+                  }
+                } catch {}
+              }
+            }
+          }
+
+          if (irrelevantShortcodes.size > 0) {
+            // Remove irrelevant posts from the upload list
+            const before = postsToUpload.length;
+            postsToUpload = postsToUpload.filter((p) => !irrelevantShortcodes.has(p.shortcode));
+            console.log(`[pipeline] Filtered out ${before - postsToUpload.length} irrelevant posts (${postsToUpload.length} remaining)`);
+            await report("scrape", 100, `Filtered ${before - postsToUpload.length} off-topic posts`);
+          }
+        } catch (err) {
+          console.warn("[pipeline] Relevance filter failed (non-fatal):", err instanceof Error ? err.message : err);
+        }
+      }
+    }
+
     // ── Step 2: STORE MEDIA ─────────────────────────────────────────
     currentStep = "transcribe";
     await report("transcribe", 10, "Uploading media...");
@@ -114,7 +192,7 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     // Existing posts already have stable Blob URLs, so re-uploading
     // would burn bandwidth + $ for no gain. onConflictDoNothing() on
     // the insert is the final safety net.
-    const postsToUpload = isSync ? newPosts : scrapedPosts;
+    // postsToUpload already declared above (before relevance filter)
     if (postsToUpload.length === 0) {
       await report("transcribe", 40, "No new posts to upload");
     }

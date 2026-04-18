@@ -189,103 +189,94 @@ async function scrapeInstagram(handle, maxPosts = 9) {
 
     const userId = user.id;
     const allPosts = [];
+    const seenShortcodes = new Set();
 
-    // ── Strategy A: GraphQL edges with cursor pagination ──────────
-    const timelineMedia = user.edge_owner_to_timeline_media;
-    if (timelineMedia?.edges?.length > 0) {
-      // First batch from profile response
-      for (const edge of timelineMedia.edges) {
-        allPosts.push(edgeToPost(edge.node));
-        if (allPosts.length >= maxPosts) break;
-      }
-
-      let hasNext = timelineMedia.page_info?.has_next_page;
-      let endCursor = timelineMedia.page_info?.end_cursor;
-      let pageNum = 1;
-
-      // Paginate with GraphQL query_hash
-      while (hasNext && endCursor && allPosts.length < maxPosts) {
-        pageNum++;
-        const batchSize = Math.min(50, maxPosts - allPosts.length);
-        const variables = JSON.stringify({ id: userId, first: batchSize, after: endCursor });
-        // Instagram's public GraphQL endpoint for user media
-        const gqlUrl = `https://www.instagram.com/graphql/query/?query_hash=e769aa130647d2354c40ea6a439bfc08&variables=${encodeURIComponent(variables)}`;
-
-        try {
-          const gqlResp = await page.goto(gqlUrl, { waitUntil: "networkidle2", timeout: 20000 });
-          const gqlData = JSON.parse(await gqlResp.text());
-          const mediaData = gqlData?.data?.user?.edge_owner_to_timeline_media;
-
-          if (!mediaData?.edges?.length) {
-            console.log(`[scrape] page ${pageNum}: no more edges`);
-            break;
-          }
-
-          for (const edge of mediaData.edges) {
-            allPosts.push(edgeToPost(edge.node));
-            if (allPosts.length >= maxPosts) break;
-          }
-
-          hasNext = mediaData.page_info?.has_next_page;
-          endCursor = mediaData.page_info?.end_cursor;
-          console.log(`[scrape] page ${pageNum}: ${mediaData.edges.length} posts (total: ${allPosts.length})`);
-
-          // Rate limit: small delay between pages to avoid blocks
-          await new Promise(r => setTimeout(r, 1500 + Math.random() * 1000));
-        } catch (err) {
-          console.warn(`[scrape] GraphQL page ${pageNum} failed: ${err.message}`);
-          break;
-        }
-      }
-
-      if (allPosts.length > 0) {
-        try {
-          const freshCookies = await page.cookies();
-          if (freshCookies.length > 0) fs.writeFileSync(COOKIE_FILE, JSON.stringify(freshCookies, null, 2));
-        } catch {}
-
-        console.log(`[scrape] found ${allPosts.length} posts for @${cleanHandle} (via edges + pagination)`);
-        return { success: true, posts: allPosts, handle: cleanHandle };
-      }
+    function addPost(post) {
+      if (seenShortcodes.has(post.shortcode)) return false;
+      seenShortcodes.add(post.shortcode);
+      allPosts.push(post);
+      return true;
     }
 
-    // ── Strategy B: v1 feed endpoint with max_id pagination ──────
-    console.log(`[scrape] trying v1 feed endpoint for @${cleanHandle}...`);
+    // ── Strategy A: v1 feed endpoint with in-page fetch pagination ─
+    // IMPORTANT: use page.evaluate(fetch()) instead of page.goto() for
+    // pagination. page.goto() navigates away and loses the Instagram
+    // session context, causing page 2+ to return empty.
+    console.log(`[scrape] using v1 feed endpoint for @${cleanHandle} (userId: ${userId})...`);
+
+    // First, navigate back to Instagram to establish context for fetch()
+    await page.goto(`https://www.instagram.com/${cleanHandle}/`, { waitUntil: "networkidle2", timeout: 30000 });
+
     let maxId = null;
     let feedPage = 0;
+    let consecutiveEmpty = 0;
 
-    while (allPosts.length < maxPosts) {
+    while (allPosts.length < maxPosts && consecutiveEmpty < 2) {
       feedPage++;
       const feedUrl = maxId
         ? `https://www.instagram.com/api/v1/feed/user/${userId}/?count=33&max_id=${maxId}`
         : `https://www.instagram.com/api/v1/feed/user/${userId}/?count=33`;
 
       try {
-        const feedResp = await page.goto(feedUrl, { waitUntil: "networkidle2", timeout: 20000 });
-        const feedData = await feedResp.json().catch(() => ({}));
-        const items = feedData?.items || [];
+        // Use in-page fetch to keep cookies/session alive
+        const feedResult = await page.evaluate(async (url) => {
+          try {
+            const res = await fetch(url, {
+              headers: { "X-IG-App-ID": "936619743392459", "X-Requested-With": "XMLHttpRequest" },
+              credentials: "include",
+            });
+            if (!res.ok) return { error: `HTTP ${res.status}` };
+            return await res.json();
+          } catch (e) {
+            return { error: e.message };
+          }
+        }, feedUrl);
 
-        if (items.length === 0) {
-          console.log(`[scrape] feed page ${feedPage}: no items`);
+        if (feedResult.error) {
+          console.warn(`[scrape] feed page ${feedPage}: ${feedResult.error}`);
           break;
         }
 
+        const items = feedResult?.items || [];
+
+        if (items.length === 0) {
+          console.log(`[scrape] feed page ${feedPage}: no items`);
+          consecutiveEmpty++;
+          if (!feedResult.more_available) break;
+          continue;
+        }
+        consecutiveEmpty = 0;
+
+        let added = 0;
         for (const item of items) {
-          allPosts.push(feedItemToPost(item));
           if (allPosts.length >= maxPosts) break;
+          if (addPost(feedItemToPost(item))) added++;
         }
 
-        console.log(`[scrape] feed page ${feedPage}: ${items.length} items (total: ${allPosts.length})`);
+        console.log(`[scrape] feed page ${feedPage}: ${items.length} items, ${added} new (total: ${allPosts.length})`);
 
-        if (!feedData.more_available) break;
-        maxId = feedData.next_max_id;
+        if (!feedResult.more_available) {
+          console.log(`[scrape] no more posts available`);
+          break;
+        }
+        maxId = feedResult.next_max_id;
         if (!maxId) break;
 
-        // Rate limit
-        await new Promise(r => setTimeout(r, 2000 + Math.random() * 1000));
+        // Rate limit: 2-3s between pages
+        await new Promise(r => setTimeout(r, 2000 + Math.random() * 1500));
       } catch (err) {
         console.warn(`[scrape] feed page ${feedPage} failed: ${err.message}`);
         break;
+      }
+    }
+
+    // ── Fallback: grab edges from initial profile if feed returned nothing
+    if (allPosts.length === 0) {
+      console.log(`[scrape] feed returned nothing, falling back to edges...`);
+      const edges = user.edge_owner_to_timeline_media?.edges || [];
+      for (const edge of edges) {
+        if (allPosts.length >= maxPosts) break;
+        addPost(edgeToPost(edge.node));
       }
     }
 
@@ -295,7 +286,7 @@ async function scrapeInstagram(handle, maxPosts = 9) {
       if (freshCookies.length > 0) fs.writeFileSync(COOKIE_FILE, JSON.stringify(freshCookies, null, 2));
     } catch {}
 
-    console.log(`[scrape] found ${allPosts.length} posts for @${cleanHandle} (via feed pagination)`);
+    console.log(`[scrape] DONE: ${allPosts.length} posts for @${cleanHandle}`);
     return { success: true, posts: allPosts, handle: cleanHandle };
   } catch (err) {
     console.error(`[scrape] error for @${cleanHandle}:`, err.message);

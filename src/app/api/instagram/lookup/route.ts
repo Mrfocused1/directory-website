@@ -79,6 +79,10 @@ async function lookupProfiles(query: string): Promise<ProfileResult[]> {
 
   // Strategy 2: Use Instagram's public web API (no auth needed)
   // Fetch the profile page and extract JSON data
+  // Track 404s separately: a confirmed 404 means the handle doesn't
+  // exist, so we must not fall through to the placeholder fallback
+  // (which would fool the onboarding UI into thinking the account is real).
+  let confirmedNotFound = false;
   try {
     const res = await fetch(`https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(query)}`, {
       headers: {
@@ -87,7 +91,9 @@ async function lookupProfiles(query: string): Promise<ProfileResult[]> {
       },
       signal: AbortSignal.timeout(10000),
     });
-    if (res.ok) {
+    if (res.status === 404) {
+      confirmedNotFound = true;
+    } else if (res.ok) {
       const data = await res.json();
       const u = data?.data?.user;
       if (u) {
@@ -103,6 +109,7 @@ async function lookupProfiles(query: string): Promise<ProfileResult[]> {
   } catch {
     // Instagram API blocked or unavailable
   }
+  if (confirmedNotFound) return [];
 
   // Strategy 3: Use Instagram web search API
   try {

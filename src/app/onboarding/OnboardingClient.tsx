@@ -148,6 +148,9 @@ function humanizeError(raw: string): string {
   if (m.includes("401") || m.includes("unauthorized") || m.includes("auth")) {
     return "Our session with Instagram expired. We'll refresh it automatically — try again in a moment.";
   }
+  if (m.includes("session expired") || m.includes("scraper session")) {
+    return "Our Instagram session needs a refresh. Try again in a few minutes — we'll reconnect automatically.";
+  }
   if (m.includes("network") || m.includes("fetch failed") || m.includes("econnref")) {
     return "We couldn't reach Instagram from our servers. Please try again in a moment.";
   }
@@ -866,6 +869,19 @@ function OnboardingContent() {
                       </div>
                     )}
                   </div>
+
+                  {/* Not-found hint: input is long enough, lookup finished,
+                      but no real profile was matched. */}
+                  {!profileLoading && !confirmedProfile && profileResults.length === 0 && handle.replace(/^@/, "").trim().length >= 2 && (
+                    <div className="mt-2 bg-white border border-neutral-200 rounded-2xl px-4 py-3">
+                      <p className="text-sm text-[color:var(--bd-dark)] font-medium">
+                        We couldn&apos;t find <span className="font-semibold">@{handle.replace(/^@/, "").trim()}</span> on Instagram.
+                      </p>
+                      <p className="text-xs text-neutral-500 mt-1">
+                        Check the spelling, or make sure the account is public.
+                      </p>
+                    </div>
+                  )}
 
                   {/* Profile dropdown results */}
                   {profileResults.length > 0 && !confirmedProfile && (

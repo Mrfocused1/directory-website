@@ -276,50 +276,6 @@ export const dailyStats = pgTable(
   ],
 );
 
-// ─── Content Requests ────────────────────────────────────────────────
-export const contentRequests = pgTable(
-  "content_requests",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    siteId: uuid("site_id")
-      .notNull()
-      .references(() => sites.id, { onDelete: "cascade" }),
-    title: text("title").notNull(),
-    description: text("description"),
-    authorName: varchar("author_name", { length: 128 }),
-    authorEmail: varchar("author_email", { length: 320 }),
-    status: varchar("status", { length: 16 }).notNull().default("open"), // open | planned | in_progress | completed | declined
-    isPinned: boolean("is_pinned").notNull().default(false),
-    voteCount: integer("vote_count").notNull().default(1),
-    creatorNote: text("creator_note"), // creator's public response
-    completedPostShortcode: varchar("completed_post_shortcode", { length: 64 }), // link to the post that fulfilled this
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  },
-  (table) => [
-    index("content_requests_site_id_idx").on(table.siteId),
-    index("content_requests_status_idx").on(table.status),
-    index("content_requests_vote_count_idx").on(table.voteCount),
-  ],
-);
-
-// ─── Content Request Votes ───────────────────────────────────────────
-export const requestVotes = pgTable(
-  "request_votes",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    requestId: uuid("request_id")
-      .notNull()
-      .references(() => contentRequests.id, { onDelete: "cascade" }),
-    sessionId: varchar("session_id", { length: 64 }).notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-  },
-  (table) => [
-    index("request_votes_request_id_idx").on(table.requestId),
-    uniqueIndex("request_votes_unique_idx").on(table.requestId, table.sessionId),
-  ],
-);
-
 // ─── Email Subscribers ───────────────────────────────────────────────
 export const subscribers = pgTable(
   "subscribers",

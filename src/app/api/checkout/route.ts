@@ -19,7 +19,7 @@ const PLAN_PRICES: Record<string, { name: string; price: number; features: strin
   creator: {
     name: "Creator Plan",
     price: 1900, // $19/month in cents
-    features: "Unlimited posts, all platforms, full analytics, newsletter, request board, bookmarks",
+    features: "Unlimited posts, all platforms, full analytics, newsletter, bookmarks",
   },
   pro: {
     name: "Pro Plan",

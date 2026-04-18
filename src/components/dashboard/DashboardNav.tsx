@@ -17,7 +17,6 @@ const TABS: { href: string; label: string; requiredFeature?: FeatureKey }[] = [
   { href: "/dashboard/analytics", label: "Analytics", requiredFeature: "analytics_basic" },
   { href: "/dashboard/platforms", label: "Platforms" },
   { href: "/dashboard/domains", label: "Domains", requiredFeature: "custom_domain" },
-  { href: "/dashboard/requests", label: "Requests", requiredFeature: "requests" },
   { href: "/dashboard/newsletter", label: "Newsletter", requiredFeature: "newsletter" },
   { href: "/dashboard/share", label: "Share" },
   { href: "/dashboard/api", label: "API", requiredFeature: "api_access" },

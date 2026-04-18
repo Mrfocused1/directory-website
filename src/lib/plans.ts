@@ -10,7 +10,6 @@ export type FeatureKey =
   | "analytics_full"
   | "analytics_ai_insights"
   | "newsletter"
-  | "requests"
   | "bookmarks"
   | "custom_domain"
   | "platforms_multi"
@@ -82,7 +81,6 @@ const PLANS: Record<PlanId, PlanConfig> = {
       "analytics_basic",
       "analytics_full",
       "newsletter",
-      "requests",
       "bookmarks",
       "platforms_multi",
       "references",
@@ -114,7 +112,6 @@ const PLANS: Record<PlanId, PlanConfig> = {
       "analytics_full",
       "analytics_ai_insights",
       "newsletter",
-      "requests",
       "bookmarks",
       "platforms_multi",
       "references",
@@ -145,7 +142,6 @@ const PLANS: Record<PlanId, PlanConfig> = {
       "analytics_full",
       "analytics_ai_insights",
       "newsletter",
-      "requests",
       "bookmarks",
       "platforms_multi",
       "multi_accounts_per_platform",
@@ -219,7 +215,6 @@ export const UPGRADE_PROMPTS: Record<FeatureKey, { title: string; desc: string; 
   analytics_full: { title: "Full Analytics", desc: "Detailed charts, top posts, search terms, heatmaps, and more.", benefit: "See exactly what your audience wants" },
   analytics_ai_insights: { title: "AI Insights", desc: "Get AI-powered recommendations on what content to create next.", benefit: "Let AI guide your content strategy" },
   newsletter: { title: "Email Newsletter", desc: "Build a subscriber list and send automated digest emails.", benefit: "Own your audience — not the algorithm" },
-  requests: { title: "Content Requests", desc: "Let visitors vote on topics they want you to cover.", benefit: "Never run out of content ideas" },
   bookmarks: { title: "Visitor Collections", desc: "Visitors can save and organize your posts into personal collections.", benefit: "Increase engagement and return visits" },
   custom_domain: { title: "Custom Domain", desc: "Use your own domain like yourname.com instead of a subdomain.", benefit: "Look professional with your own brand" },
   platforms_multi: { title: "Multi-Platform", desc: "Connect Instagram, TikTok, and YouTube in one unified directory.", benefit: "All your content in one place" },

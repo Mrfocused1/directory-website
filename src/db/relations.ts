@@ -10,8 +10,6 @@ import {
   searchEvents,
   categoryClicks,
   dailyStats,
-  contentRequests,
-  requestVotes,
   subscribers,
   digestHistory,
   visitorProfiles,
@@ -34,7 +32,6 @@ export const sitesRelations = relations(sites, ({ one, many }) => ({
   searchEvents: many(searchEvents),
   categoryClicks: many(categoryClicks),
   dailyStats: many(dailyStats),
-  contentRequests: many(contentRequests),
   subscribers: many(subscribers),
   digestHistory: many(digestHistory),
   visitorProfiles: many(visitorProfiles),
@@ -74,15 +71,6 @@ export const categoryClicksRelations = relations(categoryClicks, ({ one }) => ({
 
 export const dailyStatsRelations = relations(dailyStats, ({ one }) => ({
   site: one(sites, { fields: [dailyStats.siteId], references: [sites.id] }),
-}));
-
-export const contentRequestsRelations = relations(contentRequests, ({ one, many }) => ({
-  site: one(sites, { fields: [contentRequests.siteId], references: [sites.id] }),
-  votes: many(requestVotes),
-}));
-
-export const requestVotesRelations = relations(requestVotes, ({ one }) => ({
-  request: one(contentRequests, { fields: [requestVotes.requestId], references: [contentRequests.id] }),
 }));
 
 export const subscribersRelations = relations(subscribers, ({ one }) => ({

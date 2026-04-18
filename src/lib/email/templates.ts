@@ -349,7 +349,7 @@ export function pipelineCompleteNotification(opts: {
           </a>
         </div>
         <p style="color: #999; font-size: 12px;">
-          Share the link with your audience — and come back anytime to see analytics, manage subscribers, or answer content requests.
+          Share the link with your audience — and come back anytime to see analytics and manage subscribers.
         </p>
       </div>
     `,

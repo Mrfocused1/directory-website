@@ -174,17 +174,39 @@ async function scrapeInstagram(handle, maxPosts = 9) {
     // Step 2: Fetch profile data via API
     await page.setExtraHTTPHeaders({"X-IG-App-ID":"936619743392459","X-Requested-With":"XMLHttpRequest"});
     const profileResp = await page.goto(`https://www.instagram.com/api/v1/users/web_profile_info/?username=${cleanHandle}`, { waitUntil: "networkidle2", timeout: 30000 });
+    const profileStatus = profileResp.status();
+    const profileText = await profileResp.text();
+
+    // 404 = handle doesn't exist on Instagram. Surface this clearly so
+    // the onboarding UI can tell the creator they've typed a non-existent
+    // username rather than a generic "try again".
+    if (profileStatus === 404) {
+      return { success: false, error: "User not found on Instagram", posts: [], handle: cleanHandle };
+    }
+
+    // Non-JSON usually means we got an HTML challenge/login page, which
+    // is a rate-limit or flagged-session signal — very different from a
+    // user-not-found. Include status + response snippet in the log so we
+    // can triage quickly instead of staring at a generic message.
     let profileData;
     try {
-      profileData = JSON.parse(await profileResp.text());
+      profileData = JSON.parse(profileText);
     } catch {
-      console.warn("[scrape] non-JSON from profile API");
-      return { success: false, error: "Could not load profile data", posts: [], handle: cleanHandle };
+      console.warn(`[scrape] non-JSON from profile API (status ${profileStatus}): ${profileText.slice(0, 200)}`);
+      const msg = profileStatus === 429 || /require_login|wait a few minutes/i.test(profileText)
+        ? "Instagram is rate-limiting us — please try again in a few minutes"
+        : `Instagram returned HTTP ${profileStatus}`;
+      return { success: false, error: msg, posts: [], handle: cleanHandle };
+    }
+
+    // JSON parsed but no user payload — e.g. require_login:true from IG
+    if (profileData?.status === "fail" && profileData?.require_login) {
+      return { success: false, error: "Scraper session expired — please wait a few minutes", posts: [], handle: cleanHandle };
     }
 
     const user = profileData?.data?.user;
     if (!user) {
-      return { success: false, error: "User not found or private", posts: [], handle: cleanHandle };
+      return { success: false, error: "User not found or account is private", posts: [], handle: cleanHandle };
     }
 
     const userId = user.id;

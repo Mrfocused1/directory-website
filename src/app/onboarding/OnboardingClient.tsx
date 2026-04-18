@@ -56,7 +56,7 @@ const DEMO_FRAMES = [
           <div className="h-1.5 w-2/3 rounded-full bg-white/25" />
         </div>
         <div className="flex gap-1">
-          {["React","Python","Design"].map((tag) => (
+          {["Tips","Guides","Picks"].map((tag) => (
             <span key={tag} className="text-[7px] px-1.5 py-0.5 rounded-full bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] font-semibold">{tag}</span>
           ))}
         </div>
@@ -125,6 +125,37 @@ const FUN_FACTS = [
 function parseProgressFromMessage(message: string): string | null {
   const match = message.match(/(\d+(?:\/\d+)?)\s+(?:posts?|videos?|clips?)/i);
   return match ? match[0] : null;
+}
+
+// Turn the pipeline's raw error string into something a non-technical
+// creator can read. The raw messages leak implementation details (HTTP
+// codes, scraper internals, JSON blobs) that aren't useful to the user.
+function humanizeError(raw: string): string {
+  const m = (raw || "").toLowerCase();
+  if (!m) return "We couldn't build your directory. Please try again in a moment.";
+  if (m.includes("not found") || m.includes("private") || m.includes("no user")) {
+    return "We couldn't find this Instagram account. Double-check the handle and make sure the profile is public.";
+  }
+  if (m.includes("could not load profile")) {
+    return "Instagram didn't respond for this account. It may be temporarily rate-limited — give it a minute and try again.";
+  }
+  if (m.includes("timed out") || m.includes("timeout") || m.includes("abort")) {
+    return "This took longer than expected. Please try again — we'll pick up where we left off.";
+  }
+  if (m.includes("429") || m.includes("rate") || m.includes("too many")) {
+    return "Instagram is rate-limiting us right now. Please wait a minute or two and try again.";
+  }
+  if (m.includes("401") || m.includes("unauthorized") || m.includes("auth")) {
+    return "Our session with Instagram expired. We'll refresh it automatically — try again in a moment.";
+  }
+  if (m.includes("network") || m.includes("fetch failed") || m.includes("econnref")) {
+    return "We couldn't reach Instagram from our servers. Please try again in a moment.";
+  }
+  if (m.includes("not configured")) {
+    return "Something on our end isn't ready. Please try again in a moment — if it keeps happening, let us know.";
+  }
+  // Generic fallback: strip any JSON blobs / HTTP codes from the raw message
+  return "We hit a snag building your directory. Give it another try in a moment.";
 }
 
 function ProcessingStep({
@@ -323,7 +354,11 @@ function ProcessingStep({
             style={{ width: `${pipelineStatus.progress}%` }}
           />
         </div>
-        <p className="text-xs text-[color:var(--bd-grey)] mt-2">{pipelineStatus.message}</p>
+        <p className="text-xs text-[color:var(--bd-grey)] mt-2">
+          {pipelineStatus.step === "error"
+            ? humanizeError(pipelineStatus.message)
+            : pipelineStatus.message}
+        </p>
       </div>
 
       {/* Fun facts ticker */}

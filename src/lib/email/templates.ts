@@ -397,6 +397,122 @@ export function welcomeEmail(opts: {
 }
 
 /**
+ * Site Doctor report email — sent to platform admins after each
+ * automated doctor run. Shows auto-fixed issues and items needing
+ * manual attention.
+ */
+export function doctorReportEmail(report: {
+  startedAt: string;
+  completedAt: string | null;
+  sitesInspected: number;
+  issues: { type: string; siteSlug?: string; shortcode?: string; detail: string }[];
+  fixes: { type: string; success: boolean; detail: string }[];
+  flagged: { type: string; siteSlug?: string; detail: string }[];
+}): { subject: string; html: string } {
+  const successFixes = report.fixes.filter((f) => f.success);
+  const failedFixes = report.fixes.filter((f) => !f.success);
+  const hasActivity = report.issues.length > 0 || report.fixes.length > 0 || report.flagged.length > 0;
+
+  const fixRows = successFixes
+    .map(
+      (f) => `
+      <tr>
+        <td style="padding:8px 0;border-bottom:1px solid #e8f5e9;">
+          <span style="color:#16a34a;font-weight:700;">&#10003;</span>
+          &nbsp;${esc(f.detail)}
+        </td>
+      </tr>`,
+    )
+    .join("");
+
+  const failedRows = failedFixes
+    .map(
+      (f) => `
+      <tr>
+        <td style="padding:8px 0;border-bottom:1px solid #fff3cd;">
+          <span style="color:#d97706;font-weight:700;">&#9888;</span>
+          &nbsp;${esc(f.detail)}
+        </td>
+      </tr>`,
+    )
+    .join("");
+
+  const flaggedRows = report.flagged
+    .map(
+      (fl) => `
+      <tr>
+        <td style="padding:8px 0;border-bottom:1px solid #fde8e8;">
+          <strong style="color:#dc2626;">${esc(fl.type)}</strong>
+          ${fl.siteSlug ? ` <span style="color:${BD_GREY};">(${esc(fl.siteSlug)})</span>` : ""}
+          &nbsp;— ${esc(fl.detail)}
+        </td>
+      </tr>`,
+    )
+    .join("");
+
+  const content = `
+<h1 style="font-size:22px;font-weight:800;margin:0 0 4px;color:${BD_DARK};">Site Doctor Report</h1>
+<p style="margin:0 0 20px;color:${BD_GREY};font-size:13px;">${esc(report.startedAt)}${report.completedAt ? ` → ${esc(report.completedAt)}` : ""}</p>
+
+<table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:24px;background:#f7f5f3;border-radius:8px;">
+  <tr>
+    <td style="padding:14px 18px;font-weight:700;color:${BD_DARK};">Sites inspected</td>
+    <td style="padding:14px 18px;font-size:20px;font-weight:800;color:${BD_DARK};">${report.sitesInspected}</td>
+    <td style="padding:14px 18px;font-weight:700;color:${BD_DARK};">Issues found</td>
+    <td style="padding:14px 18px;font-size:20px;font-weight:800;color:${report.issues.length > 0 ? "#dc2626" : "#16a34a"};">${report.issues.length}</td>
+    <td style="padding:14px 18px;font-weight:700;color:${BD_DARK};">Fixes applied</td>
+    <td style="padding:14px 18px;font-size:20px;font-weight:800;color:${successFixes.length > 0 ? "#16a34a" : BD_GREY};">${successFixes.length}</td>
+  </tr>
+</table>
+
+${
+  successFixes.length > 0
+    ? `<h2 style="font-size:15px;font-weight:700;color:#16a34a;margin:0 0 8px;">&#9989; Auto-Fixed</h2>
+<div style="background:#f0fdf4;border-radius:8px;padding:4px 16px;margin-bottom:20px;">
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">${fixRows}</table>
+</div>`
+    : ""
+}
+
+${
+  failedFixes.length > 0
+    ? `<h2 style="font-size:15px;font-weight:700;color:#d97706;margin:0 0 8px;">&#9888; Fix Attempts (failed)</h2>
+<div style="background:#fffbeb;border-radius:8px;padding:4px 16px;margin-bottom:20px;">
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">${failedRows}</table>
+</div>`
+    : ""
+}
+
+${
+  report.flagged.length > 0
+    ? `<h2 style="font-size:15px;font-weight:700;color:#dc2626;margin:0 0 8px;">&#128680; Needs Attention</h2>
+<div style="background:#fff5f5;border-radius:8px;padding:4px 16px;margin-bottom:20px;">
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">${flaggedRows}</table>
+</div>`
+    : ""
+}
+
+${
+  !hasActivity
+    ? `<p style="color:#16a34a;font-weight:700;font-size:15px;">&#10003; All clear — no issues found.</p>`
+    : ""
+}
+
+<p style="font-size:12px;color:${BD_GREY};margin:20px 0 0;">
+  Sent by the BuildMy.Directory Site Doctor (cron: every 6 hours).
+</p>`;
+
+  const issueCount = report.issues.length;
+  const fixCount = successFixes.length;
+  const subject =
+    issueCount === 0 && fixCount === 0
+      ? "Site Doctor: all clear"
+      : `Site Doctor: ${issueCount} issue${issueCount !== 1 ? "s" : ""}, ${fixCount} fix${fixCount !== 1 ? "es" : ""} applied`;
+
+  return brandedEmail(content, subject);
+}
+
+/**
  * Monitor alert email — sent to platform admins when the health check
  * detects degraded or down services.
  */

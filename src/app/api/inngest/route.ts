@@ -8,6 +8,7 @@ import {
   reconcileStripeFunction,
   monitorHealthFunction,
 } from "@/lib/inngest/functions";
+import { doctorCheckFunction } from "@/lib/inngest/doctor";
 
 // Pipeline can take several minutes. Vercel Pro max is 300 seconds.
 // For longer pipelines, consider splitting into Inngest step.run() calls.
@@ -22,5 +23,6 @@ export const { GET, POST, PUT } = serve({
     pruneAnalyticsFunction,
     reconcileStripeFunction,
     monitorHealthFunction,
+    doctorCheckFunction,
   ],
 });

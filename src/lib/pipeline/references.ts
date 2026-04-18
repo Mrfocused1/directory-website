@@ -205,21 +205,34 @@ async function findYouTubeVideo(query: string): Promise<{ videoId: string; title
     const meta = await fetchYouTubeMeta(videoId);
     if (meta) return { videoId, title: meta.title, channel: meta.channel };
   }
+  // If no results from search, try YouTube search directly via noembed
+  // Can't get a specific video without search, so return null — the
+  // caller in inferReferencesViaLLM will fall back to an article instead
   return null;
 }
 
 /**
  * Search for an article on a topic. Returns the first credible result.
+ * Falls back to a Google search link if no direct URL is found.
  */
 async function findArticle(query: string): Promise<{ url: string; title: string } | null> {
   const results = await webSearch(query, "general", 10);
-  // Prefer credible domains
-  const credible = /investopedia|nerdwallet|bankrate|forbes|cnbc|bbc|ft\.com|moneysavingexpert|yahoo\.finance|reuters|bloomberg|wsj|economist|psychologytoday/i;
-  const good = results.find((r) => credible.test(r.url));
-  if (good) return good;
-  // Fall back to first non-social, non-search result
-  const fallback = results.find((r) => !/(google|facebook|twitter|instagram|tiktok|reddit)\.com/i.test(r.url));
-  return fallback || null;
+  if (results.length > 0) {
+    // Prefer credible domains
+    const credible = /investopedia|nerdwallet|bankrate|forbes|cnbc|bbc|ft\.com|moneysavingexpert|yahoo\.finance|reuters|bloomberg|wsj|economist|psychologytoday/i;
+    const good = results.find((r) => credible.test(r.url));
+    if (good) return good;
+    // Fall back to first non-social, non-search result
+    const fallback = results.find((r) => !/(google|facebook|twitter|instagram|tiktok|reddit)\.com/i.test(r.url));
+    if (fallback) return fallback;
+    return results[0];
+  }
+  // No search results at all — return a Google search link as fallback
+  // so the reference is still clickable and useful
+  return {
+    url: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+    title: query.slice(0, 80),
+  };
 }
 
 /**
@@ -305,7 +318,7 @@ ${text}`;
       if (!title || !searchQuery) continue;
 
       if (kind === "youtube") {
-        // Search SearXNG for a real YouTube video
+        // Search for a real YouTube video
         const video = await findYouTubeVideo(searchQuery);
         if (video) {
           out.push({
@@ -316,9 +329,19 @@ ${text}`;
             videoId: video.videoId,
             note: note || video.channel || null,
           });
+        } else {
+          // YouTube search failed — fall back to article with YouTube search link
+          out.push({
+            postId: post.postId,
+            kind: "article",
+            title,
+            url: `https://www.youtube.com/results?search_query=${encodeURIComponent(searchQuery)}`,
+            videoId: null,
+            note: note || "Search on YouTube",
+          });
         }
       } else {
-        // Search SearXNG for a real article
+        // Search for a real article (always returns something now — Google fallback)
         const article = await findArticle(searchQuery);
         if (article) {
           out.push({

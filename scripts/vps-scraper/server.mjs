@@ -381,6 +381,32 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "POST" && req.url === "/admin/restart") {
+    let body = "";
+    for await (const chunk of req) body += chunk;
+    const { service } = JSON.parse(body || "{}");
+
+    const commands = {
+      searxng: "docker restart searxng",
+      libretranslate: "docker restart libretranslate",
+      piper: "pkill -f '/opt/piper/server.mjs'; sleep 2; cd /opt/piper && nohup node server.mjs >> /opt/piper/piper.log 2>&1 &",
+      scraper: "echo 'Cannot restart self'",
+    };
+
+    if (!commands[service]) {
+      res.writeHead(400); res.end(JSON.stringify({ error: "Unknown service" })); return;
+    }
+
+    const { execSync } = await import("child_process");
+    try {
+      execSync(commands[service], { timeout: 15000 });
+      res.writeHead(200); res.end(JSON.stringify({ success: true, service }));
+    } catch (err) {
+      res.writeHead(500); res.end(JSON.stringify({ success: false, error: err.message }));
+    }
+    return;
+  }
+
   res.writeHead(404, { "Content-Type": "application/json" });
   res.end(JSON.stringify({ error: "Not found" }));
 });

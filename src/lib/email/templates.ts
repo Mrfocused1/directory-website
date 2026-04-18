@@ -395,3 +395,98 @@ export function welcomeEmail(opts: {
     `,
   };
 }
+
+/**
+ * Monitor alert email — sent to platform admins when the health check
+ * detects degraded or down services.
+ */
+export function monitorAlertEmail(opts: {
+  severity: "info" | "warning" | "critical";
+  services: { service: string; status: string; latencyMs: number; message: string }[];
+  healActions: { success: boolean; action: string; detail: string }[];
+  timestamp: string;
+}): { subject: string; html: string } {
+  const sevColor: Record<string, string> = {
+    info: "#2563eb",
+    warning: "#d97706",
+    critical: "#dc2626",
+  };
+  const color = sevColor[opts.severity] ?? BD_DARK;
+  const sevLabel = opts.severity.toUpperCase();
+
+  const statusDot = (s: string) => {
+    if (s === "ok") return `<span style="color:#16a34a;">&#9679;</span>`;
+    if (s === "degraded") return `<span style="color:#d97706;">&#9679;</span>`;
+    return `<span style="color:#dc2626;">&#9679;</span>`;
+  };
+
+  const serviceRows = opts.services
+    .map(
+      (s) => `
+        <tr>
+          <td style="padding:6px 8px;border-bottom:1px solid #eee;">${statusDot(s.status)} ${esc(s.service)}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #eee;font-weight:600;color:${s.status === "ok" ? "#16a34a" : s.status === "degraded" ? "#d97706" : "#dc2626"};">${esc(s.status)}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #eee;color:${BD_GREY};">${s.latencyMs}ms</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #eee;color:${BD_GREY};font-size:13px;">${esc(s.message)}</td>
+        </tr>`,
+    )
+    .join("");
+
+  const healRows =
+    opts.healActions.length > 0
+      ? opts.healActions
+          .map(
+            (h) => `
+        <tr>
+          <td style="padding:6px 8px;border-bottom:1px solid #eee;">${h.success ? "&#10003;" : "&#10007;"} ${esc(h.action)}</td>
+          <td style="padding:6px 8px;border-bottom:1px solid #eee;font-size:13px;color:${BD_GREY};">${esc(h.detail)}</td>
+        </tr>`,
+          )
+          .join("")
+      : `<tr><td colspan="2" style="padding:8px;color:${BD_GREY};">No automatic actions taken.</td></tr>`;
+
+  const needsAttention = opts.services
+    .filter((s) => s.status !== "ok")
+    .map((s) => `<li style="margin-bottom:4px;">${esc(s.service)}: ${esc(s.message)}</li>`)
+    .join("");
+
+  const content = `
+<h1 style="font-size:22px;font-weight:800;margin:0 0 4px;color:${BD_DARK};">
+  Platform Health Alert
+</h1>
+<p style="margin:0 0 20px;">
+  <span style="display:inline-block;background-color:${color};color:#fff;font-size:12px;font-weight:700;padding:2px 10px;border-radius:12px;letter-spacing:.5px;">${esc(sevLabel)}</span>
+  &nbsp;<span style="color:${BD_GREY};font-size:13px;">${esc(opts.timestamp)}</span>
+</p>
+
+<h2 style="font-size:15px;font-weight:700;margin:0 0 10px;color:${BD_DARK};">Service Status</h2>
+<table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:24px;">
+  <thead>
+    <tr style="background:#f7f5f3;">
+      <th style="padding:6px 8px;text-align:left;font-size:12px;color:${BD_GREY};">Service</th>
+      <th style="padding:6px 8px;text-align:left;font-size:12px;color:${BD_GREY};">Status</th>
+      <th style="padding:6px 8px;text-align:left;font-size:12px;color:${BD_GREY};">Latency</th>
+      <th style="padding:6px 8px;text-align:left;font-size:12px;color:${BD_GREY};">Message</th>
+    </tr>
+  </thead>
+  <tbody>${serviceRows}</tbody>
+</table>
+
+<h2 style="font-size:15px;font-weight:700;margin:0 0 10px;color:${BD_DARK};">Auto-Heal Actions</h2>
+<table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:24px;">
+  <tbody>${healRows}</tbody>
+</table>
+
+${
+  needsAttention
+    ? `<h2 style="font-size:15px;font-weight:700;margin:0 0 8px;color:#dc2626;">Needs Attention</h2>
+<ul style="padding-left:20px;margin:0 0 20px;font-size:14px;color:#333;">${needsAttention}</ul>`
+    : ""
+}
+
+<p style="font-size:13px;color:${BD_GREY};margin:0;">
+  This alert was sent by the BuildMy.Directory self-healing monitor. It runs every 5 minutes via Inngest.
+</p>`;
+
+  return brandedEmail(content, `[${sevLabel}] BuildMy.Directory health alert`);
+}

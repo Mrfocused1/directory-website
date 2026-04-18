@@ -113,6 +113,46 @@ async function loginAndSaveCookies(username, password) {
   }
 }
 
+/** Parse a single edge node into our post shape */
+function edgeToPost(node) {
+  return {
+    shortcode: node.shortcode,
+    type: node.is_video ? "video" : node.__typename === "GraphSidecar" ? "carousel" : "image",
+    caption: node.edge_media_to_caption?.edges?.[0]?.node?.text || "",
+    displayUrl: node.display_url || "",
+    videoUrl: node.video_url || null,
+    thumbUrl: node.thumbnail_src || node.display_url || "",
+    mediaUrls: [node.video_url, node.display_url].filter(Boolean),
+    takenAt: node.taken_at_timestamp ? new Date(node.taken_at_timestamp * 1000).toISOString() : null,
+    likesCount: node.edge_liked_by?.count || node.edge_media_preview_like?.count || 0,
+    commentsCount: node.edge_media_to_comment?.count || 0,
+    numSlides: node.edge_sidecar_to_children?.edges?.length || 0,
+    platformUrl: `https://www.instagram.com/p/${node.shortcode}/`,
+  };
+}
+
+/** Parse a v1 feed item into our post shape */
+function feedItemToPost(item) {
+  const isVideo = item.media_type === 2;
+  const isCarousel = item.media_type === 8;
+  const videoUrl = (item.video_versions || [])[0]?.url || null;
+  const thumbUrl = (item.image_versions2?.candidates || [])[0]?.url || "";
+  return {
+    shortcode: item.code,
+    type: isVideo ? "video" : isCarousel ? "carousel" : "image",
+    caption: item.caption?.text || "",
+    displayUrl: thumbUrl,
+    videoUrl,
+    thumbUrl,
+    mediaUrls: [videoUrl, thumbUrl].filter(Boolean),
+    takenAt: item.taken_at ? new Date(item.taken_at * 1000).toISOString() : null,
+    likesCount: item.like_count || 0,
+    commentsCount: item.comment_count || 0,
+    numSlides: isCarousel ? (item.carousel_media?.length || 0) : 0,
+    platformUrl: `https://www.instagram.com/p/${item.code}/`,
+  };
+}
+
 async function scrapeInstagram(handle, maxPosts = 9) {
   const cleanHandle = handle.replace(/^@/, "").trim();
   console.log(`[scrape] @${cleanHandle} (max ${maxPosts})`, PROXY ? "via proxy" : "direct");
@@ -131,8 +171,7 @@ async function scrapeInstagram(handle, maxPosts = 9) {
     // Step 1: Load the public profile page to establish browser session/cookies
     await page.goto(`https://www.instagram.com/${cleanHandle}/`, { waitUntil: "networkidle2", timeout: 45000 });
 
-    // Step 2: Now call the API from this authenticated browser context
-    // Instagram grants session cookies to the browser during page load
+    // Step 2: Fetch profile data via API
     await page.setExtraHTTPHeaders({"X-IG-App-ID":"936619743392459","X-Requested-With":"XMLHttpRequest"});
     const profileResp = await page.goto(`https://www.instagram.com/api/v1/users/web_profile_info/?username=${cleanHandle}`, { waitUntil: "networkidle2", timeout: 30000 });
     let profileData;
@@ -148,64 +187,107 @@ async function scrapeInstagram(handle, maxPosts = 9) {
       return { success: false, error: "User not found or private", posts: [], handle: cleanHandle };
     }
 
-    const edges = user.edge_owner_to_timeline_media?.edges || [];
-    if (edges.length > 0) {
-      // Old-style edges response — extract posts from edges
-      const posts = edges.slice(0, maxPosts).map((edge) => {
-        const node = edge.node;
-        return {
-          shortcode: node.shortcode,
-          type: node.is_video ? "video" : node.__typename === "GraphSidecar" ? "carousel" : "image",
-          caption: node.edge_media_to_caption?.edges?.[0]?.node?.text || "",
-          displayUrl: node.display_url || "",
-          videoUrl: node.video_url || null,
-          thumbUrl: node.thumbnail_src || node.display_url || "",
-          mediaUrls: [node.video_url, node.display_url].filter(Boolean),
-          takenAt: node.taken_at_timestamp ? new Date(node.taken_at_timestamp * 1000).toISOString() : null,
-          likesCount: node.edge_liked_by?.count || node.edge_media_preview_like?.count || 0,
-          commentsCount: node.edge_media_to_comment?.count || 0,
-          numSlides: node.edge_sidecar_to_children?.edges?.length || 0,
-          platformUrl: `https://www.instagram.com/p/${node.shortcode}/`,
-        };
-      });
+    const userId = user.id;
+    const allPosts = [];
 
-      // Save any fresh cookies from the session
-      try {
-        const freshCookies = await page.cookies();
-        if (freshCookies.length > 0) fs.writeFileSync(COOKIE_FILE, JSON.stringify(freshCookies, null, 2));
-      } catch {}
+    // ── Strategy A: GraphQL edges with cursor pagination ──────────
+    const timelineMedia = user.edge_owner_to_timeline_media;
+    if (timelineMedia?.edges?.length > 0) {
+      // First batch from profile response
+      for (const edge of timelineMedia.edges) {
+        allPosts.push(edgeToPost(edge.node));
+        if (allPosts.length >= maxPosts) break;
+      }
 
-      console.log(`[scrape] found ${posts.length} posts for @${cleanHandle} (via edges)`);
-      return { success: true, posts, handle: cleanHandle };
+      let hasNext = timelineMedia.page_info?.has_next_page;
+      let endCursor = timelineMedia.page_info?.end_cursor;
+      let pageNum = 1;
+
+      // Paginate with GraphQL query_hash
+      while (hasNext && endCursor && allPosts.length < maxPosts) {
+        pageNum++;
+        const batchSize = Math.min(50, maxPosts - allPosts.length);
+        const variables = JSON.stringify({ id: userId, first: batchSize, after: endCursor });
+        // Instagram's public GraphQL endpoint for user media
+        const gqlUrl = `https://www.instagram.com/graphql/query/?query_hash=e769aa130647d2354c40ea6a439bfc08&variables=${encodeURIComponent(variables)}`;
+
+        try {
+          const gqlResp = await page.goto(gqlUrl, { waitUntil: "networkidle2", timeout: 20000 });
+          const gqlData = JSON.parse(await gqlResp.text());
+          const mediaData = gqlData?.data?.user?.edge_owner_to_timeline_media;
+
+          if (!mediaData?.edges?.length) {
+            console.log(`[scrape] page ${pageNum}: no more edges`);
+            break;
+          }
+
+          for (const edge of mediaData.edges) {
+            allPosts.push(edgeToPost(edge.node));
+            if (allPosts.length >= maxPosts) break;
+          }
+
+          hasNext = mediaData.page_info?.has_next_page;
+          endCursor = mediaData.page_info?.end_cursor;
+          console.log(`[scrape] page ${pageNum}: ${mediaData.edges.length} posts (total: ${allPosts.length})`);
+
+          // Rate limit: small delay between pages to avoid blocks
+          await new Promise(r => setTimeout(r, 1500 + Math.random() * 1000));
+        } catch (err) {
+          console.warn(`[scrape] GraphQL page ${pageNum} failed: ${err.message}`);
+          break;
+        }
+      }
+
+      if (allPosts.length > 0) {
+        try {
+          const freshCookies = await page.cookies();
+          if (freshCookies.length > 0) fs.writeFileSync(COOKIE_FILE, JSON.stringify(freshCookies, null, 2));
+        } catch {}
+
+        console.log(`[scrape] found ${allPosts.length} posts for @${cleanHandle} (via edges + pagination)`);
+        return { success: true, posts: allPosts, handle: cleanHandle };
+      }
     }
 
-    // If edges are empty but we have user ID, try v1 feed endpoint
-    const feedUrl = `https://www.instagram.com/api/v1/feed/user/${user.id}/?count=${maxPosts}`;
-    await page.setExtraHTTPHeaders({"X-IG-App-ID":"936619743392459","X-Requested-With":"XMLHttpRequest"});
-    const feedResp = await page.goto(feedUrl, { waitUntil: "networkidle2", timeout: 30000 });
-    const feedData = await feedResp.json().catch(() => ({}));
-    const items = feedData?.items || [];
+    // ── Strategy B: v1 feed endpoint with max_id pagination ──────
+    console.log(`[scrape] trying v1 feed endpoint for @${cleanHandle}...`);
+    let maxId = null;
+    let feedPage = 0;
 
-    const posts = items.slice(0, maxPosts).map((item) => {
-      const isVideo = item.media_type === 2;
-      const isCarousel = item.media_type === 8;
-      const videoUrl = (item.video_versions || [])[0]?.url || null;
-      const thumbUrl = (item.image_versions2?.candidates || [])[0]?.url || "";
-      return {
-        shortcode: item.code,
-        type: isVideo ? "video" : isCarousel ? "carousel" : "image",
-        caption: item.caption?.text || "",
-        displayUrl: thumbUrl,
-        videoUrl,
-        thumbUrl,
-        mediaUrls: [videoUrl, thumbUrl].filter(Boolean),
-        takenAt: item.taken_at ? new Date(item.taken_at * 1000).toISOString() : null,
-        likesCount: item.like_count || 0,
-        commentsCount: item.comment_count || 0,
-        numSlides: isCarousel ? (item.carousel_media?.length || 0) : 0,
-        platformUrl: `https://www.instagram.com/p/${item.code}/`,
-      };
-    });
+    while (allPosts.length < maxPosts) {
+      feedPage++;
+      const feedUrl = maxId
+        ? `https://www.instagram.com/api/v1/feed/user/${userId}/?count=33&max_id=${maxId}`
+        : `https://www.instagram.com/api/v1/feed/user/${userId}/?count=33`;
+
+      try {
+        const feedResp = await page.goto(feedUrl, { waitUntil: "networkidle2", timeout: 20000 });
+        const feedData = await feedResp.json().catch(() => ({}));
+        const items = feedData?.items || [];
+
+        if (items.length === 0) {
+          console.log(`[scrape] feed page ${feedPage}: no items`);
+          break;
+        }
+
+        for (const item of items) {
+          allPosts.push(feedItemToPost(item));
+          if (allPosts.length >= maxPosts) break;
+        }
+
+        console.log(`[scrape] feed page ${feedPage}: ${items.length} items (total: ${allPosts.length})`);
+
+        if (!feedData.more_available) break;
+        maxId = feedData.next_max_id;
+        if (!maxId) break;
+
+        // Rate limit
+        await new Promise(r => setTimeout(r, 2000 + Math.random() * 1000));
+      } catch (err) {
+        console.warn(`[scrape] feed page ${feedPage} failed: ${err.message}`);
+        break;
+      }
+    }
 
     // Save fresh cookies
     try {
@@ -213,8 +295,8 @@ async function scrapeInstagram(handle, maxPosts = 9) {
       if (freshCookies.length > 0) fs.writeFileSync(COOKIE_FILE, JSON.stringify(freshCookies, null, 2));
     } catch {}
 
-    console.log(`[scrape] found ${posts.length} posts for @${cleanHandle} (via feed)`);
-    return { success: true, posts, handle: cleanHandle };
+    console.log(`[scrape] found ${allPosts.length} posts for @${cleanHandle} (via feed pagination)`);
+    return { success: true, posts: allPosts, handle: cleanHandle };
   } catch (err) {
     console.error(`[scrape] error for @${cleanHandle}:`, err.message);
     return { success: false, error: err.message, posts: [], handle: cleanHandle };

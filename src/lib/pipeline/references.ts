@@ -253,9 +253,9 @@ async function inferReferencesViaLLMBatch(
 
   if (postTexts.length === 0) return [];
 
-  const prompt = `You're identifying things a viewer would want to look up after watching these short-form videos. Be GENEROUS with references — aim for 3-6 per post.
+  const prompt = `You're identifying things a viewer would want to look up after watching these short-form videos. Be GENEROUS — target 6 to 8 references per post; never fewer than 5 unless the post is genuinely topic-free (greetings, pure self-promo, podcast ad boilerplate).
 
-For each post below, extract 3 to 6 references — a good mix of articles and YouTube video topics. Every post should have at least 2 references. Think broadly: what would a viewer want to learn more about after seeing this content?
+For each post below, extract 6 to 8 references — an even mix of articles (3-4) and YouTube video topics (3-4). If the post is a filler post with no real content, you may return 0 references for it.
 
 For each reference, produce one JSON object:
 {
@@ -267,20 +267,20 @@ For each reference, produce one JSON object:
 }
 
 Rules:
-- "article" kind: brands, products, tools, books, podcasts, studies, organizations, concepts, strategies mentioned or implied
-- "youtube" kind: topics that would benefit from a video explainer (aim for 2-3 per post)
+- "article" kind: brands, products, tools, books, podcasts, studies, organizations, concepts, strategies, investing ideas, historical events, legal or business concepts
+- "youtube" kind: topics that benefit from a video explainer (3-4 per post)
 - searchQuery should be specific enough to find the right result on the first try
-- Include related educational content even if not explicitly mentioned — e.g. if someone talks about S&P 500, reference articles about index investing and YouTube videos about how the S&P works
+- Think broadly: if a post is about a topic (e.g. Dubai geopolitics, S&P 500, entrepreneurship), include articles + videos about adjacent concepts even if not explicitly named
 - DO NOT extract the creator themselves or platform names
-- Even short captions about investing/finance should get 2-3 references about the topic discussed
+- DO NOT skip posts with real content just because they're short — a 15-second clip about business often deserves 6+ references
 
-Output ONLY a JSON array. Never return an empty array — every post about a real topic deserves references.
+Output ONLY a JSON array.
 
 ${postTexts.join("\n\n")}`;
 
   try {
     // Scale max_tokens with batch size
-    const maxTokens = Math.min(400 * posts.length, 4096);
+    const maxTokens = Math.min(550 * posts.length, 8192);
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {

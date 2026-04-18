@@ -8,7 +8,7 @@
 
 import { db } from "@/db";
 import { sites, posts, pipelineJobs, users } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import { scrapeProfile } from "./scraper";
 import { uploadThumbnail, uploadMedia } from "./storage";
 import { transcribeVideo } from "./transcriber";
@@ -391,19 +391,34 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     if (canExtractReferences) {
       await report("references", 85, "Finding references...");
       try {
-        // On sync: only run references for NEW posts. Existing posts
-        // were already processed; re-running would waste Claude calls
-        // AND (because refs are wipe-then-insert below) temporarily
-        // blank out refs on posts that are only being re-evaluated.
+        // On sync: run references for NEW posts AND existing posts that
+        // have zero references (meaning they failed last time). This
+        // ensures a SearXNG outage doesn't permanently leave posts
+        // without references.
         const newShortcodes = new Set(newPosts.map((p) => p.shortcode));
         const refPosts = await database.query.posts.findMany({
           where: eq(posts.siteId, siteId),
           columns: { id: true, caption: true, transcript: true, shortcode: true },
           limit: 1000,
         });
-        const refTargets = isSync
-          ? refPosts.filter((p) => newShortcodes.has(p.shortcode))
-          : refPosts;
+
+        let refTargets: typeof refPosts;
+        if (isSync) {
+          // Find posts that have zero references
+          const postIds = refPosts.map((p) => p.id);
+          const existingRefs = postIds.length > 0
+            ? await database.query.references.findMany({
+                where: inArray(referencesTable.postId, postIds),
+                columns: { postId: true },
+              })
+            : [];
+          const postsWithRefs = new Set(existingRefs.map((r) => r.postId));
+          refTargets = refPosts.filter(
+            (p) => newShortcodes.has(p.shortcode) || !postsWithRefs.has(p.id),
+          );
+        } else {
+          refTargets = refPosts;
+        }
         const rows = refTargets.length === 0
           ? []
           : await extractReferencesForPosts(
@@ -444,6 +459,7 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
           }
         }
       } catch (err) {
+        console.error("[pipeline] References step failed:", err instanceof Error ? err.message : err);
         captureError(err, { step: "references", siteId });
       }
     }

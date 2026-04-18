@@ -16,6 +16,7 @@ interface ProfileResult {
   fullName: string;
   avatarUrl: string;
   isVerified: boolean;
+  postCount: number;
 }
 
 export async function GET(request: NextRequest) {
@@ -67,6 +68,7 @@ async function lookupProfiles(query: string): Promise<ProfileResult[]> {
             fullName: data.profile.fullName || data.profile.full_name || "",
             avatarUrl: data.profile.avatarUrl || data.profile.profile_pic_url || "",
             isVerified: data.profile.isVerified || data.profile.is_verified || false,
+            postCount: data.profile.postCount || data.profile.media_count || 0,
           }];
         }
       }
@@ -94,6 +96,7 @@ async function lookupProfiles(query: string): Promise<ProfileResult[]> {
           fullName: u.full_name || "",
           avatarUrl: u.profile_pic_url_hd || u.profile_pic_url || "",
           isVerified: u.is_verified || false,
+          postCount: u.edge_owner_to_timeline_media?.count ?? 0,
         }];
       }
     }
@@ -119,6 +122,7 @@ async function lookupProfiles(query: string): Promise<ProfileResult[]> {
           fullName: (u.full_name as string) || "",
           avatarUrl: (u.profile_pic_url as string) || "",
           isVerified: (u.is_verified as boolean) || false,
+          postCount: 0,
         };
       });
     }
@@ -132,5 +136,6 @@ async function lookupProfiles(query: string): Promise<ProfileResult[]> {
     fullName: "",
     avatarUrl: "",
     isVerified: false,
+    postCount: 0,
   }];
 }

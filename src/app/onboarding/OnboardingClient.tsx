@@ -9,6 +9,367 @@ import MarketingFooter from "@/components/marketing/MarketingFooter";
 
 type Step = "handle" | "customize" | "processing" | "done";
 
+// ─── Demo carousel frames shown during processing ───────────────────────────
+const DEMO_FRAMES = [
+  {
+    id: "grid",
+    label: "Content grid",
+    render: () => (
+      <div className="p-3 h-full flex flex-col">
+        <div className="flex items-center gap-1.5 mb-2.5">
+          <div className="w-2 h-2 rounded-full bg-[color:var(--bd-lime)]" />
+          <div className="h-2 w-16 rounded-full bg-white/30" />
+        </div>
+        <div className="grid grid-cols-3 gap-1.5 flex-1">
+          {["var(--bd-maroon)","var(--bd-lilac)","var(--bd-lime)","var(--bd-green)","var(--bd-maroon)","var(--bd-lime)"].map((bg, i) => (
+            <div key={i} className="rounded-lg flex flex-col gap-1 p-1.5" style={{ backgroundColor: bg, opacity: 0.85 }}>
+              <div className="flex-1 rounded" style={{ backgroundColor: "rgba(0,0,0,0.15)" }} />
+              <div className="h-1.5 w-3/4 rounded-full bg-white/40" />
+              <div className="h-1 w-1/2 rounded-full bg-white/25" />
+            </div>
+          ))}
+        </div>
+        <div className="mt-2 flex gap-1">
+          {["All","Tips","Recipes","Vlogs"].map((t) => (
+            <span key={t} className="text-[8px] px-1.5 py-0.5 rounded-full bg-white/20 text-white/80">{t}</span>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "modal",
+    label: "Post details",
+    render: () => (
+      <div className="p-3 h-full flex flex-col gap-2">
+        <div className="rounded-lg flex-1" style={{ backgroundColor: "var(--bd-maroon)", opacity: 0.85, minHeight: 60, position: "relative", overflow: "hidden" }}>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><polygon points="5,3 19,12 5,21"/></svg>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white/15 rounded-lg p-2 space-y-1">
+          <div className="h-1.5 w-3/4 rounded-full bg-white/50" />
+          <div className="h-1.5 w-full rounded-full bg-white/35" />
+          <div className="h-1.5 w-5/6 rounded-full bg-white/35" />
+          <div className="h-1.5 w-2/3 rounded-full bg-white/25" />
+        </div>
+        <div className="flex gap-1">
+          {["React","Python","Design"].map((tag) => (
+            <span key={tag} className="text-[7px] px-1.5 py-0.5 rounded-full bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] font-semibold">{tag}</span>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "search",
+    label: "Search & filter",
+    render: () => (
+      <div className="p-3 h-full flex flex-col gap-2">
+        <div className="flex items-center gap-1.5 bg-white/20 rounded-full px-2.5 h-7">
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <div className="h-1.5 w-20 rounded-full bg-white/40" />
+        </div>
+        <div className="flex gap-1 flex-wrap">
+          {["Tutorials","Q&A","Reviews","Vlogs","Tips"].map((f, i) => (
+            <span key={f} className="text-[7px] px-1.5 py-0.5 rounded-full font-semibold" style={{ backgroundColor: i === 0 ? "var(--bd-lime)" : "rgba(255,255,255,0.2)", color: i === 0 ? "var(--bd-dark)" : "white" }}>{f}</span>
+          ))}
+        </div>
+        <div className="flex-1 space-y-1.5">
+          {[3,4,2].map((bars, i) => (
+            <div key={i} className="flex items-center gap-1.5 bg-white/10 rounded-lg p-1.5">
+              <div className="w-6 h-6 rounded shrink-0" style={{ backgroundColor: ["var(--bd-maroon)","var(--bd-lilac)","var(--bd-green)"][i], opacity: 0.9 }} />
+              <div className="flex-1 space-y-0.5">
+                <div className="h-1.5 rounded-full bg-white/50" style={{ width: `${bars * 22}%` }} />
+                <div className="h-1 rounded-full bg-white/25 w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "analytics",
+    label: "Analytics",
+    render: () => (
+      <div className="p-3 h-full flex flex-col gap-2">
+        <div className="grid grid-cols-2 gap-1.5">
+          {[{label:"Views",val:"12.4k"},{label:"Saves",val:"890"},{label:"Shares",val:"234"},{label:"Clicks",val:"3.1k"}].map((m) => (
+            <div key={m.label} className="bg-white/15 rounded-lg p-1.5 text-center">
+              <div className="text-[10px] font-bold text-white">{m.val}</div>
+              <div className="text-[7px] text-white/60">{m.label}</div>
+            </div>
+          ))}
+        </div>
+        <div className="flex-1 bg-white/10 rounded-lg p-2 flex items-end gap-0.5">
+          {[40,65,50,80,55,90,70,85,60,95,75,100].map((h, i) => (
+            <div key={i} className="flex-1 rounded-t" style={{ height: `${h}%`, backgroundColor: i === 11 ? "var(--bd-lime)" : "rgba(255,255,255,0.3)" }} />
+          ))}
+        </div>
+      </div>
+    ),
+  },
+];
+
+const FUN_FACTS = [
+  "Your directory will be SEO-optimized automatically",
+  "Every video gets AI-powered transcription",
+  "Smart references connect your content to useful resources",
+  "Your audience can search, filter, and bookmark posts",
+];
+
+// Parse progress counts from pipeline messages like "Scraped 120 posts" or "Transcribed 5/20 videos"
+function parseProgressFromMessage(message: string): string | null {
+  const match = message.match(/(\d+(?:\/\d+)?)\s+(?:posts?|videos?|clips?)/i);
+  return match ? match[0] : null;
+}
+
+function ProcessingStep({
+  pipelineStatus,
+  handle,
+  postCount,
+  currentSiteId,
+  retryPipeline,
+  handleStartBuild,
+  setIsBuilding,
+  setPipelineStatus,
+  setStep,
+}: {
+  pipelineStatus: { step: string; progress: number; message: string };
+  handle: string;
+  postCount: number;
+  currentSiteId: string | null;
+  retryPipeline: () => Promise<void>;
+  handleStartBuild: (e: React.FormEvent) => Promise<void>;
+  setIsBuilding: (v: boolean) => void;
+  setPipelineStatus: (v: { step: string; progress: number; message: string }) => void;
+  setStep: (s: Step) => void;
+}) {
+  const [carouselFrame, setCarouselFrame] = useState(0);
+  const [factIndex, setFactIndex] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const startedAt = useRef(Date.now());
+
+  // Rotate carousel every 4 seconds
+  useEffect(() => {
+    const id = setInterval(() => {
+      setCarouselFrame((f) => (f + 1) % DEMO_FRAMES.length);
+    }, 4000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Rotate fun facts every 6 seconds
+  useEffect(() => {
+    const id = setInterval(() => {
+      setFactIndex((i) => (i + 1) % FUN_FACTS.length);
+    }, 6000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Tick elapsed time every second
+  useEffect(() => {
+    const id = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt.current) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const estimatedMinutes = postCount > 0
+    ? Math.max(2, Math.ceil(postCount / 50)) + 2
+    : 5;
+  const estimatedSeconds = estimatedMinutes * 60;
+  const remainingSeconds = Math.max(0, estimatedSeconds - elapsedSeconds);
+  const remainingMinutes = Math.ceil(remainingSeconds / 60);
+
+  const cleanHandle = handle.replace(/^@/, "");
+
+  const stepOrder = ["scrape", "transcribe", "categorize", "complete"];
+  const pipelineSteps = [
+    { key: "scrape", label: "Scraping posts" },
+    { key: "transcribe", label: "Transcribing videos" },
+    { key: "categorize", label: "Categorizing content" },
+    { key: "complete", label: "Publishing directory" },
+  ];
+
+  const progressDetail = parseProgressFromMessage(pipelineStatus.message);
+
+  const frame = DEMO_FRAMES[carouselFrame];
+
+  return (
+    <div className="animate-fade-in text-center pt-4">
+      {/* Timeline prediction header */}
+      <div className="mb-5">
+        <h1 className="font-display-tight text-[2rem] sm:text-[2.75rem] text-[color:var(--bd-dark)] leading-tight">
+          Building @{cleanHandle}
+        </h1>
+        <p className="text-[color:var(--bd-grey)] text-sm mt-1">
+          {pipelineStatus.step === "error"
+            ? "Something went wrong"
+            : remainingSeconds > 0
+            ? `~${remainingMinutes} minute${remainingMinutes !== 1 ? "s" : ""} remaining`
+            : "Almost done…"}
+        </p>
+      </div>
+
+      {/* Phone mockup carousel */}
+      <div className="max-w-[200px] mx-auto mb-6 relative">
+        {/* Phone shell */}
+        <div
+          className="relative rounded-[1.75rem] overflow-hidden shadow-2xl"
+          style={{
+            background: "var(--bd-dark)",
+            paddingTop: "2px",
+            paddingBottom: "4px",
+            border: "2px solid rgba(255,255,255,0.08)",
+          }}
+        >
+          {/* Notch */}
+          <div className="flex justify-center mb-1 pt-1">
+            <div className="w-12 h-1 bg-white/10 rounded-full" />
+          </div>
+          {/* Screen area */}
+          <div
+            className="mx-2 rounded-[1.25rem] overflow-hidden relative"
+            style={{ height: 220, background: "var(--bd-dark)" }}
+          >
+            {DEMO_FRAMES.map((f, i) => (
+              <div
+                key={f.id}
+                className="absolute inset-0 transition-opacity duration-700"
+                style={{ opacity: i === carouselFrame ? 1 : 0 }}
+              >
+                {f.render()}
+              </div>
+            ))}
+          </div>
+          {/* Frame label */}
+          <div className="flex justify-center items-center gap-1.5 py-2">
+            {DEMO_FRAMES.map((_, i) => (
+              <div
+                key={i}
+                className="rounded-full transition-all duration-300"
+                style={{
+                  width: i === carouselFrame ? 16 : 5,
+                  height: 5,
+                  backgroundColor: i === carouselFrame ? "var(--bd-lime)" : "rgba(255,255,255,0.2)",
+                }}
+              />
+            ))}
+          </div>
+        </div>
+        <p className="text-[10px] text-[color:var(--bd-grey)] mt-2 tracking-wide uppercase">
+          {frame.label}
+        </p>
+      </div>
+
+      {/* Pipeline steps */}
+      <div className="max-w-sm mx-auto space-y-3 text-left bg-white rounded-2xl p-5 mb-5">
+        {pipelineSteps.map((s) => {
+          const currentIdx = stepOrder.indexOf(pipelineStatus.step);
+          const thisIdx = stepOrder.indexOf(s.key);
+          const isDone = thisIdx < currentIdx;
+          const isCurrent = thisIdx === currentIdx && pipelineStatus.step !== "error";
+
+          return (
+            <div key={s.key} className="flex items-center gap-3">
+              <div
+                className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
+                  isDone
+                    ? "bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)]"
+                    : isCurrent
+                      ? "bg-[color:var(--bd-dark)] text-[color:var(--bd-lime)]"
+                      : "bg-neutral-100"
+                }`}
+              >
+                {isDone ? (
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                ) : isCurrent ? (
+                  <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                ) : null}
+              </div>
+              <div className="flex-1 min-w-0">
+                <span
+                  className={`text-sm font-medium ${
+                    isDone
+                      ? "text-[color:var(--bd-dark)]"
+                      : isCurrent
+                        ? "text-[color:var(--bd-dark)] font-semibold"
+                        : "text-[color:var(--bd-grey)]"
+                  }`}
+                >
+                  {s.label}
+                </span>
+                {isCurrent && progressDetail && (
+                  <span className="ml-2 text-xs text-[color:var(--bd-grey)]">{progressDetail}</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Progress bar */}
+      <div className="max-w-sm mx-auto mb-5">
+        <div className="h-2 bg-neutral-200 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-[color:var(--bd-dark)] rounded-full transition-all duration-700"
+            style={{ width: `${pipelineStatus.progress}%` }}
+          />
+        </div>
+        <p className="text-xs text-[color:var(--bd-grey)] mt-2">{pipelineStatus.message}</p>
+      </div>
+
+      {/* Fun facts ticker */}
+      {pipelineStatus.step !== "error" && (
+        <div className="max-w-sm mx-auto bg-white/70 rounded-xl px-4 py-3 mb-5">
+          <p className="text-xs text-[color:var(--bd-grey)] italic transition-opacity duration-500">
+            {FUN_FACTS[factIndex]}
+          </p>
+        </div>
+      )}
+
+      {/* Error recovery */}
+      {pipelineStatus.step === "error" && (
+        <div className="max-w-sm mx-auto mt-4 flex gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setIsBuilding(false);
+              setPipelineStatus({ step: "scrape", progress: 0, message: "Starting..." });
+              setStep("customize");
+            }}
+            className="flex-1 h-12 border-2 border-neutral-200 rounded-full text-sm font-semibold text-[color:var(--bd-dark)] hover:bg-white transition"
+          >
+            Go Back
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (currentSiteId) {
+                void retryPipeline();
+              } else {
+                setIsBuilding(false);
+                setPipelineStatus({ step: "scrape", progress: 0, message: "Starting..." });
+                void handleStartBuild({ preventDefault: () => {} } as React.FormEvent);
+              }
+            }}
+            className="flex-1 h-12 bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] rounded-full text-sm font-semibold hover:opacity-90 transition"
+          >
+            Try Again
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function OnboardingClient() {
   return (
     <Suspense fallback={null}>
@@ -57,10 +418,11 @@ function OnboardingContent() {
   });
 
   // Instagram profile lookup
-  type ProfileHit = { username: string; fullName: string; avatarUrl: string; isVerified: boolean };
+  type ProfileHit = { username: string; fullName: string; avatarUrl: string; isVerified: boolean; postCount: number };
   const [profileResults, setProfileResults] = useState<ProfileHit[]>([]);
   const [profileLoading, setProfileLoading] = useState(false);
   const [confirmedProfile, setConfirmedProfile] = useState<ProfileHit | null>(null);
+  const [confirmedPostCount, setConfirmedPostCount] = useState(0);
   const lookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const searchProfiles = useCallback((query: string) => {
@@ -93,6 +455,7 @@ function OnboardingContent() {
   const selectProfile = useCallback((profile: ProfileHit) => {
     setHandle(profile.username);
     setConfirmedProfile(profile);
+    setConfirmedPostCount(profile.postCount ?? 0);
     setProfileResults([]);
     if (!slug) setSlug(profile.username.toLowerCase().replace(/[^a-z0-9-]/g, ""));
     if (!displayName) setDisplayName(profile.fullName || profile.username);
@@ -632,6 +995,14 @@ function OnboardingContent() {
                   </div>
                 </div>
 
+                {/* Estimate info line */}
+                {confirmedPostCount > 0 && (
+                  <p className="text-xs text-[color:var(--bd-grey)] text-center">
+                    @{handle.replace(/^@/, "")} has {confirmedPostCount.toLocaleString()} posts
+                    {" · "}Estimated build time: ~{Math.max(2, Math.ceil(confirmedPostCount / 50)) + 2} minutes
+                  </p>
+                )}
+
                 <div className="flex gap-3 pt-1">
                   <button
                     type="button"
@@ -653,117 +1024,17 @@ function OnboardingContent() {
 
           {/* Step: Processing */}
           {step === "processing" && !upgradeRequired && (
-            <div className="animate-fade-in text-center pt-6">
-              <div className="w-16 h-16 rounded-full bg-[color:var(--bd-dark)] text-[color:var(--bd-lime)] flex items-center justify-center mx-auto mb-6">
-                <svg className="animate-spin" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                </svg>
-              </div>
-              <h1 className="font-display-tight text-[2.5rem] sm:text-[3.25rem] text-[color:var(--bd-dark)] mb-3">
-                Building your
-                <br />
-                directory.
-              </h1>
-              <p className="text-[color:var(--bd-grey)] mb-10 leading-relaxed">
-                This usually takes 2-5 minutes depending on how much content you have.
-              </p>
-
-              {/* Pipeline steps */}
-              <div className="max-w-sm mx-auto space-y-4 text-left bg-white rounded-2xl p-6">
-                {[
-                  { key: "scrape", label: "Scraping your content" },
-                  { key: "transcribe", label: "Transcribing videos" },
-                  { key: "categorize", label: "Categorizing posts" },
-                  { key: "complete", label: "Publishing directory" },
-                ].map((s) => {
-                  const stepOrder = ["scrape", "transcribe", "categorize", "complete"];
-                  const currentIdx = stepOrder.indexOf(pipelineStatus.step);
-                  const thisIdx = stepOrder.indexOf(s.key);
-                  const isDone = thisIdx < currentIdx;
-                  const isCurrent = thisIdx === currentIdx;
-
-                  return (
-                    <div key={s.key} className="flex items-center gap-3">
-                      <div
-                        className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
-                          isDone
-                            ? "bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)]"
-                            : isCurrent
-                              ? "bg-[color:var(--bd-dark)] text-[color:var(--bd-lime)]"
-                              : "bg-[color:var(--bd-dark-faded)]"
-                        }`}
-                      >
-                        {isDone ? (
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M20 6L9 17l-5-5" />
-                          </svg>
-                        ) : isCurrent ? (
-                          <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                          </svg>
-                        ) : null}
-                      </div>
-                      <span
-                        className={`text-sm font-medium ${
-                          isDone
-                            ? "text-[color:var(--bd-dark)]"
-                            : isCurrent
-                              ? "text-[color:var(--bd-dark)] font-semibold"
-                              : "text-[color:var(--bd-grey)]"
-                        }`}
-                      >
-                        {s.label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Progress bar */}
-              <div className="max-w-sm mx-auto mt-6">
-                <div className="h-2 bg-[color:var(--bd-dark-faded)] rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-[color:var(--bd-dark)] rounded-full transition-all duration-500"
-                    style={{ width: `${pipelineStatus.progress}%` }}
-                  />
-                </div>
-                <p className="text-xs text-[color:var(--bd-grey)] mt-2">
-                  {pipelineStatus.message}
-                </p>
-              </div>
-
-              {/* Error recovery */}
-              {pipelineStatus.step === "error" && (
-                <div className="max-w-sm mx-auto mt-6 flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsBuilding(false);
-                      setPipelineStatus({ step: "scrape", progress: 0, message: "Starting..." });
-                      setStep("customize");
-                    }}
-                    className="flex-1 h-12 border-2 border-[color:var(--bd-dark-faded)] rounded-full text-sm font-semibold text-[color:var(--bd-dark)] hover:bg-white transition"
-                  >
-                    Go Back
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (currentSiteId) {
-                        void retryPipeline();
-                      } else {
-                        setIsBuilding(false);
-                        setPipelineStatus({ step: "scrape", progress: 0, message: "Starting..." });
-                        handleStartBuild({ preventDefault: () => {} } as React.FormEvent);
-                      }
-                    }}
-                    className="flex-1 h-12 bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] rounded-full text-sm font-semibold hover:opacity-90 transition"
-                  >
-                    Try Again
-                  </button>
-                </div>
-              )}
-            </div>
+            <ProcessingStep
+              pipelineStatus={pipelineStatus}
+              handle={handle}
+              postCount={confirmedPostCount}
+              currentSiteId={currentSiteId}
+              retryPipeline={retryPipeline}
+              handleStartBuild={handleStartBuild}
+              setIsBuilding={setIsBuilding}
+              setPipelineStatus={setPipelineStatus}
+              setStep={setStep}
+            />
           )}
 
           {/* Step: Done */}

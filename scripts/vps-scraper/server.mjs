@@ -439,13 +439,15 @@ async function scrapeInstagram(handle, maxPosts = 9) {
         maxId = feedResult.next_max_id;
         if (!maxId) break;
 
-        // Adaptive pacing — jitter 3-7s between pages, add a 30s cooldown
-        // every 10 pages to stay under IG's soft rate limits. Scraping
-        // hundreds of posts without this consistently gets throttled after
-        // ~8 pages.
-        const baseDelay = 3000 + Math.random() * 4000;
-        const cooldown = feedPage > 0 && feedPage % 10 === 0 ? 30_000 : 0;
-        if (cooldown) console.log(`[scrape] cooldown pause ${cooldown / 1000}s after ${feedPage} pages`);
+        // Adaptive pacing — jitter 1.5-3s between pages; drop the cooldown
+        // since we now scrape with a valid logged-in session cookie, which
+        // gives IG a much higher tolerance for sustained page loads than
+        // unauthenticated scraping did. Bigger cooldown stays behind a
+        // "many consecutive errors" guard so we only throttle if IG
+        // actually starts pushing back.
+        const baseDelay = 1500 + Math.random() * 1500;
+        const cooldown = consecutiveEmpty >= 1 ? 15_000 : 0;
+        if (cooldown) console.log(`[scrape] cooldown pause ${cooldown / 1000}s (recent empty page)`);
         await new Promise(r => setTimeout(r, baseDelay + cooldown));
       } catch (err) {
         console.warn(`[scrape] feed page ${feedPage} failed: ${err.message}`);

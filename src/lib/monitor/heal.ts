@@ -43,8 +43,14 @@ export async function restartVpsService(service: VpsService): Promise<HealResult
 }
 
 /**
- * Mark all pipeline_jobs that have been stuck in "running" for more than
- * 30 minutes as "failed" with a timeout message.
+ * Mark pipeline_jobs stuck in "running" as "failed". Two thresholds:
+ *   - 10 min if progress=0 (Vercel killed us before any work landed)
+ *   - 30 min otherwise (slow job that's still plausibly making progress)
+ *
+ * After cleanup we fire a pipeline/run event for each affected site so
+ * the UI doesn't just show "timed out" — it transparently retries.
+ * The runner's idempotent sync logic means a retry just picks up where
+ * the last run died rather than re-doing completed work.
  */
 export async function cleanupStalePipelines(): Promise<HealResult> {
   if (!db) {
@@ -52,8 +58,30 @@ export async function cleanupStalePipelines(): Promise<HealResult> {
   }
 
   try {
+    const tenMinsAgo = new Date(Date.now() - 10 * 60 * 1000);
     const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
-    const result = await db
+
+    // Jobs stuck at progress=0 for 10+ min are almost certainly dead
+    // (Vercel function killed before the first progress update). Jobs
+    // past 30 min are slow-or-dead regardless of progress.
+    const stuckAtZero = await db
+      .update(pipelineJobs)
+      .set({
+        status: "failed",
+        message: "Timed out",
+        error: "Timed out — cleaned up by monitor (killed at start)",
+        completedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(pipelineJobs.status, "running"),
+          lt(pipelineJobs.startedAt, tenMinsAgo),
+          eq(pipelineJobs.progress, 0),
+        ),
+      )
+      .returning({ id: pipelineJobs.id, siteId: pipelineJobs.siteId });
+
+    const stuckMidway = await db
       .update(pipelineJobs)
       .set({
         status: "failed",
@@ -64,15 +92,35 @@ export async function cleanupStalePipelines(): Promise<HealResult> {
       .where(
         and(
           eq(pipelineJobs.status, "running"),
-          lt(pipelineJobs.createdAt, thirtyMinsAgo),
+          lt(pipelineJobs.startedAt, thirtyMinsAgo),
         ),
       )
-      .returning({ id: pipelineJobs.id });
+      .returning({ id: pipelineJobs.id, siteId: pipelineJobs.siteId });
+
+    const affected = [...stuckAtZero, ...stuckMidway];
+    const uniqueSites = Array.from(new Set(affected.map((r) => r.siteId)));
+
+    // Auto-retry: fire pipeline/run for each affected site so the user
+    // doesn't just see a dead pipeline. Runner skips already-completed
+    // steps so this picks up where the last run died.
+    if (uniqueSites.length > 0) {
+      try {
+        const { inngest } = await import("@/lib/inngest/client");
+        for (const siteId of uniqueSites) {
+          await inngest.send({ name: "pipeline/run", data: { siteId } });
+        }
+      } catch (retryErr) {
+        console.warn(
+          "[monitor] auto-retry failed:",
+          retryErr instanceof Error ? retryErr.message : retryErr,
+        );
+      }
+    }
 
     return {
       success: true,
       action: "cleanup-stale-pipelines",
-      detail: `Marked ${result.length} stale job(s) as failed`,
+      detail: `Cleaned ${affected.length} stale job(s) across ${uniqueSites.length} site(s); retry events sent`,
     };
   } catch (err) {
     return {

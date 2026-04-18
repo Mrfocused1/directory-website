@@ -627,12 +627,19 @@ async function updateJob(siteId: string, step: string, status: string, progress:
   });
 
   if (existing) {
+    // Refresh startedAt whenever a step flips back into "running" — the
+    // monitor needs to distinguish "attempt just started" from "this row
+    // was first created 3 hours ago". Without this, createdAt stays
+    // frozen across retries and the monitor flags freshly-retried jobs
+    // as stale almost immediately.
+    const isNewAttempt = status === "running" && existing.status !== "running";
     await db.update(pipelineJobs)
       .set({
         status,
         progress,
         message,
         error,
+        startedAt: isNewAttempt ? new Date() : existing.startedAt,
         completedAt: status === "completed" ? new Date() : null,
       })
       .where(eq(pipelineJobs.id, existing.id));

@@ -118,23 +118,40 @@ export async function checkApiKeys(): Promise<ServiceCheck[]> {
 export async function checkStalePipelines(): Promise<ServiceCheck> {
   return runCheck("pipeline", async () => {
     if (!db) return { status: "down", latencyMs: 0, message: "db not available" };
+    // Stuck-at-zero (10 min) is a much stronger signal of a killed
+    // Vercel function than a simple "still going" 30-min job, so we
+    // check for both and report whichever is more alarming.
+    const tenMinsAgo = new Date(Date.now() - 10 * 60 * 1000);
     const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
     const start = Date.now();
-    const stale = await db
+
+    const stuckAtZero = await db
       .select({ id: pipelineJobs.id })
       .from(pipelineJobs)
       .where(
         and(
           eq(pipelineJobs.status, "running"),
-          lt(pipelineJobs.createdAt, thirtyMinsAgo),
+          lt(pipelineJobs.startedAt, tenMinsAgo),
+          eq(pipelineJobs.progress, 0),
         ),
       );
+    const stuckMidway = await db
+      .select({ id: pipelineJobs.id })
+      .from(pipelineJobs)
+      .where(
+        and(
+          eq(pipelineJobs.status, "running"),
+          lt(pipelineJobs.startedAt, thirtyMinsAgo),
+        ),
+      );
+
     const latencyMs = Date.now() - start;
-    if (stale.length === 0) return { status: "ok", latencyMs, message: "no stale pipelines" };
+    const total = stuckAtZero.length + stuckMidway.length;
+    if (total === 0) return { status: "ok", latencyMs, message: "no stale pipelines" };
     return {
       status: "degraded",
       latencyMs,
-      message: `${stale.length} pipeline job(s) stuck for >30 min`,
+      message: `${stuckAtZero.length} stuck-at-start + ${stuckMidway.length} stuck-mid-run`,
     };
   });
 }

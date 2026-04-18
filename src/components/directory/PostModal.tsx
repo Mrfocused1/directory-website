@@ -162,9 +162,27 @@ export default function PostModal({
 
               {/* Caption + actions */}
               <section className="px-4 pt-4">
-                <p className="text-sm whitespace-pre-line leading-relaxed">
-                  {post.caption}
-                </p>
+                {post.caption && (
+                  <details className="group">
+                    <summary className="text-xs font-semibold uppercase tracking-wide text-[color:var(--fg-subtle)] cursor-pointer hover:text-[color:var(--fg)] transition list-none flex items-center gap-1">
+                      <svg
+                        className="w-3 h-3 transition-transform group-open:rotate-90"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M9 5l7 7-7 7" />
+                      </svg>
+                      Caption
+                    </summary>
+                    <p className="mt-2 text-sm whitespace-pre-line leading-relaxed">
+                      {post.caption}
+                    </p>
+                  </details>
+                )}
 
                 {/* AI Summary */}
                 {post.summary && (

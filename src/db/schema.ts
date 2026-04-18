@@ -479,6 +479,24 @@ export const adminAuditLog = pgTable(
   ],
 );
 
+// ─── IG scraper session lifecycle (observability) ────────────────────
+// Logged only on state transitions from POST /api/session/recover:
+//   - `died`       → previous check said valid, this one says invalid
+//   - `refreshed`  → previous check said invalid, this one says valid
+// Use `/api/session/stats` to see lifespan distributions over time.
+export const sessionEvents = pgTable(
+  "session_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    eventType: varchar("event_type", { length: 16 }).notNull(), // died | refreshed
+    reason: text("reason"), // passthrough of VPS /check-session reason
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => ({
+    createdAtIdx: index("session_events_created_at_idx").on(t.createdAt),
+  }),
+);
+
 // ─── Stripe Webhook Events (idempotency tracking) ────────────────────
 // Stripe can deliver the same webhook multiple times. We insert event.id
 // before processing side effects; a unique-violation means we've already

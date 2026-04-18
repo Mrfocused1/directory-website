@@ -18,6 +18,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { resend } from "@/lib/email/resend";
+import { db } from "@/db";
+import { sessionEvents } from "@/db/schema";
+import { desc } from "drizzle-orm";
 
 const VPS_URL = process.env.SCRAPER_VPS_URL;
 const VPS_KEY = process.env.SCRAPER_VPS_API_KEY;
@@ -83,16 +86,45 @@ export async function POST(request: NextRequest) {
   const tryVpsFirst = url.searchParams.get("tryVpsFirst") === "1";
 
   try {
-    // Step 1: session health check
+    // Step 1: session health check + lifecycle logging.
+    //
+    // We only log state *transitions* (valid→invalid = died, invalid→
+    // valid = refreshed) so the table grows one row per flip, not one
+    // per 2-hour poll. Gaps between events give us the real lifespan.
     let reason: string | undefined;
+    let currentlyValid = false;
     if (!force) {
       const checkRes = await vpsFetch("/check-session");
       if (checkRes.ok) {
         const data = (await checkRes.json()) as VpsSessionCheck;
-        if (data.valid) {
-          return NextResponse.json({ recovered: false, reason: "session_already_valid" });
-        }
+        currentlyValid = !!data.valid;
         reason = data.reason;
+      }
+
+      // Log the transition (if any) before returning
+      if (db) {
+        try {
+          const lastEvent = await db
+            .select()
+            .from(sessionEvents)
+            .orderBy(desc(sessionEvents.createdAt))
+            .limit(1);
+          const lastType = lastEvent[0]?.eventType;
+          // Infer the previous state: died ⇒ was-invalid, refreshed ⇒ was-valid.
+          // If there's no history yet and the session is currently invalid,
+          // record that as the first `died` event so we have a start point.
+          if (currentlyValid && lastType !== "refreshed" && lastType) {
+            await db.insert(sessionEvents).values({ eventType: "refreshed", reason });
+          } else if (!currentlyValid && lastType !== "died") {
+            await db.insert(sessionEvents).values({ eventType: "died", reason });
+          }
+        } catch (err) {
+          console.warn("[session-recover] lifecycle log failed:", err);
+        }
+      }
+
+      if (currentlyValid) {
+        return NextResponse.json({ recovered: false, reason: "session_already_valid" });
       }
     }
 

@@ -141,19 +141,53 @@ type SearchResult = { title: string; url: string };
  * categories: "general" for articles, "videos" for YouTube.
  */
 async function webSearch(query: string, category: "general" | "videos", limit = 5): Promise<SearchResult[]> {
-  if (!SEARXNG_URL) return [];
+  // Try SearXNG first
+  if (SEARXNG_URL) {
+    try {
+      const params = new URLSearchParams({ q: query, format: "json", categories: category });
+      const res = await fetch(`${SEARXNG_URL}/search?${params}`, {
+        signal: AbortSignal.timeout(8000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const results = (data.results || []) as { title?: string; url?: string }[];
+        const filtered = results.filter((r) => r.title && r.url).slice(0, limit).map((r) => ({ title: r.title!, url: r.url! }));
+        if (filtered.length > 0) return filtered;
+      }
+    } catch {
+      // SearXNG failed — try fallback
+    }
+  }
+
+  // Fallback: DuckDuckGo instant answers API (no key needed)
   try {
-    const params = new URLSearchParams({ q: query, format: "json", categories: category });
-    const res = await fetch(`${SEARXNG_URL}/search?${params}`, {
-      signal: AbortSignal.timeout(8000),
-    });
+    const ddgQuery = category === "videos"
+      ? `${query} site:youtube.com`
+      : query;
+    const res = await fetch(
+      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(ddgQuery)}`,
+      {
+        headers: { "User-Agent": "Mozilla/5.0 BuildMyDirectoryBot/1.0" },
+        signal: AbortSignal.timeout(8000),
+      },
+    );
     if (!res.ok) return [];
-    const data = await res.json();
-    const results = (data.results || []) as { title?: string; url?: string }[];
-    return results
-      .filter((r) => r.title && r.url)
-      .slice(0, limit)
-      .map((r) => ({ title: r.title!, url: r.url! }));
+    const html = await res.text();
+    // Parse result links from DDG HTML
+    const linkRegex = /class="result__a"[^>]*href="([^"]+)"[^>]*>([^<]+)/gi;
+    const results: SearchResult[] = [];
+    let match;
+    while ((match = linkRegex.exec(html)) && results.length < limit) {
+      let url = match[1];
+      const title = match[2].trim();
+      // DDG wraps URLs in a redirect — extract the actual URL
+      const udParam = url.match(/uddg=([^&]+)/);
+      if (udParam) url = decodeURIComponent(udParam[1]);
+      if (url.startsWith("http") && title) {
+        results.push({ title, url });
+      }
+    }
+    return results;
   } catch {
     return [];
   }

@@ -28,16 +28,34 @@ const refCounts = new Map(
 const targets = posts.filter((p) => (refCounts.get(p.id) ?? 0) < 4);
 console.log(`${posts.length} posts total, ${targets.length} need more references (< 4 each)`);
 
+// Reject results that are obviously non-English: foreign-locale TLDs,
+// known non-English hosts, or titles where >20% of characters are
+// outside the basic Latin ASCII range. SearXNG's language filter is
+// a partial solution — this catches the stragglers.
+const NON_ENGLISH_HOST = /\.(cn|jp|kr|ru|tw|vn|th)$|(baidu|zhihu|qq|sohu|sina|naver|yandex)\.com/i;
+
+function isEnglishResult(title, url) {
+  try {
+    if (NON_ENGLISH_HOST.test(new URL(url).hostname)) return false;
+  } catch {}
+  if (!title) return true;
+  const nonAscii = (title.match(/[^\x00-\x7F]/g) || []).length;
+  return nonAscii / title.length < 0.2;
+}
+
 async function searxSearch(query, category) {
   try {
     const u = new URL(`${SEARXNG_URL}/search`);
     u.searchParams.set("q", query);
     u.searchParams.set("format", "json");
     u.searchParams.set("categories", category);
+    u.searchParams.set("language", "en-GB");
     const res = await fetch(u, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) return [];
     const data = await res.json();
-    return (data.results || []).filter((r) => r.title && r.url).slice(0, 3);
+    return (data.results || [])
+      .filter((r) => r.title && r.url && isEnglishResult(r.title, r.url))
+      .slice(0, 3);
   } catch {
     return [];
   }

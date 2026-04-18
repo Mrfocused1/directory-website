@@ -140,18 +140,43 @@ type SearchResult = { title: string; url: string };
  * Search via self-hosted SearXNG. Returns top results.
  * categories: "general" for articles, "videos" for YouTube.
  */
+// SearXNG's language filter catches most non-English results but
+// occasionally leaks Baidu / Yandex / foreign-TLD pages through. We
+// reject those here: known non-English hosts, foreign-locale TLDs,
+// or titles where >20% of characters fall outside basic Latin ASCII.
+const NON_ENGLISH_HOST = /\.(cn|jp|kr|ru|tw|vn|th)$|(baidu|zhihu|qq|sohu|sina|naver|yandex)\.com/i;
+
+function isEnglishResult(title: string, url: string): boolean {
+  try {
+    if (NON_ENGLISH_HOST.test(new URL(url).hostname)) return false;
+  } catch {
+    /* ignore malformed URLs */
+  }
+  if (!title) return true;
+  const nonAscii = (title.match(/[^\x00-\x7F]/g) || []).length;
+  return nonAscii / title.length < 0.2;
+}
+
 async function webSearch(query: string, category: "general" | "videos", limit = 5): Promise<SearchResult[]> {
   // Try SearXNG first
   if (SEARXNG_URL) {
     try {
-      const params = new URLSearchParams({ q: query, format: "json", categories: category });
+      const params = new URLSearchParams({
+        q: query,
+        format: "json",
+        categories: category,
+        language: "en-GB",
+      });
       const res = await fetch(`${SEARXNG_URL}/search?${params}`, {
         signal: AbortSignal.timeout(8000),
       });
       if (res.ok) {
         const data = await res.json();
         const results = (data.results || []) as { title?: string; url?: string }[];
-        const filtered = results.filter((r) => r.title && r.url).slice(0, limit).map((r) => ({ title: r.title!, url: r.url! }));
+        const filtered = results
+          .filter((r) => r.title && r.url && isEnglishResult(r.title, r.url))
+          .slice(0, limit)
+          .map((r) => ({ title: r.title!, url: r.url! }));
         if (filtered.length > 0) return filtered;
       }
     } catch {

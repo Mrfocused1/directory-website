@@ -196,36 +196,58 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     if (postsToUpload.length === 0) {
       await report("transcribe", 40, "No new posts to upload");
     }
-    for (let i = 0; i < postsToUpload.length; i++) {
-      const p = postsToUpload[i];
+    // Parallelize uploads in batches. Each upload is a network-bound
+    // fetch + R2 PUT, so running them serially burns the whole Vercel
+    // function budget for no reason. A batch size of 10 keeps R2 /
+    // upstream servers happy without saturating the function's sockets.
+    const UPLOAD_CONCURRENCY = 10;
+    let uploaded = 0;
+    for (let i = 0; i < postsToUpload.length; i += UPLOAD_CONCURRENCY) {
+      const batch = postsToUpload.slice(i, i + UPLOAD_CONCURRENCY);
+      const results = await Promise.all(
+        batch.map(async (p) => {
+          const thumbUrl = await uploadThumbnail(site.slug, p.shortcode, p.thumbUrl);
+          const mediaUrl = p.mediaUrls[0]
+            ? await uploadMedia(
+                site.slug,
+                p.shortcode,
+                p.mediaUrls[0],
+                p.type === "video" ? "video" : "image",
+              )
+            : null;
+          return { p, thumbUrl, mediaUrl };
+        }),
+      );
 
-      // Upload thumbnail and primary media
-      const thumbUrl = await uploadThumbnail(site.slug, p.shortcode, p.thumbUrl);
-      const mediaUrl = p.mediaUrls[0]
-        ? await uploadMedia(site.slug, p.shortcode, p.mediaUrls[0], p.type === "video" ? "video" : "image")
-        : null;
+      // Sort-order assignment has to be sequential so we don't get
+      // collisions — do it here on the main path after the parallel
+      // uploads finish.
+      for (const { p, thumbUrl, mediaUrl } of results) {
+        const title = (p.caption.split("\n")[0] || "Untitled").slice(0, 80);
+        await database
+          .insert(posts)
+          .values({
+            siteId,
+            shortcode: p.shortcode,
+            type: p.type,
+            caption: p.caption,
+            title,
+            category: "Uncategorized",
+            takenAt: p.takenAt,
+            mediaUrl,
+            thumbUrl,
+            numSlides: p.numSlides,
+            platformUrl: p.platformUrl,
+            isVisible: true,
+            sortOrder: nextSortOrder++,
+          })
+          .onConflictDoNothing();
+      }
 
-      // Generate a title from caption (first line, max 80 chars)
-      const title = (p.caption.split("\n")[0] || "Untitled").slice(0, 80);
-
-      await database.insert(posts).values({
-        siteId,
-        shortcode: p.shortcode,
-        type: p.type,
-        caption: p.caption,
-        title,
-        category: "Uncategorized",
-        takenAt: p.takenAt,
-        mediaUrl,
-        thumbUrl,
-        numSlides: p.numSlides,
-        platformUrl: p.platformUrl,
-        isVisible: true,
-        sortOrder: nextSortOrder++,
-      }).onConflictDoNothing();
-
-      const pct = Math.round(10 + (i / postsToUpload.length) * 30);
-      await report("transcribe", pct, `Uploaded ${i + 1}/${postsToUpload.length}...`);
+      uploaded += batch.length;
+      const pct = Math.round(10 + (uploaded / postsToUpload.length) * 30);
+      await report("transcribe", pct, `Uploaded ${uploaded}/${postsToUpload.length}...`);
+      await updateJob(siteId, "transcribe", "running", pct, `Uploaded ${uploaded}/${postsToUpload.length}...`);
     }
 
     // ── Step 3: TRANSCRIBE (Creator+ plans only) ────────────────────

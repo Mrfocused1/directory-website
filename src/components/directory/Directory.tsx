@@ -177,7 +177,7 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
             {features?.requests !== false && (
               <a
                 href={`/${site.slug}/requests`}
-                className="inline-flex items-center gap-1.5 mt-4 mb-2 text-xs font-semibold text-[color:var(--fg)] bg-black/5 hover:bg-black/10 px-3 py-1.5 rounded-full transition"
+                className="inline-flex items-center gap-1.5 mt-4 mb-2 text-xs font-semibold text-[color:var(--fg)] bg-black/5 hover:bg-black/10 px-3 py-1.5 min-h-[44px] rounded-full transition"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -262,7 +262,7 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
                       type="button"
                       onClick={() => handleCategoryClick(c)}
                       aria-pressed={isActive}
-                      className="relative cursor-pointer text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-full text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] whitespace-nowrap flex-shrink-0 transition-colors"
+                      className="relative cursor-pointer text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 min-h-[36px] rounded-full text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] whitespace-nowrap flex-shrink-0 transition-colors"
                     >
                       <span className="relative z-10">{c}</span>
                       <span className="relative z-10 ml-1 text-[10px] opacity-60 tabular-nums">({count})</span>

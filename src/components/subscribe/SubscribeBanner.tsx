@@ -99,7 +99,7 @@ export default function SubscribeBanner({ siteId, siteName, categories = [] }: P
                 <button
                   type="submit"
                   disabled={status === "submitting"}
-                  className="h-12 px-6 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-xl text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition whitespace-nowrap"
+                  className="h-12 px-6 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-full text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition whitespace-nowrap"
                 >
                   {status === "submitting" ? "Subscribing..." : "Subscribe"}
                 </button>

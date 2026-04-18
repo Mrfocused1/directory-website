@@ -172,7 +172,7 @@ function LoginContent() {
                 <div className="text-center">
                   <Link
                     href="/forgot-password"
-                    className="text-xs font-medium text-[color:var(--bd-grey)] hover:text-[color:var(--bd-dark)] hover:underline"
+                    className="inline-block py-2 text-xs font-medium text-[color:var(--bd-grey)] hover:text-[color:var(--bd-dark)] hover:underline"
                   >
                     Forgot your password?
                   </Link>
@@ -188,7 +188,7 @@ function LoginContent() {
                 <button
                   type="button"
                   onClick={() => { setMode("signup"); setError(null); setMessage(null); }}
-                  className="font-semibold text-[color:var(--bd-dark)] hover:underline"
+                  className="py-2 font-semibold text-[color:var(--bd-dark)] hover:underline"
                 >
                   Sign up
                 </button>
@@ -199,7 +199,7 @@ function LoginContent() {
                 <button
                   type="button"
                   onClick={() => { setMode("login"); setError(null); setMessage(null); }}
-                  className="font-semibold text-[color:var(--bd-dark)] hover:underline"
+                  className="py-2 font-semibold text-[color:var(--bd-dark)] hover:underline"
                 >
                   Sign in
                 </button>

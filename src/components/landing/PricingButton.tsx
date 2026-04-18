@@ -88,7 +88,7 @@ export default function PricingButton({
         <button
           type="button"
           onClick={() => setShowPromo(true)}
-          className="w-full mt-2 text-xs text-white/50 hover:text-white/80 transition text-center"
+          className="w-full mt-2 py-2 text-xs text-white/50 hover:text-white/80 transition text-center"
         >
           Have a promo code?
         </button>

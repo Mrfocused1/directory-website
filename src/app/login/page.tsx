@@ -36,9 +36,13 @@ function LoginContent() {
   // click "Sign up" first.
   const isSignupContext =
     nextPath.startsWith("/onboarding") || nextPath.startsWith("/checkout-redirect");
-  const [mode, setMode] = useState<"login" | "signup">(isSignupContext ? "signup" : "login");
+  const [mode, setMode] = useState<"login" | "signup" | "verify">(
+    isSignupContext ? "signup" : "login",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(
     searchParams.get("error") === "auth" ? "Authentication failed. Please try again." : null,
@@ -80,7 +84,27 @@ function LoginContent() {
         if (!res.ok) {
           setError(data.error || "Signup failed. Please try again.");
         } else {
-          setMessage("Check your email for a confirmation link from hello@buildmy.directory.");
+          setMode("verify");
+          setMessage(`We sent a 6-digit code to ${email}. Enter it below to finish.`);
+        }
+      } else if (mode === "verify") {
+        const cleaned = code.replace(/\D/g, "");
+        if (cleaned.length !== 6) {
+          setError("Enter the 6-digit code from your email.");
+        } else {
+          // type "email" is the umbrella for email-based OTPs — handles
+          // both the initial signup code and any resent magiclink code
+          const { error } = await supabase.auth.verifyOtp({
+            email,
+            token: cleaned,
+            type: "email",
+          });
+          if (error) {
+            setError(error.message);
+          } else {
+            await fetch("/api/auth/me", { method: "POST" }).catch(() => {});
+            window.location.href = nextPath;
+          }
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -133,12 +157,14 @@ function LoginContent() {
       <main className="flex-1 bg-[color:var(--bd-cream)] py-16">
         <div className="max-w-md mx-auto px-6">
           <h1 className="font-display-tight text-[2.5rem] sm:text-[3.25rem] text-[color:var(--bd-dark)] text-center mb-3">
-            {mode === "login" ? "Welcome back." : "Create your account."}
+            {mode === "login" ? "Welcome back." : mode === "verify" ? "Check your email." : "Create your account."}
           </h1>
           <p className="text-[color:var(--bd-grey)] text-center mb-10 leading-relaxed">
             {mode === "login"
               ? "Sign in to manage your directories."
-              : "Get started building your directory."}
+              : mode === "verify"
+                ? "Enter the 6-digit code we just sent."
+                : "Get started building your directory."}
           </p>
 
           <div className="bg-white rounded-[1.25rem] p-6 sm:p-8">
@@ -178,38 +204,64 @@ function LoginContent() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label htmlFor="email" className="eyebrow text-[color:var(--bd-dark)] mb-2 block">
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  className="w-full h-12 px-5 bg-white border-2 border-[color:var(--bd-dark-faded)] rounded-full text-sm font-medium text-[color:var(--bd-dark)] placeholder:text-[color:var(--bd-grey)] focus:outline-none focus:border-[color:var(--bd-dark)] transition"
-                  placeholder="you@example.com"
-                />
-              </div>
+              {mode !== "verify" && (
+                <>
+                  <div>
+                    <label htmlFor="email" className="eyebrow text-[color:var(--bd-dark)] mb-2 block">
+                      Email
+                    </label>
+                    <input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      autoComplete="email"
+                      className="w-full h-12 px-5 bg-white border-2 border-[color:var(--bd-dark-faded)] rounded-full text-sm font-medium text-[color:var(--bd-dark)] placeholder:text-[color:var(--bd-grey)] focus:outline-none focus:border-[color:var(--bd-dark)] transition"
+                      placeholder="you@example.com"
+                    />
+                  </div>
 
-              <div>
-                <label htmlFor="password" className="eyebrow text-[color:var(--bd-dark)] mb-2 block">
-                  Password
-                </label>
-                <input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete={mode === "login" ? "current-password" : "new-password"}
-                  minLength={6}
-                  className="w-full h-12 px-5 bg-white border-2 border-[color:var(--bd-dark-faded)] rounded-full text-sm font-medium text-[color:var(--bd-dark)] placeholder:text-[color:var(--bd-grey)] focus:outline-none focus:border-[color:var(--bd-dark)] transition"
-                  placeholder={mode === "signup" ? "Min 6 characters" : "Your password"}
-                />
-              </div>
+                  <div>
+                    <label htmlFor="password" className="eyebrow text-[color:var(--bd-dark)] mb-2 block">
+                      Password
+                    </label>
+                    <input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      autoComplete={mode === "login" ? "current-password" : "new-password"}
+                      minLength={6}
+                      className="w-full h-12 px-5 bg-white border-2 border-[color:var(--bd-dark-faded)] rounded-full text-sm font-medium text-[color:var(--bd-dark)] placeholder:text-[color:var(--bd-grey)] focus:outline-none focus:border-[color:var(--bd-dark)] transition"
+                      placeholder={mode === "signup" ? "Min 6 characters" : "Your password"}
+                    />
+                  </div>
+                </>
+              )}
+
+              {mode === "verify" && (
+                <div>
+                  <label htmlFor="code" className="eyebrow text-[color:var(--bd-dark)] mb-2 block">
+                    6-digit code
+                  </label>
+                  <input
+                    id="code"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    required
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    className="w-full h-14 px-5 bg-white border-2 border-[color:var(--bd-dark-faded)] rounded-2xl text-center text-2xl font-bold tracking-[8px] text-[color:var(--bd-dark)] placeholder:text-[color:var(--bd-grey)] focus:outline-none focus:border-[color:var(--bd-dark)] transition"
+                    placeholder="000000"
+                    autoFocus
+                  />
+                </div>
+              )}
 
               {error && (
                 <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
@@ -225,14 +277,16 @@ function LoginContent() {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (mode === "verify" && code.length !== 6)}
                 className="w-full h-12 bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] rounded-full text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
               >
                 {loading
                   ? "Loading..."
                   : mode === "login"
                     ? "Sign in"
-                    : "Create account"}
+                    : mode === "verify"
+                      ? "Verify & sign in"
+                      : "Create account"}
               </button>
 
               {mode === "login" && (
@@ -243,6 +297,36 @@ function LoginContent() {
                   >
                     Forgot your password?
                   </Link>
+                </div>
+              )}
+
+              {mode === "verify" && (
+                <div className="text-center">
+                  <button
+                    type="button"
+                    disabled={resendCooldown > 0 || loading}
+                    onClick={async () => {
+                      setError(null);
+                      setMessage(null);
+                      setResendCooldown(30);
+                      const timer = setInterval(() => {
+                        setResendCooldown((c) => {
+                          if (c <= 1) { clearInterval(timer); return 0; }
+                          return c - 1;
+                        });
+                      }, 1000);
+                      const res = await fetch("/api/auth/resend-confirmation", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email }),
+                      });
+                      if (res.ok) setMessage(`New code sent to ${email}.`);
+                      else setError("Couldn't resend. Try again in a moment.");
+                    }}
+                    className="py-2 text-xs font-medium text-[color:var(--bd-grey)] hover:text-[color:var(--bd-dark)] hover:underline disabled:opacity-50 disabled:no-underline"
+                  >
+                    {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend code"}
+                  </button>
                 </div>
               )}
             </form>
@@ -258,6 +342,17 @@ function LoginContent() {
                   className="py-2 font-semibold text-[color:var(--bd-dark)] hover:underline"
                 >
                   Sign up
+                </button>
+              </>
+            ) : mode === "verify" ? (
+              <>
+                Wrong email?{" "}
+                <button
+                  type="button"
+                  onClick={() => { setMode("signup"); setCode(""); setError(null); setMessage(null); }}
+                  className="py-2 font-semibold text-[color:var(--bd-dark)] hover:underline"
+                >
+                  Start over
                 </button>
               </>
             ) : (

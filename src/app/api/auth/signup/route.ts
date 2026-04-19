@@ -137,7 +137,13 @@ export async function POST(request: NextRequest) {
 
   // Send our branded confirmation email via Resend
   if (resend) {
-    const template = signupConfirmEmail({ confirmUrl: linkData.properties.action_link });
+    // Supabase returns both a one-time magic URL *and* the 6-digit OTP
+    // in email_otp. We lead the email with the code (immune to inbox
+    // bots prefetching the link) and keep the URL as a fallback.
+    const template = signupConfirmEmail({
+      confirmUrl: linkData.properties.action_link,
+      code: (linkData.properties as { email_otp?: string }).email_otp,
+    });
     const { error: sendErr } = await resend.emails.send({
       from: "BuildMy.Directory <hello@buildmy.directory>",
       to: email,
@@ -165,5 +171,5 @@ export async function POST(request: NextRequest) {
     email_domain: email.split("@")[1] || null,
   }).catch(() => {});
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, email });
 }

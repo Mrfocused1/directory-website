@@ -5,10 +5,21 @@
  * when the speaker introduces a new tip, makes a numbered point,
  * changes topic, or transitions to a new argument.
  *
- * Uses Claude Haiku to parse the transcript against the timestamped
- * segments, returning curated talking points with accurate start times.
+ * Uses Groq's free-tier Llama-3.3-70B (no Anthropic API spend) to parse
+ * the timestamped transcript and return curated talking points with
+ * accurate start times.
  *
- * Cost: ~$0.001 per post (Claude Haiku).
+ * Cost: $0 on Groq free tier (rate-limited ~30 req/min on llama-3.3-70b).
+ *
+ * Guards learned the hard way on propertybykazy 2026-04-19:
+ *   - Reject titles > 150 chars — Groq sometimes pastes raw transcript
+ *     back instead of emitting a label.
+ *   - Reject outputs where every start time collapses to the same value
+ *     (happens when raw Whisper segments are coarse and the LLM anchors
+ *     everything to a single boundary).
+ *   - Use Groq's exact M:SS timestamp as the segment start, not the
+ *     nearest raw-segment boundary — snapping collapses multiple points
+ *     onto the same coarse timestamp.
  */
 
 type Segment = { start: number; end: number; text: string };
@@ -19,99 +30,104 @@ type TalkingPoint = { start: number; end: number; text: string };
  * Extract talking points from transcript segments.
  * Returns curated points that represent actual topic changes,
  * numbered tips, listed reasons, new arguments, etc.
+ *
+ * Falls back to merged raw segments on any failure.
  */
 export async function extractTalkingPoints(
   segments: Segment[],
   transcript: string,
 ): Promise<TalkingPoint[]> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey || segments.length === 0) return segments;
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey || segments.length === 0) return fallbackPoints(segments);
 
-  // Build a timestamped transcript for Claude to analyze
   const timestamped = segments.map(
-    (s) => `[${fmtTime(s.start)}] ${s.text.trim()}`
-  ).join("\n");
+    (s) => `[${fmtTime(s.start)}] ${(s.text || "").trim()}`,
+  ).join("\n").slice(0, 8000);
 
-  const prompt = `You are analyzing a video transcript to identify TALKING POINTS — the key moments where the speaker transitions to a new topic, introduces a new tip/point/reason, or makes a significant shift in their argument.
+  const prompt = `You are analysing a timestamped video transcript. Identify 3-8 TALKING POINTS — the key moments the speaker transitions to a new topic, introduces a new tip, starts a numbered step, or makes a significant argument shift.
 
-Here is the timestamped transcript:
+Timestamped transcript:
 
-${timestamped.slice(0, 8000)}
+${timestamped}
 
-Identify the TALKING POINTS. A talking point starts when the speaker:
-- Introduces a numbered item ("number one", "first thing", "tip #2", "secondly", "the next thing")
-- Lists a reason or argument ("one reason is", "another thing", "here's why")
-- Shifts to a completely new topic or subtopic
-- Opens or closes with an intro/outro ("today I'm going to talk about", "so to summarize")
-- Makes a key claim or statement that anchors the next section
+Full transcript (for keyword anchoring):
+${(transcript || "").slice(0, 2500)}
 
 Rules:
-- Each talking point should have a SHORT title (5-12 words) that summarizes what's discussed
-- The title should NOT be a quote — rephrase it as a clear label
-- Include the EXACT timestamp from the transcript where this point begins (use the [M:SS] format from the transcript)
-- Aim for 3-8 talking points per video. Don't over-split — only mark genuine transitions
-- If the speaker explicitly numbers their points ("tip 1", "reason 2"), follow their numbering
-- If the video is short (<30s) with no clear structure, return just 1-2 broad talking points
+- Title: a SHORT LABEL (5-12 words). NOT a direct quote — rephrase as a clear description.
+- Time: M:SS timestamp from the timestamped transcript above. If "step 3" is spoken 30s into a [0:00]-[1:09] segment, output "0:30".
+- Aim for 3-8 points. If the speaker numbers steps ("step one", "step two"), follow their numbering exactly.
+- Short videos (<30s of audio) with no clear structure → 1-2 broad points.
+- Include key facts: prices, percentages, durations (e.g. "Step 3 — Bridging loan 3-24 months", "£36k finance cost at 0.8%/month").
+- Spread timestamps across the audio, don't cluster them all at the start.
 
-Return a JSON array:
+Return ONLY a JSON array, no prose:
 [
-  { "time": "0:00", "title": "Brief description of what's discussed" },
-  { "time": "0:15", "title": "Next major point or topic shift" }
-]
-
-Output ONLY the JSON array. No explanation.`;
+  { "time": "0:00", "title": "Brief label for what starts here" },
+  { "time": "0:15", "title": "Next major point" }
+]`;
 
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 600,
+        model: "llama-3.3-70b-versatile",
+        max_tokens: 800,
+        temperature: 0.2,
         messages: [{ role: "user", content: prompt }],
       }),
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(30_000),
     });
 
     if (!res.ok) return fallbackPoints(segments);
 
     const data = await res.json();
-    const text = (data.content?.[0]?.text || "").trim();
+    const text: string = (data.choices?.[0]?.message?.content || "").trim();
     const match = text.match(/\[[\s\S]*\]/);
     if (!match) return fallbackPoints(segments);
 
     const parsed = JSON.parse(match[0]);
     if (!Array.isArray(parsed) || parsed.length === 0) return fallbackPoints(segments);
 
-    // Convert Claude's output to TalkingPoint format
+    const maxAudio = segments[segments.length - 1].end;
     const points: TalkingPoint[] = [];
+
     for (let i = 0; i < parsed.length; i++) {
       const item = parsed[i];
-      if (!item || typeof item.time !== "string" || typeof item.title !== "string") continue;
+      if (typeof item?.time !== "string" || typeof item?.title !== "string") continue;
 
-      const startSeconds = parseTime(item.time);
+      const title = item.title.trim();
+      // Guard 1: reject titles > 150 chars — Groq occasionally pastes raw transcript
+      if (title.length > 150) continue;
 
-      // Find the nearest segment for accurate start/end
-      const nearestSeg = segments.reduce((best, seg) =>
-        Math.abs(seg.start - startSeconds) < Math.abs(best.start - startSeconds) ? seg : best
-      );
-
-      // End time = next point's start, or last segment's end
+      const startSeconds = Math.min(parseTime(item.time), maxAudio);
       const nextItem = parsed[i + 1];
-      const endSeconds = nextItem ? parseTime(nextItem.time) : segments[segments.length - 1].end;
+      const endSeconds = nextItem
+        ? Math.min(parseTime(nextItem.time), maxAudio)
+        : maxAudio;
 
       points.push({
-        start: nearestSeg.start,
+        start: startSeconds,
         end: endSeconds,
-        text: item.title.trim().slice(0, 200),
+        text: title.slice(0, 200),
       });
     }
 
-    return points.length > 0 ? points : fallbackPoints(segments);
+    if (points.length === 0) return fallbackPoints(segments);
+
+    // Guard 2: reject if all start times collapsed to the same value
+    // (happens when raw Whisper segments are coarse and the LLM anchors
+    // everything to a single boundary). Fall back to the old merger.
+    const uniqueStarts = new Set(points.map((p) => Math.round(p.start)));
+    if (points.length > 1 && uniqueStarts.size === 1) {
+      return fallbackPoints(segments);
+    }
+
+    return points;
   } catch {
     return fallbackPoints(segments);
   }

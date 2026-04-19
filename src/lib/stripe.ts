@@ -15,8 +15,14 @@ const KEY = useTest
   ? process.env.STRIPE_TEST_SECRET_KEY
   : process.env.STRIPE_SECRET_KEY;
 
+// Use fetch-based HTTP client on serverless — Node's default https agent
+// reuses TCP connections that Stripe's side closes between warm
+// invocations, producing StripeConnectionError on the next request.
 const stripe = KEY
-  ? new Stripe(KEY, { apiVersion: "2026-03-25.dahlia" })
+  ? new Stripe(KEY, {
+      apiVersion: "2026-03-25.dahlia",
+      httpClient: Stripe.createFetchHttpClient(),
+    })
   : null;
 
 export { stripe };

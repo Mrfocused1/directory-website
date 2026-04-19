@@ -83,12 +83,18 @@ export default function PricingButton({
         {loading ? "Redirecting..." : cta}
       </button>
 
-      {/* Promo code toggle */}
+      {/* Promo code toggle — "highlight" plans (Pro) have a lime
+          background, everything else is dark, so white ink goes
+          invisible on Pro unless we swap to dark. */}
       {!showPromo ? (
         <button
           type="button"
           onClick={() => setShowPromo(true)}
-          className="w-full mt-2 py-2 text-xs text-white/50 hover:text-white/80 transition text-center"
+          className={`w-full mt-2 py-2 text-xs transition text-center ${
+            highlight
+              ? "text-[color:var(--bd-dark)]/60 hover:text-[color:var(--bd-dark)]"
+              : "text-white/50 hover:text-white/80"
+          }`}
         >
           Have a promo code?
         </button>
@@ -99,13 +105,21 @@ export default function PricingButton({
             value={promoCode}
             onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
             placeholder="Enter code"
-            className="flex-1 h-9 rounded-full bg-white/10 border border-white/20 px-3 text-xs text-white placeholder:text-white/40 focus:outline-none focus:ring-1 focus:ring-white/40"
+            className={`flex-1 h-9 rounded-full px-3 text-xs focus:outline-none focus:ring-1 ${
+              highlight
+                ? "bg-[color:var(--bd-dark)]/10 border border-[color:var(--bd-dark)]/20 text-[color:var(--bd-dark)] placeholder:text-[color:var(--bd-dark)]/40 focus:ring-[color:var(--bd-dark)]/40"
+                : "bg-white/10 border border-white/20 text-white placeholder:text-white/40 focus:ring-white/40"
+            }`}
           />
           <button
             type="button"
             onClick={() => handleCheckout(true)}
             disabled={loading || !promoCode.trim()}
-            className="h-9 px-4 rounded-full bg-white/10 border border-white/20 text-xs font-semibold text-white hover:bg-white/20 transition disabled:opacity-40"
+            className={`h-9 px-4 rounded-full text-xs font-semibold transition disabled:opacity-40 ${
+              highlight
+                ? "bg-[color:var(--bd-dark)]/10 border border-[color:var(--bd-dark)]/20 text-[color:var(--bd-dark)] hover:bg-[color:var(--bd-dark)]/20"
+                : "bg-white/10 border border-white/20 text-white hover:bg-white/20"
+            }`}
           >
             Apply
           </button>
@@ -113,7 +127,7 @@ export default function PricingButton({
       )}
 
       {error && (
-        <p className="text-xs text-red-400 text-center mt-2">{error}</p>
+        <p className={`text-xs text-center mt-2 ${highlight ? "text-red-700" : "text-red-400"}`}>{error}</p>
       )}
     </div>
   );

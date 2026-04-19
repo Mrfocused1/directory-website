@@ -22,9 +22,51 @@
  *   --no-wait       fire and exit instead of tailing progress
  */
 
+import { spawn } from "node:child_process";
 import postgres from "postgres";
 import { Inngest } from "inngest";
 import "dotenv/config";
+
+/**
+ * Post-pipeline gates that run on EVERY directory (not just
+ * propertybykazy). Order matters: owner-detect tags `owner_presence`
+ * so quality-gates can hide `guest`-only posts. refs-topic-filter
+ * then prunes off-topic refs, which can trigger the no-refs gate
+ * hiding a few more posts.
+ *
+ * Scripts live in the repo root; each takes the site slug as its
+ * only argument and reads DATABASE_URL / GROQ_API_KEY from env.
+ * Run in sequence, streaming stdout so the operator sees progress.
+ */
+const POST_BUILD_STEPS = [
+  { cmd: "node", args: ["scripts/refresh-avatar.mjs"], label: "refresh-avatar" },
+  { cmd: "python3", args: ["owner-detect.py"], label: "owner-detect" },
+  { cmd: "python3", args: ["quality-gates.py"], label: "quality-gates" },
+  { cmd: "python3", args: ["refs-topic-filter.py"], label: "refs-topic-filter" },
+];
+
+function runStep(cmd, args, label) {
+  return new Promise((resolve) => {
+    console.log(`\n→ ${label}`);
+    const proc = spawn(cmd, args, { stdio: "inherit" });
+    proc.on("close", (code) => {
+      if (code !== 0) console.warn(`⚠ ${label} exited ${code} (continuing)`);
+      resolve(code);
+    });
+    proc.on("error", (err) => {
+      console.warn(`⚠ ${label} failed to start: ${err.message}`);
+      resolve(1);
+    });
+  });
+}
+
+async function runPostBuildGates(slug) {
+  console.log("\n────────────────── post-build gates ──────────────────");
+  for (const step of POST_BUILD_STEPS) {
+    await runStep(step.cmd, [...step.args, slug], step.label);
+  }
+  console.log("\n──────────────────────────────────────────────────────");
+}
 
 const args = process.argv.slice(2);
 const slug = args.find((a) => !a.startsWith("-"));
@@ -103,8 +145,13 @@ async function main() {
       process.exit(3);
     }
     if (allCompleted) {
-      const postRow = await sql`SELECT COUNT(*)::int as n FROM posts WHERE site_id = ${site.id}`;
-      console.log(`\n✓ Done. ${postRow[0].n} posts live at https://buildmy.directory/${site.slug}`);
+      // Run platform-wide gates on every directory before the
+      // completion email fires. These tag owner_presence, prune
+      // low-quality / off-topic content, and refresh the avatar.
+      await runPostBuildGates(site.slug);
+
+      const postRow = await sql`SELECT COUNT(*)::int as n, COUNT(*) FILTER (WHERE is_visible)::int as visible FROM posts WHERE site_id = ${site.id}`;
+      console.log(`\n✓ Done. ${postRow[0].visible} visible / ${postRow[0].n} scraped at https://buildmy.directory/${site.slug}`);
 
       if (!skipEmail && owner?.email && process.env.RESEND_API_KEY) {
         try {
@@ -115,7 +162,7 @@ async function main() {
             from: "BuildMy.Directory <hello@buildmy.directory>",
             to: owner.email,
             subject: `Your directory is live ✨`,
-            text: `Your directory is ready at ${siteUrl}\n\n${postRow[0].n} posts scraped, transcribed, categorized, and published. Share the link with your audience — and come back anytime to manage subscribers and see analytics.`,
+            text: `Your directory is ready at ${siteUrl}\n\n${postRow[0].visible} posts published (${postRow[0].n} scraped; the rest hidden as guest-only thumbs, empty shells, or off-topic). Share the link with your audience — and come back anytime to manage subscribers and see analytics.`,
           });
           console.log(`✓ Completion email sent to ${owner.email}`);
         } catch (err) {

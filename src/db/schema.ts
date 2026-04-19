@@ -499,3 +499,125 @@ export const stripeEvents = pgTable(
     receivedAt: timestamp("received_at").defaultNow().notNull(),
   },
 );
+
+// ─── Advertising: Stripe Connect Accounts ────────────────────────────
+// One row per creator who has started or completed Stripe Connect Express
+// onboarding. chargesEnabled + payoutsEnabled = fully live.
+export const stripeConnectAccounts = pgTable(
+  "stripe_connect_accounts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    stripeAccountId: text("stripe_account_id").notNull().unique(),
+    payoutsEnabled: boolean("payouts_enabled").notNull().default(false),
+    chargesEnabled: boolean("charges_enabled").notNull().default(false),
+    detailsSubmitted: boolean("details_submitted").notNull().default(false),
+    country: varchar("country", { length: 2 }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("stripe_connect_accounts_user_id_idx").on(table.userId),
+  ],
+);
+
+// ─── Advertising: Ad Slots ────────────────────────────────────────────
+// Catalog of slot types a creator has enabled on a given site.
+// slotType is one of the 11 known types (pre_roll_video, banner_top, etc.).
+// Phase 3 populates config with type-specific settings.
+export const adSlots = pgTable(
+  "ad_slots",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    siteId: uuid("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    slotType: varchar("slot_type", { length: 32 }).notNull(),
+    enabled: boolean("enabled").notNull().default(false),
+    pricePerWeekCents: integer("price_per_week_cents"),
+    minWeeks: integer("min_weeks").notNull().default(1),
+    maxWeeks: integer("max_weeks").notNull().default(52),
+    config: jsonb("config").$type<Record<string, unknown>>().default({}),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("ad_slots_site_id_idx").on(table.siteId),
+    uniqueIndex("ad_slots_site_slot_type_idx").on(table.siteId, table.slotType),
+  ],
+);
+
+// ─── Advertising: Ads ─────────────────────────────────────────────────
+// Individual purchased ads. status lifecycle:
+//   pending_payment -> pending_review -> active -> expired | rejected | paused
+export const ads = pgTable(
+  "ads",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    slotId: uuid("slot_id")
+      .notNull()
+      .references(() => adSlots.id, { onDelete: "cascade" }),
+    siteId: uuid("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    advertiserEmail: varchar("advertiser_email", { length: 320 }).notNull(),
+    advertiserName: text("advertiser_name"),
+    advertiserWebsite: text("advertiser_website"),
+    stripePaymentIntentId: text("stripe_payment_intent_id").unique(),
+    amountCents: integer("amount_cents").notNull(),
+    platformFeeCents: integer("platform_fee_cents").notNull(),
+    creatorAmountCents: integer("creator_amount_cents").notNull(),
+    status: varchar("status", { length: 16 }).notNull().default("pending_payment"),
+    assetUrl: text("asset_url"),
+    clickUrl: text("click_url"),
+    headline: text("headline"),
+    body: text("body"),
+    startsAt: timestamp("starts_at"),
+    endsAt: timestamp("ends_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("ads_slot_id_idx").on(table.slotId),
+    index("ads_site_id_idx").on(table.siteId),
+    index("ads_status_idx").on(table.status),
+  ],
+);
+
+// ─── Advertising: Ad Impressions ──────────────────────────────────────
+// Fired once per ad render per session. Used for billing and analytics.
+export const adImpressions = pgTable(
+  "ad_impressions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    adId: uuid("ad_id")
+      .notNull()
+      .references(() => ads.id, { onDelete: "cascade" }),
+    sessionId: varchar("session_id", { length: 64 }),
+    path: text("path"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("ad_impressions_ad_id_idx").on(table.adId),
+    index("ad_impressions_created_at_idx").on(table.createdAt),
+  ],
+);
+
+// ─── Advertising: Ad Clicks ───────────────────────────────────────────
+// One row per click-through event.
+export const adClicks = pgTable(
+  "ad_clicks",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    adId: uuid("ad_id")
+      .notNull()
+      .references(() => ads.id, { onDelete: "cascade" }),
+    sessionId: varchar("session_id", { length: 64 }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("ad_clicks_ad_id_idx").on(table.adId),
+  ],
+);

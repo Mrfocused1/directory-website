@@ -32,6 +32,9 @@ export const SLOT_TYPES: SlotType[] = [
     tagline: "Podcast-style audio before TTS playback",
     iconName: "audio",
     defaultPriceCents: 1200,
+    // TTS is wired but only for translated non-English transcript playback, not a
+    // directory-level audio feature. A proper audio pre-roll needs a play-before-TTS
+    // hook in TranscriptSection — not yet built.
     status: "coming_soon",
   },
   {
@@ -40,7 +43,7 @@ export const SLOT_TYPES: SlotType[] = [
     tagline: "Insert ad mid-way through long videos",
     iconName: "film",
     defaultPriceCents: 2000,
-    status: "coming_soon",
+    status: "live",
   },
   {
     id: "post_view_overlay",
@@ -48,7 +51,7 @@ export const SLOT_TYPES: SlotType[] = [
     tagline: "Sponsor moment when a viewer closes a post",
     iconName: "layers",
     defaultPriceCents: 1800,
-    status: "coming_soon",
+    status: "live",
   },
   {
     id: "promoted_category",
@@ -56,7 +59,7 @@ export const SLOT_TYPES: SlotType[] = [
     tagline: "Sponsor an entire tab/category",
     iconName: "tag",
     defaultPriceCents: 2200,
-    status: "coming_soon",
+    status: "live",
   },
   {
     id: "sponsored_reference",
@@ -64,7 +67,7 @@ export const SLOT_TYPES: SlotType[] = [
     tagline: "Native-looking reference inside posts",
     iconName: "link",
     defaultPriceCents: 1600,
-    status: "coming_soon",
+    status: "live",
   },
   {
     id: "banner_top",
@@ -88,7 +91,7 @@ export const SLOT_TYPES: SlotType[] = [
     tagline: "Card in the persistent sidebar",
     iconName: "sidebar",
     defaultPriceCents: 900,
-    status: "coming_soon",
+    status: "live",
   },
   {
     id: "homepage_takeover",
@@ -96,7 +99,7 @@ export const SLOT_TYPES: SlotType[] = [
     tagline: "Full-page skin plus welcome overlay",
     iconName: "maximize",
     defaultPriceCents: 5000,
-    status: "coming_soon",
+    status: "live",
   },
 ];
 

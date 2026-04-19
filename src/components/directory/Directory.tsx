@@ -20,6 +20,9 @@ import CollectionsHeader from "@/components/bookmarks/CollectionsHeader";
 import { trackPostClick, trackSearch, trackCategoryClick } from "@/lib/analytics/tracker";
 import BannerTopAd from "@/components/advertising/BannerTopAd";
 import StickyRibbonAd from "@/components/advertising/StickyRibbonAd";
+import PromotedCategoryAd from "@/components/advertising/PromotedCategoryAd";
+import SidebarCardAd from "@/components/advertising/SidebarCardAd";
+import HomepageTakeoverAd from "@/components/advertising/HomepageTakeoverAd";
 
 const PAGE_SIZE = 12;
 
@@ -158,13 +161,15 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
     <div className="min-h-screen relative">
       {/* Banner ad above everything, only when siteId is known */}
       {siteId && <BannerTopAd siteId={siteId} path={adPath} />}
+      {/* Homepage takeover — full-screen welcome overlay, session-deduped inside component */}
+      {siteId && <HomepageTakeoverAd siteId={siteId} path={adPath} siteName={site.displayName} />}
       <AnalyticsProvider siteId={analyticsId} />
       <SignInModal />
       <div className="fixed inset-0 dotted-bg pointer-events-none" aria-hidden />
       <div className="fixed inset-0 bg-gradient-to-br from-[var(--bg)]/70 via-[var(--bg)]/30 to-[var(--bg)]/70 pointer-events-none" aria-hidden />
 
       <div className="relative z-10">
-        <main className="container mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-20 max-w-6xl">
+        <main className="container mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-20 max-w-7xl">
           {/* Hero */}
           <header className="text-center mb-8 animate-fade-in">
             {site.avatarUrl && (
@@ -248,6 +253,7 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
           {allCategories.length > 1 && (
             <nav aria-label="Filter by category" className="flex justify-center mb-8 animate-fade-in overflow-x-auto px-1">
               <div className="flex items-center gap-1 bg-[color:var(--card)] border border-[color:var(--border)] backdrop-blur-md py-1 px-1 rounded-full shadow-sm overflow-x-auto scrollbar-hide max-w-full">
+                {siteId && <PromotedCategoryAd siteId={siteId} path={adPath} />}
                 {allCategories.map((c) => {
                   const isActive = category === c;
                   const count = counts[c] ?? 0;
@@ -275,6 +281,10 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
               </div>
             </nav>
           )}
+
+          {/* Main content + optional sidebar */}
+          <div className="flex items-start gap-6">
+          <div className="flex-1 min-w-0">
 
           {/* Grid — admin controls MOBILE column count (2 or 3) via the
               dashboard. Desktop always uses the natural responsive
@@ -473,6 +483,10 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
               />
             </div>
           )}
+
+          </div>{/* end flex-1 */}
+          {siteId && <SidebarCardAd siteId={siteId} path={adPath} />}
+          </div>{/* end sidebar flex */}
 
           {/* Powered-by footer (respects remove_branding / white_label) */}
           {branding && <DirectoryBranding branding={branding} />}

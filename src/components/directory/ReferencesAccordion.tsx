@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Reference } from "@/lib/types";
+import SponsoredReferenceAd from "@/components/advertising/SponsoredReferenceAd";
 
 function isArticle(r: Reference): r is Extract<Reference, { kind: "article" }> {
   return r.kind === "article";
@@ -10,8 +11,12 @@ function isArticle(r: Reference): r is Extract<Reference, { kind: "article" }> {
 
 export default function ReferencesAccordion({
   references,
+  siteId,
+  path,
 }: {
   references: Reference[];
+  siteId?: string;
+  path?: string;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -38,6 +43,7 @@ export default function ReferencesAccordion({
             Sources &amp; references
           </h3>
           <ul className="flex flex-wrap gap-2">
+            {siteId && path && <SponsoredReferenceAd siteId={siteId} path={path} />}
             {articles.map((ref, i) => (
               <li key={`a-${i}`}>
                 <a

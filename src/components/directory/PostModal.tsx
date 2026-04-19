@@ -10,6 +10,8 @@ import ShareButtons from "./ShareButtons";
 import BookmarkButton from "@/components/bookmarks/BookmarkButton";
 import { SUPPORTED_LANGUAGES } from "@/lib/translate";
 import PreRollAd from "@/components/advertising/PreRollAd";
+import PostViewOverlayAd from "@/components/advertising/PostViewOverlayAd";
+import MidRollVideoAd from "@/components/advertising/MidRollVideoAd";
 
 export default function PostModal({
   post,
@@ -29,6 +31,8 @@ export default function PostModal({
 
   // pre-roll ad: true = still showing, false = done (or no ad)
   const [showPreRoll, setShowPreRoll] = useState(false);
+  // post-view overlay: shown when the user closes a post
+  const [showPostViewOverlay, setShowPostViewOverlay] = useState(false);
   // track which post shortcodes have already shown the pre-roll this session
   const seenShortcodes = useRef<Set<string>>(new Set());
 
@@ -43,6 +47,15 @@ export default function PostModal({
     setShowPreRoll(true);
   }, [post, siteId]);
 
+  // Intercept close: show post-view overlay once (if siteId is present), then actually close
+  const handleClose = useCallback(() => {
+    if (siteId && !showPostViewOverlay) {
+      setShowPostViewOverlay(true);
+    } else {
+      onClose();
+    }
+  }, [siteId, showPostViewOverlay, onClose]);
+
   useEffect(() => {
     if (!post) return;
     returnFocusRef.current = (document.activeElement as HTMLElement) ?? null;
@@ -53,7 +66,7 @@ export default function PostModal({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        onClose();
+        handleClose();
         return;
       }
       if (e.key === "Tab" && dialogRef.current) {
@@ -83,7 +96,7 @@ export default function PostModal({
       clearTimeout(t);
       returnFocusRef.current?.focus?.();
     };
-  }, [post, onClose]);
+  }, [post, handleClose]);
 
   const seekTo = useCallback((seconds: number) => {
     if (videoRef.current) {
@@ -104,7 +117,7 @@ export default function PostModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onClose}
+          onClick={handleClose}
         >
           <motion.div
             ref={dialogRef}
@@ -127,6 +140,25 @@ export default function PostModal({
               />
             )}
 
+            {/* Post-view overlay — shown on close, session-deduped inside the component */}
+            {showPostViewOverlay && siteId && (
+              <PostViewOverlayAd
+                siteId={siteId}
+                path={typeof window !== "undefined" ? window.location.pathname : "/"}
+                onDone={onClose}
+              />
+            )}
+
+            {/* Mid-roll video ad — triggers at 50% of organic video progress */}
+            {siteId && post.type === "video" && (
+              <MidRollVideoAd
+                siteId={siteId}
+                path={typeof window !== "undefined" ? window.location.pathname : "/"}
+                videoRef={videoRef}
+                postShortcode={post.shortcode}
+              />
+            )}
+
             {/* Drag handle for mobile */}
             <div className="sm:hidden pt-2 pb-1 flex justify-center">
               <div className="w-10 h-1 rounded-full bg-[color:var(--fg)]/20" />
@@ -142,7 +174,7 @@ export default function PostModal({
               <button
                 ref={closeBtnRef}
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[color:var(--fg)]/10 focus:outline-none focus:ring-2 focus:ring-[color:var(--fg)]"
                 aria-label="Close"
               >
@@ -255,7 +287,7 @@ export default function PostModal({
                     </span>
                   )}
                 </div>
-                <ReferencesAccordion references={post.references} />
+                <ReferencesAccordion references={post.references} siteId={siteId} path={typeof window !== "undefined" ? window.location.pathname : "/"} />
               </section>
             </div>
           </motion.div>

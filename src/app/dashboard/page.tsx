@@ -68,32 +68,26 @@ export default function DashboardPage() {
     if (syncingId) return;
     setSyncingId(site.id);
     try {
-      const res = await fetch(`/api/pipeline/retry?siteId=${site.id}`, { method: "POST" });
+      // Creator self-serve sync: Tier-1 incremental, runs on Vercel via
+      // Inngest, no operator needed. See src/lib/pipeline/sync.ts.
+      const res = await fetch(`/api/sites/${site.id}/sync`, { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        if (data.cooldown) {
-          // Within the 1-hour cooldown — no quota burned, no work done.
-          // Keep the user on the dashboard with a friendly message instead
-          // of navigating them to an empty build page.
-          alert(
-            `${data.message}\n\nTry again in about ${data.minutesUntilNext} min.`,
-          );
-          setSyncingId(null);
-          return;
-        }
-        // Fresh sync accepted — navigate to live progress.
-        window.location.href = `/dashboard/build/${site.id}`;
+        alert(
+          "Sync queued ✅\n\nWe'll check Instagram for your latest 12 posts and add any new ones to your directory. Usually takes under a minute — refresh your directory to see them.",
+        );
+        setSyncingId(null);
+        refreshSyncStatus();
         return;
       }
-      if (res.status === 403 && data.reason === "plan_feature_missing") {
-        alert("Sync is a Creator-plan feature. Upgrade from Account → Plan to enable syncing.");
-      } else if (res.status === 429 && data.reason === "quota_exceeded") {
-        alert(`You've used all ${data.limit} syncs this month. Resets on the 1st of next month.`);
+      if (res.status === 429) {
+        alert(data.error || "Already synced recently. Try again later.");
+      } else if (res.status === 400 && /still being built/i.test(data.error || "")) {
+        alert(data.error);
       } else {
         alert(data.error || "Sync failed.");
       }
       setSyncingId(null);
-      refreshSyncStatus();
     } catch {
       alert("Network error.");
       setSyncingId(null);
@@ -343,11 +337,7 @@ export default function DashboardPage() {
                               : `Re-pull latest posts — ${syncStatus.remaining} of ${syncStatus.limit} syncs left this month`
                           }
                         >
-                          {syncingId === site.id
-                            ? "Starting…"
-                            : syncStatus.remaining <= 0
-                              ? `No syncs left · resets 1st`
-                              : `Sync now · ${syncStatus.remaining}/${syncStatus.limit}`}
+                          {syncingId === site.id ? "Queuing…" : "Sync now"}
                         </button>
                       ) : (
                         <Link

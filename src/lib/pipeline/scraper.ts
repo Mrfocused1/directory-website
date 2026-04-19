@@ -30,6 +30,13 @@ export type ScraperConfig = {
   platform: "instagram" | "tiktok";
   handle: string;
   maxPosts?: number;
+  /**
+   * Skip the VPS (Tier 2) scrape entirely and return whatever the
+   * public web_profile_info endpoint yields (up to ~12 posts).
+   * Used by the creator-facing Sync flow so no session/proxy/operator
+   * is required for incremental updates.
+   */
+  tier1Only?: boolean;
 };
 
 type IgEdgeNode = {
@@ -193,9 +200,16 @@ export async function scrapeProfile(config: ScraperConfig): Promise<ScrapedPost[
 
   // If the plan only needs what quick already got, skip the VPS.
   // web_profile_info returns ~12 edges, so plans with postLimit ≤ 12
-  // (currently Free = 9) finish here in ~5s with zero VPS load.
+  // finish here in ~5s with zero VPS load.
   if (quickPosts.length >= maxPosts) {
     return quickPosts.slice(0, maxPosts);
+  }
+
+  // Tier-1-only callers (creator sync flow) MUST NOT fall through to
+  // the VPS — the whole point is to run without operator involvement,
+  // session cookies, or the residential proxy.
+  if (config.tier1Only) {
+    return quickPosts;
   }
 
   // Tier 2: deep VPS scrape. If it fails, use quick results as fallback.

@@ -11,6 +11,14 @@ export const emailLimiter = createLimiter({ max: 3, window: "1m", prefix: "email
 export const apiLimiter = createLimiter({ max: 30, window: "1m", prefix: "api" });
 
 /**
+ * Per-site sync throttle: 1 manual sync per hour.
+ * Key on siteId so each creator can sync their own site once per hour
+ * regardless of IP. Daily cron runs in parallel and bypasses this
+ * limiter (it calls runSync directly via Inngest).
+ */
+export const siteSyncLimiter = createLimiter({ max: 1, window: "1h", prefix: "site-sync" });
+
+/**
  * Extract the client IP from a request and check it against a limiter.
  * Returns a 429 NextResponse if the limit is exceeded, or null if OK.
  */

@@ -32,10 +32,7 @@ export const SLOT_TYPES: SlotType[] = [
     tagline: "Podcast-style audio before TTS playback",
     iconName: "audio",
     defaultPriceCents: 1200,
-    // TTS is wired but only for translated non-English transcript playback, not a
-    // directory-level audio feature. A proper audio pre-roll needs a play-before-TTS
-    // hook in TranscriptSection — not yet built.
-    status: "coming_soon",
+    status: "live",
   },
   {
     id: "mid_roll_video",

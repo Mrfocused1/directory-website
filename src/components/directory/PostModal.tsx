@@ -12,6 +12,7 @@ import { SUPPORTED_LANGUAGES } from "@/lib/translate";
 import PreRollAd from "@/components/advertising/PreRollAd";
 import PostViewOverlayAd from "@/components/advertising/PostViewOverlayAd";
 import MidRollVideoAd from "@/components/advertising/MidRollVideoAd";
+import PreRollAudioAd from "@/components/advertising/PreRollAudioAd";
 
 export default function PostModal({
   post,
@@ -262,7 +263,7 @@ export default function PostModal({
 
                 {/* Transcript */}
                 {post.transcript && (
-                  <TranscriptSection transcript={post.transcript} ttsEnabled={ttsEnabled} />
+                  <TranscriptSection transcript={post.transcript} ttsEnabled={ttsEnabled} siteId={siteId} />
                 )}
 
                 <div className="mt-3 flex items-center gap-3 flex-wrap">
@@ -391,20 +392,109 @@ function ChaptersAccordion({
 /*  Transcript with translation support                               */
 /* ------------------------------------------------------------------ */
 
-// English excluded from TTS — play the original video instead
+// Piper-supported languages. English uses the browser's built-in SpeechSynthesis API.
 const TTS_LANGS = ["es", "fr", "de", "pt"];
 
-function TranscriptSection({ transcript, ttsEnabled = false }: { transcript: string; ttsEnabled?: boolean }) {
+type PendingPlay = { kind: "piper"; text: string; lang: string } | { kind: "web"; text: string };
+
+function TranscriptSection({
+  transcript,
+  ttsEnabled = false,
+  siteId,
+}: { transcript: string; ttsEnabled?: boolean; siteId?: string }) {
   const [selectedLang, setSelectedLang] = useState("");
   const [translating, setTranslating] = useState(false);
   const [showTranslated, setShowTranslated] = useState(false);
   const [translatedText, setTranslatedText] = useState("");
   const [ttsLoading, setTtsLoading] = useState(false);
   const [ttsPlaying, setTtsPlaying] = useState(false);
+  const [pendingPlay, setPendingPlay] = useState<PendingPlay | null>(null);
   const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
   const ttsCacheRef = useRef<Record<string, string>>({});
-  // Cache: lang code -> translated string
   const cacheRef = useRef<Record<string, string>>({});
+
+  useEffect(() => {
+    return () => {
+      ttsAudioRef.current?.pause();
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const playPiper = useCallback(async (text: string, lang: string) => {
+    const cacheKey = lang + text.slice(0, 50);
+    if (ttsCacheRef.current[cacheKey]) {
+      const audio = new Audio(ttsCacheRef.current[cacheKey]);
+      ttsAudioRef.current = audio;
+      audio.onended = () => setTtsPlaying(false);
+      audio.play();
+      setTtsPlaying(true);
+      return;
+    }
+    setTtsLoading(true);
+    try {
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text.slice(0, 5000), lang, gender: "female" }),
+      });
+      if (!res.ok) throw new Error("TTS failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      ttsCacheRef.current[cacheKey] = url;
+      const audio = new Audio(url);
+      ttsAudioRef.current = audio;
+      audio.onended = () => setTtsPlaying(false);
+      audio.play();
+      setTtsPlaying(true);
+    } catch {
+      // silently fail
+    } finally {
+      setTtsLoading(false);
+    }
+  }, []);
+
+  const playWeb = useCallback((text: string) => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text.slice(0, 5000));
+    utter.lang = "en-US";
+    utter.rate = 1.0;
+    utter.onend = () => setTtsPlaying(false);
+    utter.onerror = () => setTtsPlaying(false);
+    window.speechSynthesis.speak(utter);
+    setTtsPlaying(true);
+  }, []);
+
+  const stopTts = useCallback(() => {
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.pause();
+      ttsAudioRef.current.currentTime = 0;
+    }
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    setTtsPlaying(false);
+  }, []);
+
+  const requestListen = useCallback((req: PendingPlay) => {
+    if (siteId) {
+      setPendingPlay(req);
+    } else if (req.kind === "piper") {
+      playPiper(req.text, req.lang);
+    } else {
+      playWeb(req.text);
+    }
+  }, [siteId, playPiper, playWeb]);
+
+  const onAdDone = useCallback(() => {
+    const req = pendingPlay;
+    setPendingPlay(null);
+    if (!req) return;
+    if (req.kind === "piper") playPiper(req.text, req.lang);
+    else playWeb(req.text);
+  }, [pendingPlay, playPiper, playWeb]);
 
   const handleTranslate = useCallback(
     async (langCode: string) => {
@@ -517,79 +607,72 @@ function TranscriptSection({ transcript, ttsEnabled = false }: { transcript: str
         {showTranslated && !translating ? translatedText : transcript}
       </p>
 
-      {/* Play button — TTS for translated text only (not English, plan-gated) */}
-      {ttsEnabled && selectedLang && TTS_LANGS.includes(selectedLang) && (
-        <button
-          type="button"
-          aria-label={ttsPlaying ? "Stop listening" : ttsLoading ? "Generating audio" : "Listen in " + (SUPPORTED_LANGUAGES.find(l => l.code === selectedLang)?.name || selectedLang)}
-          disabled={ttsLoading || translating}
-          onClick={async () => {
-            if (ttsPlaying && ttsAudioRef.current) {
-              ttsAudioRef.current.pause();
-              ttsAudioRef.current.currentTime = 0;
-              setTtsPlaying(false);
-              return;
-            }
+      {/* Listen button — one unified control that routes to Piper (es/fr/pt) or Web Speech (en). */}
+      {ttsEnabled && (() => {
+        const usePiper = selectedLang && TTS_LANGS.includes(selectedLang);
+        const canListen = usePiper || !selectedLang;
+        if (!canListen) return null;
 
-            const lang = selectedLang;
-            const textToSpeak = (showTranslated && translatedText) ? translatedText : transcript;
-            const cacheKey = lang + textToSpeak.slice(0, 50);
+        const langLabel = usePiper
+          ? (SUPPORTED_LANGUAGES.find((l) => l.code === selectedLang)?.name || selectedLang)
+          : "English";
+        const textToSpeak = (showTranslated && translatedText) ? translatedText : transcript;
+        const busy = ttsLoading || translating || !!pendingPlay;
 
-            if (ttsCacheRef.current[cacheKey]) {
-              const audio = new Audio(ttsCacheRef.current[cacheKey]);
-              ttsAudioRef.current = audio;
-              audio.onended = () => setTtsPlaying(false);
-              audio.play();
-              setTtsPlaying(true);
-              return;
-            }
+        return (
+          <button
+            type="button"
+            aria-label={ttsPlaying ? "Stop listening" : ttsLoading ? "Generating audio" : `Listen in ${langLabel}`}
+            disabled={busy && !ttsPlaying}
+            onClick={() => {
+              if (ttsPlaying) {
+                stopTts();
+                return;
+              }
+              if (usePiper) {
+                requestListen({ kind: "piper", text: textToSpeak, lang: selectedLang });
+              } else {
+                requestListen({ kind: "web", text: transcript });
+              }
+            }}
+            className="mt-3 w-full h-11 flex items-center justify-center gap-2 rounded-xl text-sm font-semibold transition disabled:opacity-50 bg-[color:var(--fg)] text-[color:var(--bg)] hover:opacity-90 whitespace-nowrap overflow-hidden"
+          >
+            {translating ? (
+              <>
+                <svg className="animate-spin h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                <span>Translating...</span>
+              </>
+            ) : pendingPlay ? (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="shrink-0"><path d="M8 5v14l11-7z" /></svg>
+                <span>Starting ad...</span>
+              </>
+            ) : ttsLoading ? (
+              <>
+                <svg className="animate-spin h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                <span>Generating audio...</span>
+              </>
+            ) : ttsPlaying ? (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="shrink-0"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
+                <span>Stop listening</span>
+              </>
+            ) : (
+              <>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="shrink-0"><path d="M8 5v14l11-7z" /></svg>
+                <span>Listen in {langLabel}</span>
+              </>
+            )}
+          </button>
+        );
+      })()}
 
-            setTtsLoading(true);
-            try {
-              const res = await fetch("/api/tts", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: textToSpeak.slice(0, 5000), lang, gender: "female" }),
-              });
-              if (!res.ok) throw new Error("TTS failed");
-              const blob = await res.blob();
-              const url = URL.createObjectURL(blob);
-              ttsCacheRef.current[cacheKey] = url;
-              const audio = new Audio(url);
-              ttsAudioRef.current = audio;
-              audio.onended = () => setTtsPlaying(false);
-              audio.play();
-              setTtsPlaying(true);
-            } catch {
-              // silently fail
-            } finally {
-              setTtsLoading(false);
-            }
-          }}
-          className="mt-3 w-full h-11 flex items-center justify-center gap-2 rounded-xl text-sm font-semibold transition disabled:opacity-50 bg-[color:var(--fg)] text-[color:var(--bg)] hover:opacity-90 whitespace-nowrap overflow-hidden"
-        >
-          {translating ? (
-            <>
-              <svg className="animate-spin h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-              <span>Translating...</span>
-            </>
-          ) : ttsLoading ? (
-            <>
-              <svg className="animate-spin h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-              <span>Generating audio...</span>
-            </>
-          ) : ttsPlaying ? (
-            <>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="shrink-0"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></svg>
-              <span>Stop listening</span>
-            </>
-          ) : (
-            <>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" className="shrink-0"><path d="M8 5v14l11-7z" /></svg>
-              <span>Listen in {SUPPORTED_LANGUAGES.find(l => l.code === selectedLang)?.name || selectedLang}</span>
-            </>
-          )}
-        </button>
+      {pendingPlay && siteId && (
+        <PreRollAudioAd
+          siteId={siteId}
+          path={typeof window !== "undefined" ? window.location.pathname : "/"}
+          onDone={onAdDone}
+        />
       )}
     </details>
   );

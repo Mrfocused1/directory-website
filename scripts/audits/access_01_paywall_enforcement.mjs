@@ -38,6 +38,11 @@ const SSR_ROUTES = [
 const API_ROUTES = [
   { path: "/api/pipeline", method: "POST", body: { platform: "instagram", handle: "test", displayName: "test" } },
   { path: "/api/dashboard/posts", method: "POST", body: { siteId: "test" } },
+  // Paid-feature endpoints that must 402/403 for unpaid users (not just 401)
+  { path: "/api/analytics/summary?siteId=test", method: "GET", body: null },
+  { path: "/api/dashboard/sender?siteId=test", method: "GET", body: null },
+  { path: "/api/newsletter/send", method: "POST", body: { siteId: "test" } },
+  { path: "/api/newsletter/export?siteId=test", method: "GET", body: null },
 ];
 
 export async function run() {
@@ -120,7 +125,11 @@ export async function run() {
       }
     }
 
-    // API routes should 401 or 403 (or redirect for SSR-style handlers)
+    // Navigate back to a same-origin page so subsequent fetches carry
+    // our auth cookie. SSR loop above usually ends on checkout.stripe.com.
+    await page.goto("https://buildmy.directory/login", { waitUntil: "domcontentloaded" });
+
+    // API routes should 401/402/403 (or redirect for SSR-style handlers)
     for (const route of API_ROUTES) {
       const { status } = await page.evaluate(async ({ path, method, body }) => {
         const res = await fetch(path, {

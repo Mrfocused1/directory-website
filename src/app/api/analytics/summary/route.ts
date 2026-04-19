@@ -5,6 +5,7 @@ import { eq, and, gte, count, sql, desc, isNotNull } from "drizzle-orm";
 import { ownedSiteId } from "@/db/utils";
 import { getApiUser } from "@/lib/supabase/api";
 import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
+import { gateFeature } from "@/lib/plan-gate";
 
 /**
  * GET /api/analytics/summary?siteId=xxx&days=30
@@ -32,6 +33,9 @@ export async function GET(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
+
+  const gate = await gateFeature(user.id, "analytics_basic");
+  if (gate) return gate;
 
   const resolvedSiteId = await ownedSiteId(siteId, user.id);
   if (!resolvedSiteId) {

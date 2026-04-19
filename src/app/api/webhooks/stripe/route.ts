@@ -271,7 +271,20 @@ export async function POST(request: NextRequest) {
       case "invoice.payment_failed": {
         const invoice = event.data.object;
         const customerId = typeof invoice.customer === "string" ? invoice.customer : null;
-        console.warn(`[BILLING] Payment failed for customer ${customerId}`);
+        // Flip subscription_status to inactive on the first failed
+        // charge. Previously we only logged, which meant a user whose
+        // card declined kept full access (and silently accumulated
+        // unpaid charges) until Stripe finally fired
+        // customer.subscription.deleted — days later. Gating them
+        // immediately is the safer default; they can resubscribe by
+        // updating payment and letting Stripe retry the invoice.
+        if (customerId && db) {
+          await db
+            .update(users)
+            .set({ subscriptionStatus: "inactive", updatedAt: new Date() })
+            .where(eq(users.stripeCustomerId, customerId));
+        }
+        console.warn(`[BILLING] Payment failed for customer ${customerId} — subscription_status → inactive`);
         break;
       }
 

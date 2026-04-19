@@ -7,6 +7,7 @@ import { resend } from "@/lib/email/resend";
 import { sanitizeFromName } from "@/lib/email/templates";
 import crypto from "crypto";
 import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
+import { gateFeature } from "@/lib/plan-gate";
 
 const VERIFICATION_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -49,6 +50,9 @@ export async function GET(request: NextRequest) {
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
 
+  const gate = await gateFeature(user.id, "newsletter");
+  if (gate) return gate;
+
   const siteId = request.nextUrl.searchParams.get("siteId");
   if (!siteId) return NextResponse.json({ error: "Missing siteId" }, { status: 400 });
 
@@ -81,6 +85,9 @@ export async function POST(request: NextRequest) {
 
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+
+  const gate = await gateFeature(user.id, "newsletter");
+  if (gate) return gate;
 
   const body = await request.json();
   const { siteId, action } = body;

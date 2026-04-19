@@ -20,7 +20,7 @@ export async function POST() {
       await db.insert(users).values({
         id: user.id,
         email: user.email || `${user.id}@placeholder.local`,
-        plan: "free",
+        plan: "creator",
       }).onConflictDoNothing();
     } catch (err) {
       console.error("[auth/me] Failed to ensure users row:", err);

@@ -27,7 +27,7 @@ export async function GET() {
     where: eq(users.id, user.id),
     columns: { plan: true, freeBuildUsedAt: true },
   });
-  const planId: PlanId = (VALID_PLANS.has(row?.plan as string) ? row!.plan : "free") as PlanId;
+  const planId: PlanId = (VALID_PLANS.has(row?.plan as string) ? row!.plan : "creator") as PlanId;
   const plan = getPlan(planId);
 
   // Can this user create more directories?

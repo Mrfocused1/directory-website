@@ -20,7 +20,13 @@ export const users = pgTable("users", {
   name: text("name"),
   avatarUrl: text("avatar_url"),
   stripeCustomerId: text("stripe_customer_id"),
-  plan: varchar("plan", { length: 32 }).notNull().default("free"), // free | creator | pro | agency
+  // Default now creator; legacy rows may still have plan="free"
+  // from before the free tier was retired. Those are handled
+  // read-only in plans.ts.
+  plan: varchar("plan", { length: 32 }).notNull().default("creator"), // creator | pro | agency | free (legacy)
+  // Legacy: tracked whether a free-tier user had already used their
+  // one-shot build. Kept in the schema so existing rows aren't broken;
+  // no new code references it.
   freeBuildUsedAt: timestamp("free_build_used_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

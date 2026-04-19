@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       where: eq(users.id, user.id),
       columns: { plan: true },
     });
-    const planId = (validPlanIds.includes(dbUser?.plan as string) ? dbUser!.plan : "free") as PlanId;
+    const planId = (validPlanIds.includes(dbUser?.plan as string) ? dbUser!.plan : "creator") as PlanId;
     const planConfig = getPlan(planId);
     const platformLimit = planConfig.accountsPerPlatform[platform as Platform];
 

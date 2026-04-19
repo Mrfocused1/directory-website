@@ -31,8 +31,10 @@ export default async function DashboardLayout({
 
   // Look up user's plan from the database. If the row doesn't exist
   // (e.g. pre-existing Supabase user), create it on the fly.
-  const validPlans: Array<"free" | "creator" | "pro" | "agency"> = ["free", "creator", "pro", "agency"];
-  let userPlan: "free" | "creator" | "pro" | "agency" = "free";
+  // "free" remains in the union for backward compatibility with
+  // grandfathered DB rows but new rows always default to "creator".
+  const validPlans: Array<"free" | "creator" | "pro" | "agency"> = ["creator", "pro", "agency", "free"];
+  let userPlan: "free" | "creator" | "pro" | "agency" = "creator";
   if (db) {
     let dbUser = await db.query.users.findFirst({
       where: eq(users.id, user.id),
@@ -43,9 +45,9 @@ export default async function DashboardLayout({
         await db.insert(users).values({
           id: user.id,
           email: user.email || `${user.id}@placeholder.local`,
-          plan: "free",
+          plan: "creator",
         }).onConflictDoNothing();
-        dbUser = { plan: "free" };
+        dbUser = { plan: "creator" };
       } catch (err) {
         console.error("[dashboard] Failed to backfill users row:", err);
       }

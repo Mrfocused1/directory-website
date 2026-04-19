@@ -31,10 +31,13 @@ export default function PricingButton({
   }`;
   const baseClass = className || defaultClass;
 
-  // Free plan — go straight to onboarding
+  // Safety fallback — no self-serve paid plan chosen. Should not be
+  // reachable from the live PRICING array (Free tier was retired)
+  // but we keep it so the component still renders if called with
+  // plan={null} from somewhere.
   if (!plan) {
     return (
-      <Link href="/onboarding" className={baseClass}>
+      <Link href="/#pricing" className={baseClass}>
         {cta}
       </Link>
     );

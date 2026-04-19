@@ -15,10 +15,11 @@ type Account = {
 };
 
 const PLAN_NAMES = {
-  free: "Free",
   creator: "Creator",
   pro: "Pro",
   agency: "Agency",
+  // Legacy marker for rows created before the free tier was retired.
+  free: "Free (legacy)",
 } as const;
 
 export default function AccountPage() {

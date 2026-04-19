@@ -36,8 +36,8 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     where: eq(users.id, site.userId),
     columns: { plan: true },
   });
-  const validPlans = ["free", "creator", "pro", "agency"];
-  const userPlan: PlanId = (validPlans.includes(owner?.plan as string) ? owner!.plan : "free") as PlanId;
+  const validPlans = ["creator", "pro", "agency", "free"]; // "free" is legacy tolerance for old DB rows
+  const userPlan: PlanId = (validPlans.includes(owner?.plan as string) ? owner!.plan : "creator") as PlanId;
   const planConfig = getPlan(userPlan);
   const canTranscribe = hasFeature(userPlan, "transcription");
   const canAutoCategorize = hasFeature(userPlan, "auto_categorization");
@@ -572,14 +572,6 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     await database.update(sites)
       .set({ isPublished: true, lastSyncAt: new Date() })
       .where(eq(sites.id, siteId));
-
-    // Stamp the user's free-build-used flag so they can't delete + re-create
-    // on the free plan. Paid plans ignore this field entirely.
-    if (userPlan === "free") {
-      await database.update(users)
-        .set({ freeBuildUsedAt: new Date() })
-        .where(eq(users.id, site.userId));
-    }
 
     // Blow away the 5-minute CDN cache on the public tenant root so
     // visitors see the freshly-synced posts immediately instead of

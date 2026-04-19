@@ -14,7 +14,7 @@ async function requireApiAccess(userId: string) {
     where: eq(users.id, userId),
     columns: { plan: true },
   });
-  const plan = (VALID_PLANS.has(u?.plan as string) ? u!.plan : "free") as PlanId;
+  const plan = (VALID_PLANS.has(u?.plan as string) ? u!.plan : "creator") as PlanId;
   return hasFeature(plan, "api_access") ? plan : null;
 }
 

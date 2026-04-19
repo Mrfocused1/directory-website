@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
     where: eq(users.id, user.id),
     columns: { plan: true },
   });
-  const planId: PlanId = (VALID_PLANS.has(ownerRow?.plan as string) ? ownerRow!.plan : "free") as PlanId;
+  const planId: PlanId = (VALID_PLANS.has(ownerRow?.plan as string) ? ownerRow!.plan : "creator") as PlanId;
   const plan = getPlan(planId);
   if (plan.postLimit > 0) {
     const [{ c }] = await db
@@ -343,7 +343,7 @@ export async function PATCH(request: NextRequest) {
       columns: { plan: true },
     });
     const { hasFeature } = await import("@/lib/plans");
-    const planId = (["free", "creator", "pro", "agency"].includes(owner?.plan as string) ? owner!.plan : "free") as "free" | "creator" | "pro" | "agency";
+    const planId = (["creator", "pro", "agency", "free"].includes(owner?.plan as string) ? owner!.plan : "creator") as "free" | "creator" | "pro" | "agency";
     if (!hasFeature(planId, "edit_talking_points")) {
       return NextResponse.json({ error: "Editing talking points requires Creator plan or above", reason: "plan_feature_missing" }, { status: 403 });
     }

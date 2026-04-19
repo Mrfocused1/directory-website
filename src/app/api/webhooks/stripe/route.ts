@@ -160,12 +160,17 @@ export async function POST(request: NextRequest) {
         const subscription = event.data.object;
         const customerId = typeof subscription.customer === "string" ? subscription.customer : null;
 
+        // Cancellation destination: plan="free". We don't surface a
+        // free tier anywhere new, but we reuse the legacy plan value
+        // as the "inactive subscription" marker — their existing
+        // directory stays visible (free plan permits browsing) while
+        // new builds/syncs are blocked by Creator-gated feature checks.
         if (customerId && db) {
           await db.update(users)
             .set({ plan: "free", updatedAt: new Date() })
             .where(eq(users.stripeCustomerId, customerId));
         }
-        console.log(`[SUBSCRIPTION] Customer ${customerId} cancelled — downgraded to free`);
+        console.log(`[SUBSCRIPTION] Customer ${customerId} cancelled — moved to inactive (plan="free")`);
         break;
       }
 

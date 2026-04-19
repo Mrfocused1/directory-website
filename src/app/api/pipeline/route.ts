@@ -84,25 +84,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Enforce per-plan site limit
-    const validPlans = ["free", "creator", "pro", "agency"];
+    const validPlans = ["creator", "pro", "agency", "free"]; // "free" kept as legacy tolerance
     const dbUser = await db.query.users.findFirst({
       where: eq(users.id, user.id),
-      columns: { plan: true, freeBuildUsedAt: true },
+      columns: { plan: true },
     });
-    const planId = (validPlans.includes(dbUser?.plan as string) ? dbUser!.plan : "free") as PlanId;
+    const planId = (validPlans.includes(dbUser?.plan as string) ? dbUser!.plan : "creator") as PlanId;
     const planConfig = getPlan(planId);
-
-    // Free plan is a one-shot build. If the user has already built
-    // (even if they later deleted the site), they must upgrade.
-    if (planId === "free" && dbUser?.freeBuildUsedAt) {
-      return NextResponse.json(
-        {
-          error: "Free plan includes one directory build. Upgrade to Creator to build again.",
-          reason: "free_build_exhausted",
-        },
-        { status: 403 },
-      );
-    }
 
     const [countRow] = await db.select({ count: count() })
       .from(sites)

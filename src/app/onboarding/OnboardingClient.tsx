@@ -676,7 +676,7 @@ function OnboardingContent() {
           try {
             const errData = await res.json();
             if (errData?.error) errMsg = errData.error;
-            if (errData?.reason === "free_build_exhausted" || (res.status === 403 && /upgrade|limit/i.test(errMsg))) {
+            if (res.status === 403 && /upgrade|limit|subscri/i.test(errMsg)) {
               setUpgradeRequired(errMsg);
               setIsBuilding(false);
               return;

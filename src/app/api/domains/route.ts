@@ -56,7 +56,7 @@ async function resolveUserPlan(userId: string): Promise<PlanId> {
     where: eq(users.id, userId),
     columns: { plan: true },
   });
-  return (VALID_PLANS.has(userRow?.plan as string) ? userRow!.plan : "free") as PlanId;
+  return (VALID_PLANS.has(userRow?.plan as string) ? userRow!.plan : "creator") as PlanId;
 }
 
 // GET /api/domains?action=status&domain=yourdomain.com — Check verification status

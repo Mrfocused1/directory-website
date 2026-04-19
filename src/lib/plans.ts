@@ -1,6 +1,11 @@
 /**
  * Plan configuration — defines what each tier can access.
  * In production, the user's plan comes from the DB via auth context.
+ *
+ * "free" is retained in the type union only to handle legacy rows in
+ * the DB. It is never surfaced in marketing UI, never the default for
+ * new signups, and its config mirrors Creator (read-only) so legacy
+ * users see their existing directory but can't self-serve new builds.
  */
 
 export type PlanId = "free" | "creator" | "pro" | "agency";
@@ -50,22 +55,19 @@ type PlanConfig = {
 };
 
 const PLANS: Record<PlanId, PlanConfig> = {
+  // Legacy tier. Never sold, never the default for new users. Only
+  // present so DB rows with plan="free" (grandfathered accounts and
+  // cancelled-subscription downgrades) don't blow up when read. Kept
+  // permissive — they can still view their directory and browse — but
+  // capped so they can't rack up new builds without subscribing.
   free: {
     id: "free",
-    name: "Free",
+    name: "Free (legacy)",
     price: 0,
     postLimit: 9,
     siteLimit: 1,
     platformLimit: 1,
     accountsPerPlatform: { instagram: 1, tiktok: 0, youtube: 0 },
-    // Free includes auto-categorization (Claude, ~$0.0003/post) and
-    // transcription (Groq, ~$0.0003/post for a 30s reel). At the
-    // 9-post cap that's ~$0.003 of Groq spend per free build —
-    // acceptable acquisition cost vs. the UX win of shipping videos
-    // that are searchable by what's actually SAID in them.
-    //
-    // Sync is NOT available on free — the initial build is a one-shot.
-    // Upgrade to Creator+ for ongoing syncs.
     features: new Set(["auto_categorization", "transcription", "references"]),
     monthlySyncs: 0,
   },

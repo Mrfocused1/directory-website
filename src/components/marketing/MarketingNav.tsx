@@ -46,10 +46,10 @@ export default function MarketingNav() {
                 Login
               </Link>
               <Link
-                href="/onboarding"
+                href="/#pricing"
                 className="inline-flex items-center h-9 px-4 rounded-full bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] text-sm font-semibold hover:opacity-90 transition"
               >
-                Start free
+                Get started
               </Link>
             </>
           )}

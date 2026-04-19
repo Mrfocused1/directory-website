@@ -70,7 +70,7 @@ export default function TermsPage() {
           </li>
           <li>You can cancel at any time — you&apos;ll retain access until the end of the current billing period.</li>
           <li>Refunds are generally not offered for partial months; contact us if you believe there are exceptional circumstances.</li>
-          <li>Failed payments may result in your plan being downgraded to the free tier after a grace period.</li>
+          <li>Failed payments may result in your subscription being cancelled after a grace period. Your existing directory remains published but new builds and syncs will be paused until payment is restored.</li>
         </ul>
       </Section>
 

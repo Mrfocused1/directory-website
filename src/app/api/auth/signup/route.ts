@@ -86,7 +86,11 @@ export async function POST(request: NextRequest) {
       await db.insert(users).values({
         id: created.user.id,
         email,
-        plan: "free",
+        // Default new signups to Creator. Real plan entitlement is
+        // gated by an active Stripe subscription — the plan column
+        // is just a "what tier did they intend to use" marker, not
+        // proof of payment.
+        plan: "creator",
       }).onConflictDoNothing();
     } catch (err) {
       console.error("[auth/signup] Failed to create app-side users row:", err);

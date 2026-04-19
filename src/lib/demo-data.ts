@@ -145,8 +145,8 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
     where: eq(users.id, site.userId),
     columns: { plan: true },
   });
-  const validPlans = ["free", "creator", "pro", "agency"];
-  const planId = (validPlans.includes(owner?.plan as string) ? owner!.plan : "free") as PlanId;
+  const validPlans = ["creator", "pro", "agency", "free"];
+  const planId = (validPlans.includes(owner?.plan as string) ? owner!.plan : "creator") as PlanId;
   const canRemoveBranding = hasFeature(planId, "remove_branding");
   const canWhiteLabel = hasFeature(planId, "white_label");
 

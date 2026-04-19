@@ -35,7 +35,7 @@ export function usePlan() {
 }
 
 export default function PlanProvider({
-  planId = "free",
+  planId = "creator",
   children,
 }: {
   planId?: PlanId;

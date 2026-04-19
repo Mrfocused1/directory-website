@@ -63,7 +63,7 @@ export async function authApiRequest(request: NextRequest): Promise<
     return { ok: false, status: 401, error: "Owner not found" };
   }
 
-  const plan = (VALID_PLANS.has(user.plan) ? user.plan : "free") as PlanId;
+  const plan = (VALID_PLANS.has(user.plan) ? user.plan : "creator") as PlanId;
   if (!hasFeature(plan, "api_access")) {
     return {
       ok: false,

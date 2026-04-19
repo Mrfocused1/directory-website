@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     where: eq(users.id, user.id),
     columns: { plan: true },
   });
-  const planId: PlanId = (VALID_PLANS.has(userRow?.plan as string) ? userRow!.plan : "free") as PlanId;
+  const planId: PlanId = (VALID_PLANS.has(userRow?.plan as string) ? userRow!.plan : "creator") as PlanId;
   if (!hasFeature(planId, "export_subscribers")) {
     return NextResponse.json(
       {

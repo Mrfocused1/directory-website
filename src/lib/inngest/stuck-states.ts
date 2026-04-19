@@ -1,8 +1,9 @@
 import { inngest } from "./client";
 import { captureError } from "@/lib/error";
 import { db } from "@/db";
-import { pipelineJobs, ads } from "@/db/schema";
+import { pipelineJobs, ads, customDomains } from "@/db/schema";
 import { and, eq, lt, sql } from "drizzle-orm";
+import { getDomainConfig, isConfigured as vercelDomainsConfigured } from "@/lib/vercel-domains";
 
 /**
  * Every 5 minutes: walk the few state machines whose transitions
@@ -93,6 +94,46 @@ export const sweepStuckStatesFunction = inngest.createFunction(
     } catch (err) {
       captureError(err, { context: "sweep-stuck-states ads-expire" });
       result.adsExpired = -1;
+    }
+
+    // 4. custom_domains: poll Vercel for verification state on any row
+    // still "pending". Previously the only way a domain moved from
+    // pending → active was for the creator to manually open the
+    // dashboard and refresh. Now we sweep them automatically.
+    if (vercelDomainsConfigured()) {
+      try {
+        const pending = await db
+          .select({ id: customDomains.id, domain: customDomains.domain })
+          .from(customDomains)
+          .where(eq(customDomains.status, "pending"))
+          .limit(50); // cap per run to bound API cost
+
+        let verified = 0;
+        for (const d of pending) {
+          try {
+            const config = await getDomainConfig(d.domain);
+            if (config?.configured === true) {
+              await db
+                .update(customDomains)
+                .set({
+                  status: "active",
+                  dnsVerified: true,
+                  sslProvisioned: true,
+                  updatedAt: new Date(),
+                })
+                .where(eq(customDomains.id, d.id));
+              verified++;
+            }
+          } catch (perDomainErr) {
+            captureError(perDomainErr, { context: "sweep-stuck-states domain", domain: d.domain });
+          }
+        }
+        result.domainsVerified = verified;
+        result.domainsChecked = pending.length;
+      } catch (err) {
+        captureError(err, { context: "sweep-stuck-states domains" });
+        result.domainsVerified = -1;
+      }
     }
 
     console.log("[sweep-stuck-states]", result);

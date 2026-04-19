@@ -231,7 +231,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Collection not found" }, { status: 404 });
       }
 
-      const newToken = share ? (col.shareToken || crypto.randomBytes(18).toString("base64url")) : null;
+      // 32 bytes = 256 bits entropy. Previous 18 bytes was theoretically
+      // brute-forceable against the unrate-limited public /[tenant]/c/[token].
+      const newToken = share ? (col.shareToken || crypto.randomBytes(32).toString("base64url")) : null;
       await db.update(collections)
         .set({ shareToken: newToken })
         .where(eq(collections.id, collectionId));

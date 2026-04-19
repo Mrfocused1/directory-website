@@ -88,7 +88,17 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    // Only allow deletion if the user owns the site
+    // Look up the slug BEFORE deleting so we can invalidate the public
+    // page. Without this the CDN would keep serving the directory HTML
+    // for up to 5 minutes after the creator deleted their site.
+    const site = await db.query.sites.findFirst({
+      where: and(eq(sites.id, siteId), eq(sites.userId, user.id)),
+      columns: { slug: true },
+    });
+    if (!site) {
+      return NextResponse.json({ error: "Site not found or not owned by you" }, { status: 404 });
+    }
+
     const result = await db.delete(sites)
       .where(and(eq(sites.id, siteId), eq(sites.userId, user.id)))
       .returning({ id: sites.id });
@@ -96,6 +106,10 @@ export async function DELETE(request: NextRequest) {
     if (result.length === 0) {
       return NextResponse.json({ error: "Site not found or not owned by you" }, { status: 404 });
     }
+
+    revalidatePath(`/${site.slug}`);
+    revalidatePath(`/${site.slug}/feed.xml`);
+    revalidatePath("/sitemap.xml");
 
     return NextResponse.json({ deleted: true, id: result[0].id });
   } catch (error) {

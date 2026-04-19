@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getApiUser } from "@/lib/supabase/api";
 import { db } from "@/db";
 import { adSlots, sites } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { SLOT_TYPES } from "@/lib/advertising/slot-types";
 import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
+
+async function revalidateSite(siteId: string) {
+  if (!db) return;
+  const [site] = await db.select({ slug: sites.slug }).from(sites).where(eq(sites.id, siteId)).limit(1);
+  if (site) revalidatePath(`/${site.slug}`);
+}
 
 export const dynamic = "force-dynamic";
 
@@ -104,6 +111,8 @@ export async function POST(request: NextRequest) {
     })
     .returning();
 
+  await revalidateSite(siteId);
+
   return NextResponse.json({ slot: saved });
 }
 
@@ -135,6 +144,8 @@ export async function DELETE(request: NextRequest) {
     .update(adSlots)
     .set({ enabled: false, updatedAt: new Date() })
     .where(eq(adSlots.id, id));
+
+  await revalidateSite(slot.siteId);
 
   return NextResponse.json({ ok: true });
 }

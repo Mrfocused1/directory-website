@@ -8,6 +8,11 @@ const SITE_URL =
 
 const MAX_URLS_PER_SITEMAP = 5000;
 
+// Refresh the sitemap every hour. Critical routes (site publish, site
+// delete) call revalidatePath("/sitemap.xml") explicitly so crawlers
+// pick changes up faster than the hour tick.
+export const revalidate = 3600;
+
 /**
  * Generate sitemap index chunks based on total post count.
  * Next.js calls this to discover /sitemap/0.xml, /sitemap/1.xml, etc.

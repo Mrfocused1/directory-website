@@ -17,7 +17,6 @@
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",
     "@vercel/blob": "^2.3.3",
-    "apify-client": "^2.23.0",
     "date-fns": "^4.1.0",
     "drizzle-orm": "^0.45.2",
     "framer-motion": "^12.38.0",

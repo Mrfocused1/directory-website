@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/db";
 import { adImpressions } from "@/db/schema";
 import { and, eq, gte } from "drizzle-orm";
+import { captureError } from "@/lib/error";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
   if (db) {
     db.insert(adImpressions)
       .values({ adId, sessionId: sessionId ?? null, path: path ?? null })
-      .catch((err) => console.error("[ad impression] insert failed:", err));
+      .catch((err) => captureError(err, { context: "ad-impression-insert", adId }));
   }
 
   return new Response(null, { status: 204 });

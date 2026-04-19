@@ -1,6 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin";
 import Logo from "@/components/brand/Logo";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 const TABS = [
   { href: "/admin", label: "Overview" },

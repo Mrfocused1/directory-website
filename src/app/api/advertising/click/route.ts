@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/db";
 import { ads, adClicks } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { captureError } from "@/lib/error";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
   // fire and forget
   db.insert(adClicks)
     .values({ adId, sessionId: sessionId ?? null })
-    .catch((err) => console.error("[ad click] insert failed:", err));
+    .catch((err) => captureError(err, { context: "ad-click-insert", adId }));
 
   return Response.json({ clickUrl: ad.clickUrl });
 }

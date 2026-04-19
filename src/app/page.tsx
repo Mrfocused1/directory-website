@@ -146,7 +146,7 @@ export default function LandingPage() {
 
         <section className="relative overflow-hidden">
           <div className="absolute inset-0 hero-glow pointer-events-none" aria-hidden />
-          <div className="relative max-w-[90rem] mx-auto px-6 sm:px-10 pt-24 pb-32 grid lg:grid-cols-[1.1fr_1fr] gap-16 items-center">
+          <div className="relative max-w-[90rem] mx-auto px-6 sm:px-10 pt-24 pb-32 grid grid-cols-1 lg:grid-cols-[1.1fr_1fr] gap-12 lg:gap-16 items-center">
             <div>
               <h1 className="font-display-tight text-[3.25rem] sm:text-[4.5rem] lg:text-[5.75rem] text-white mb-6">
                 Your content,
@@ -209,21 +209,21 @@ export default function LandingPage() {
           {FEATURES.map((f, i) => (
             <div
               key={f.eyebrow}
-              className="bg-white rounded-[2rem] p-8 sm:p-12 grid md:grid-cols-[1fr_1fr] gap-10 items-center"
+              className="bg-white rounded-[2rem] p-6 sm:p-12 grid grid-cols-1 md:grid-cols-[1fr_1fr] gap-8 md:gap-10 items-center overflow-hidden"
             >
-              <div className={i % 2 === 1 ? "md:order-2" : ""}>
+              <div className={`min-w-0 ${i % 2 === 1 ? "md:order-2" : ""}`}>
                 <div className="eyebrow text-[color:var(--bd-dark)] mb-4">
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: f.accent }} />
                   {f.eyebrow}
                 </div>
-                <h3 className="font-display-tight text-[color:var(--bd-dark)] text-[2rem] sm:text-[2.75rem] mb-4">
+                <h3 className="font-display-tight text-[color:var(--bd-dark)] text-[1.75rem] sm:text-[2.75rem] mb-4 break-words">
                   {f.title}
                 </h3>
                 <p className="text-[color:var(--bd-grey)] leading-relaxed text-base max-w-md">
                   {f.desc}
                 </p>
               </div>
-              <div className={i % 2 === 1 ? "md:order-1" : ""}>
+              <div className={`min-w-0 ${i % 2 === 1 ? "md:order-1" : ""}`}>
                 <f.Demo />
               </div>
             </div>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getSiteData } from "@/lib/demo-data";
 import Directory from "@/components/directory/Directory";
+import Logo from "@/components/brand/Logo";
 
 // CDN-cache tenant pages for 5 minutes. Pipeline completion and site
 // profile edits call revalidatePath("/" + slug) so changes show up
@@ -97,16 +98,23 @@ export default async function TenantDirectoryPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <Directory site={data.site} posts={data.posts} siteId={data.siteId} branding={data.branding} features={data.features} />
-      {/* Subtle "advertise" link on every published directory — the /advertise
-          page handles the case where the creator hasn't enabled ad slots yet
-          with a graceful "not available" view instead of 404. */}
+      {/* Footer: BuildMy.Directory logo links to the homepage; the Advertise
+          pill links to this tenant's /advertise page, which handles the
+          no-slots case gracefully. */}
       <div className="border-t border-[color:var(--border)] bg-[color:var(--bg)]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-center">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 flex flex-col items-center gap-5">
+          <Link
+            href="/"
+            aria-label="BuildMy.Directory home"
+            className="opacity-70 hover:opacity-100 transition"
+          >
+            <Logo height={28} />
+          </Link>
           <Link
             href={`/${tenant}/advertise`}
-            className="text-sm text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] underline underline-offset-4 transition"
+            className="inline-flex items-center h-10 px-6 bg-[#1a0a2e] text-white text-sm font-semibold rounded-full hover:opacity-90 transition"
           >
-            Advertise on this directory &rarr;
+            Advertise on this directory
           </Link>
         </div>
       </div>

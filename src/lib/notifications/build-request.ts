@@ -164,12 +164,16 @@ ${claudePrompt}
 `.trim();
 
   try {
-    await resend.emails.send({
-      from: "BuildMy.Directory <alerts@buildmy.directory>",
+    const { error: sendError } = await resend.emails.send({
+      from: "BuildMy.Directory <hello@buildmy.directory>",
       to: ALERT_EMAIL,
       subject,
       text,
     });
+    if (sendError) {
+      console.warn("[build-request] Resend rejected operator email:", sendError);
+      return false;
+    }
     return true;
   } catch (err) {
     console.warn("[build-request] operator email failed:", err);

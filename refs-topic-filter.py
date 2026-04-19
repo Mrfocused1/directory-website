@@ -31,23 +31,90 @@ except ImportError as e:
     sys.exit(1)
 
 
-GROQ_MODEL = "llama-3.3-70b-versatile"
-BATCH_SIZE = 8   # smaller batch keeps each request under the TPM cap
-REQ_DELAY_SEC = 4.0  # ~15 req/min; gives the TPM window headroom
-MAX_429_RETRIES = 3
+BATCH_SIZE = 8
+REQ_DELAY_SEC = 4.0
+MAX_RETRIES_PER_PROVIDER = 2
+
+# Provider fallback chain. Same LLM (Llama-3.3-70b) behind each — we rotate
+# whichever free tier is available. OpenRouter's `:free` variants don't
+# count against paid quota. Add more providers at the tail if needed.
+PROVIDERS = [
+    {
+        "name": "groq",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "key_env": "GROQ_API_KEY",
+        "model": "llama-3.3-70b-versatile",
+        "extra_headers": {},
+    },
+    {
+        "name": "openrouter",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "key_env": "OPENROUTER_API_KEY",
+        "model": "meta-llama/llama-3.3-70b-instruct:free",
+        "extra_headers": {
+            "HTTP-Referer": "https://buildmy.directory",
+            "X-Title": "BuildMy.Directory ref topic filter",
+        },
+    },
+]
 
 
 def get_db():
     return psycopg2.connect(os.environ["DATABASE_URL"], cursor_factory=RealDictCursor)
 
 
+def call_provider(provider: Dict, api_key: str, prompt: str):
+    """
+    POST to an OpenAI-compatible chat-completions endpoint. Retries on 429
+    up to MAX_RETRIES_PER_PROVIDER, capping retry-after sleeps at 15s (so
+    we switch provider instead of waiting minutes). Returns (data, None)
+    on success or (None, reason) on failure.
+    """
+    body = json.dumps({
+        "model": provider["model"],
+        "temperature": 0.1,
+        "max_tokens": 2000,
+        "messages": [{"role": "user", "content": prompt}],
+    }).encode()
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        # Cloudflare at Groq's edge rejects urllib's default User-Agent
+        # with "error code: 1010". Any real UA works.
+        "User-Agent": "curl/8.4.0",
+        **provider.get("extra_headers", {}),
+    }
+
+    for attempt in range(MAX_RETRIES_PER_PROVIDER + 1):
+        try:
+            req = urllib.request.Request(provider["url"], data=body, headers=headers, method="POST")
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                return json.loads(resp.read()), None
+        except urllib.error.HTTPError as e:
+            if e.code == 429 and attempt < MAX_RETRIES_PER_PROVIDER:
+                retry_after_hdr = e.headers.get("retry-after", "5")
+                try:
+                    retry_after = min(float(retry_after_hdr), 15.0)
+                except ValueError:
+                    retry_after = 5.0
+                time.sleep(retry_after + 0.5)
+                continue
+            return None, f"http_{e.code}"
+        except (urllib.error.URLError, TimeoutError) as e:
+            return None, f"{type(e).__name__}"
+        except Exception as e:
+            return None, f"{type(e).__name__}"
+    return None, "retry_exhausted"
+
+
 def classify_batch(refs: List[Dict]) -> List[Dict]:
     """
-    Send a batch of {id, url, title} to Groq. Returns [{id, keep: bool}].
-    On API failure, returns keep=True for every ref (conservative — prefer
-    a false positive we can clean up later over a false negative).
+    Send a batch of {id, url, title} to the first available LLM provider.
+    Returns [{id, keep: bool}]. On all providers failing, returns keep=True
+    for every ref (conservative — prefer a false positive we can clean up
+    later over a false negative).
     """
-    api_key = os.environ["GROQ_API_KEY"]
     items_for_prompt = [
         {"id": str(r["id"]), "url": r["url"], "title": (r["title"] or "")[:120]}
         for r in refs
@@ -82,45 +149,22 @@ Items:
 
 Return ONLY a JSON array of {{"id": "<id>", "keep": true|false, "reason": "<5-10 word reason>"}}, one entry per item."""
 
-    body = json.dumps({
-        "model": GROQ_MODEL,
-        "temperature": 0.1,
-        "max_tokens": 2000,
-        "messages": [{"role": "user", "content": prompt}],
-    }).encode()
-
-    req = urllib.request.Request(
-        "https://api.groq.com/openai/v1/chat/completions",
-        data=body,
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            # Cloudflare at Groq's edge returns "error code: 1010" to the
-            # default Python urllib User-Agent. Any real UA works.
-            "User-Agent": "curl/8.4.0",
-        },
-        method="POST",
-    )
-
     data = None
-    for attempt in range(MAX_429_RETRIES + 1):
-        try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                data = json.loads(resp.read())
-                break
-        except urllib.error.HTTPError as e:
-            if e.code == 429 and attempt < MAX_429_RETRIES:
-                retry_after = float(e.headers.get("retry-after", 10))
-                print(f"  … 429, sleeping {retry_after:.1f}s (attempt {attempt + 1}/{MAX_429_RETRIES})", file=sys.stderr)
-                time.sleep(retry_after + 1)
-                continue
-            print(f"  ! Groq error: HTTPError {e.code} — keeping all refs in this batch", file=sys.stderr)
-            return [{"id": str(r["id"]), "keep": True, "reason": f"http_{e.code}"} for r in refs]
-        except (urllib.error.URLError, TimeoutError, Exception) as e:
-            print(f"  ! Groq error: {type(e).__name__} {e} — keeping all refs in this batch", file=sys.stderr)
-            return [{"id": str(r["id"]), "keep": True, "reason": "api_error"} for r in refs]
+    last_err = "no_provider_configured"
+    for provider in PROVIDERS:
+        key = os.environ.get(provider["key_env"])
+        if not key:
+            last_err = f"no_{provider['key_env']}"
+            continue
+        data, err = call_provider(provider, key, prompt)
+        if data is not None:
+            break
+        last_err = err
+        print(f"  … {provider['name']} failed ({err}), trying next provider", file=sys.stderr)
+
     if data is None:
-        return [{"id": str(r["id"]), "keep": True, "reason": "no_data"} for r in refs]
+        print(f"  ! all providers failed (last: {last_err}) — keeping all refs in this batch", file=sys.stderr)
+        return [{"id": str(r["id"]), "keep": True, "reason": last_err} for r in refs]
 
     content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
     # Extract the JSON array
@@ -148,9 +192,15 @@ def main():
         sys.exit(1)
     slug = sys.argv[1]
 
-    if not os.environ.get("GROQ_API_KEY"):
-        print("GROQ_API_KEY not set", file=sys.stderr)
+    configured = [p["name"] for p in PROVIDERS if os.environ.get(p["key_env"])]
+    if not configured:
+        print(
+            "No LLM provider configured. Set at least one of: "
+            + ", ".join(p["key_env"] for p in PROVIDERS),
+            file=sys.stderr,
+        )
         sys.exit(1)
+    print(f"Providers available (fallback order): {', '.join(configured)}")
 
     conn = get_db()
     cur = conn.cursor()
@@ -175,7 +225,7 @@ def main():
         (site_id,),
     )
     refs = cur.fetchall()
-    print(f"Classifying {len(refs)} references via Groq {GROQ_MODEL}...")
+    print(f"Classifying {len(refs)} references via LLM fallback chain...")
 
     to_delete = []
     reasons = []

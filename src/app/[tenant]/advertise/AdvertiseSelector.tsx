@@ -28,6 +28,11 @@ export default function AdvertiseSelector({ siteSlug, siteName, creatorName, slo
   const storageKey = `bmd:quote:${siteSlug}`;
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Gate for the persist effect. Without it, the persist useEffect
+  // fires on first render with the empty initial Set — wiping the
+  // stored selection before hydration can populate it, so navigating
+  // back from the slot detail page would show everything unchecked.
+  const [hydrated, setHydrated] = useState(false);
 
   // Hydrate from localStorage on mount and subscribe to cross-tab changes.
   useEffect(() => {
@@ -35,12 +40,18 @@ export default function AdvertiseSelector({ siteSlug, siteName, creatorName, slo
     const read = () => {
       try {
         const raw = localStorage.getItem(storageKey);
-        if (!raw) return;
+        if (!raw) {
+          setHydrated(true);
+          return;
+        }
         const list: string[] = JSON.parse(raw);
-        if (!Array.isArray(list)) return;
-        setSelected(new Set(list.filter((id) => validIds.has(id))));
+        if (Array.isArray(list)) {
+          setSelected(new Set(list.filter((id) => validIds.has(id))));
+        }
       } catch {
         // ignore malformed
+      } finally {
+        setHydrated(true);
       }
     };
     read();
@@ -51,14 +62,16 @@ export default function AdvertiseSelector({ siteSlug, siteName, creatorName, slo
     return () => window.removeEventListener("storage", onStorage);
   }, [storageKey, slots]);
 
-  // Persist selection on every change.
+  // Persist selection on every change — but only after hydration so
+  // we don't clobber the stored list with an empty Set on first render.
   useEffect(() => {
+    if (!hydrated) return;
     try {
       localStorage.setItem(storageKey, JSON.stringify(Array.from(selected)));
     } catch {
       // storage quota / disabled — silently ignore
     }
-  }, [storageKey, selected]);
+  }, [storageKey, selected, hydrated]);
 
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");

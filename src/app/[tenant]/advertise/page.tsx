@@ -108,8 +108,10 @@ export default async function AdvertiseLandingPage({ params }: Props) {
       <section className="relative text-white" style={{ background: "#1a0a2e" }}>
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 pt-10 sm:pt-12 pb-16 sm:pb-20">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 sm:gap-8">
-            <div
-              className="shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden ring-2 ring-white/20 shadow-lg flex items-center justify-center text-2xl sm:text-3xl font-extrabold tracking-wide"
+            <Link
+              href={`/${tenant}`}
+              aria-label={`Back to ${siteName}'s directory`}
+              className="shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden ring-2 ring-white/20 shadow-lg flex items-center justify-center text-2xl sm:text-3xl font-extrabold tracking-wide hover:ring-white/50 transition"
               style={{ background: "rgba(255,255,255,0.1)" }}
             >
               {site.avatarUrl ? (
@@ -126,7 +128,7 @@ export default async function AdvertiseLandingPage({ params }: Props) {
                   {siteName.slice(0, 2).toUpperCase()}
                 </span>
               )}
-            </div>
+            </Link>
             <div className="flex-1 min-w-0">
               <p className="text-xs sm:text-sm font-semibold tracking-[0.2em] uppercase mb-2" style={{ color: "#c8a2ff" }}>
                 Advertising opportunities

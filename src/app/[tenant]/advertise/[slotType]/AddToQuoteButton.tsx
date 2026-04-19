@@ -77,7 +77,7 @@ export default function AddToQuoteButton({ siteSlug, slotType, slotName }: Props
   }
 
   return (
-    <div className="text-center">
+    <div className="text-center flex flex-col items-center gap-3">
       <button
         type="button"
         onClick={toggle}
@@ -101,16 +101,16 @@ export default function AddToQuoteButton({ siteSlug, slotType, slotName }: Props
         )}
       </button>
       {added && (
-        <p className="text-xs text-[#56505e] mt-3">
-          {slotName} is in your quote list. Send it all at once from the{" "}
-          <a
-            href={`/${siteSlug}/advertise#quote-form`}
-            className="underline underline-offset-4 hover:text-[#1a0a2e]"
-          >
-            main advertise page
-          </a>
-          .
-        </p>
+        <a
+          href={`/${siteSlug}/advertise#quote-form`}
+          className="inline-flex items-center gap-2 h-11 px-6 bg-white border-2 border-[#1a0a2e] text-[#1a0a2e] text-sm font-semibold rounded-full hover:bg-[#1a0a2e] hover:text-white transition"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+          Back to advertising page
+        </a>
       )}
     </div>
   );

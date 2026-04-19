@@ -29,7 +29,11 @@ export const users = pgTable("users", {
   // "active". Feature gates that matter (new builds, syncs) check
   // status, not plan — so a cancelled creator's directory keeps
   // rendering publicly but they can't trigger new work.
-  subscriptionStatus: varchar("subscription_status", { length: 16 }).notNull().default("active"),
+  // New signups default to "inactive". Only the Stripe webhook flips
+  // this to "active" after checkout.session.completed fires. A previous
+  // default of "active" meant every signup auto-bypassed the /dashboard
+  // paywall because the column lied about their payment state.
+  subscriptionStatus: varchar("subscription_status", { length: 16 }).notNull().default("inactive"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -48,6 +48,14 @@ export default function PostModal({
     setShowPreRoll(true);
   }, [post, siteId]);
 
+  // Reset post-view overlay state whenever the open post changes — otherwise
+  // showPostViewOverlay remains true after the first modal closes, and the
+  // moment a new post opens the overlay mounts, hits its sessionStorage
+  // dedup, and fires onClose → the second modal closes itself.
+  useEffect(() => {
+    setShowPostViewOverlay(false);
+  }, [post?.shortcode]);
+
   // Intercept close: show post-view overlay once (if siteId is present), then actually close
   const handleClose = useCallback(() => {
     if (siteId && !showPostViewOverlay) {

@@ -31,24 +31,26 @@ async function getAdvertisePage(slug: string) {
     .where(and(eq(sites.slug, slug), eq(sites.isPublished, true)))
     .limit(1);
 
+  // Site missing / unpublished → genuine 404
   if (!site) return null;
 
-  // Check creator has an active Stripe Connect account
+  // The 3 dimensions that gate a real purchase flow. We surface all of them
+  // so the page can render a graceful "not ready yet" state instead of 404
+  // when only some are false. Keeping the link discoverable on every
+  // directory is deliberate — it tells advertisers the platform supports
+  // ads here, even when this particular creator hasn't finished setup.
   const [connectAccount] = await db
     .select({ chargesEnabled: stripeConnectAccounts.chargesEnabled })
     .from(stripeConnectAccounts)
     .where(eq(stripeConnectAccounts.userId, site.userId))
     .limit(1);
+  const creatorReady = !!connectAccount?.chargesEnabled;
 
-  if (!connectAccount?.chargesEnabled) return null;
-
-  // Fetch post count for stats
   const [{ value: postCount }] = await db
     .select({ value: count() })
     .from(posts)
     .where(eq(posts.siteId, site.id));
 
-  // Fetch enabled slots
   const slotRows = await db
     .select()
     .from(adSlots)
@@ -56,14 +58,12 @@ async function getAdvertisePage(slug: string) {
 
   const enabledSlotMap = Object.fromEntries(slotRows.map((r) => [r.slotType, r]));
 
-  // Creator display name (for footer attribution)
   const [creator] = await db
     .select({ name: users.name, email: users.email })
     .from(users)
     .where(eq(users.id, site.userId))
     .limit(1);
 
-  // Zip slot catalog — only live + enabled
   const availableSlots = SLOT_TYPES.filter(
     (def) => def.status === "live" && enabledSlotMap[def.id],
   ).map((def) => ({
@@ -76,6 +76,7 @@ async function getAdvertisePage(slug: string) {
     postCount: Number(postCount),
     availableSlots,
     creatorName: creator?.name || site.displayName || slug,
+    creatorReady,
   };
 }
 
@@ -96,8 +97,14 @@ export default async function AdvertiseLandingPage({ params }: Props) {
   const data = await getAdvertisePage(tenant);
   if (!data) notFound();
 
-  const { site, postCount, availableSlots, creatorName } = data;
+  const { site, postCount, availableSlots, creatorName, creatorReady } = data;
   const siteName = site.displayName || tenant;
+  // Ready for purchases when the creator has both finished Stripe Connect
+  // onboarding AND enabled at least one live ad slot. Anything short of
+  // that renders a "not yet accepting ads" view — the link stays valid so
+  // the directory can still advertise that advertising exists, even if
+  // this creator hasn't finished setup.
+  const acceptingAds = creatorReady && availableSlots.length > 0;
 
   return (
     <div className="min-h-screen bg-[#f7f5f3]">
@@ -117,7 +124,9 @@ export default async function AdvertiseLandingPage({ params }: Props) {
             Advertise on {siteName}
           </h1>
           <p className="text-white/70 text-lg max-w-xl">
-            Reach a curated audience of engaged readers. Pick a slot, upload your creative, and pay securely via Stripe. The creator reviews every ad before it goes live.
+            {acceptingAds
+              ? "Reach a curated audience of engaged readers. Pick a slot, upload your creative, and pay securely via Stripe. The creator reviews every ad before it goes live."
+              : `${siteName} isn't accepting ads yet, but you can learn how advertising on this platform works below.`}
           </p>
           {/* Stats */}
           <div className="flex flex-wrap gap-6 mt-8">
@@ -131,11 +140,24 @@ export default async function AdvertiseLandingPage({ params }: Props) {
 
       {/* Slot grid */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
-        {availableSlots.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-lg font-semibold mb-2">No ad slots available right now</p>
-            <p className="text-sm text-[#56505e]">
-              The creator hasn&apos;t enabled any ad slots yet. Check back soon.
+        {!acceptingAds ? (
+          <div className="bg-white border border-[#e5e1da] rounded-2xl p-8 text-center">
+            <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 8v4l3 3" />
+              </svg>
+            </div>
+            <p className="text-lg font-bold text-[#1a0a2e] mb-2">
+              {siteName} isn&apos;t accepting ads yet
+            </p>
+            <p className="text-sm text-[#56505e] leading-relaxed mb-6 max-w-md mx-auto">
+              {creatorReady
+                ? `${creatorName} hasn't opened any ad slots on this directory yet. Check back soon — or reach out to them directly if you have a specific campaign in mind.`
+                : `${creatorName} hasn't finished setting up payments on BuildMy.Directory yet. Once they do, you'll be able to book ad slots directly from this page.`}
+            </p>
+            <p className="text-xs text-[#56505e] max-w-md mx-auto">
+              BuildMy.Directory supports 11 slot formats including pre-roll video, banner, sticky ribbon, and homepage takeover — all with creator review before anything goes live and payment only after approval.
             </p>
           </div>
         ) : (

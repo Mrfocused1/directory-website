@@ -94,7 +94,7 @@ export default function SubscribeBanner({ siteId, siteName, categories = [] }: P
                   placeholder="your@email.com"
                   required
                   aria-label="Email address"
-                  className="flex-1 h-12 px-4 bg-white border border-[color:var(--border)] rounded-xl text-sm font-medium placeholder:text-[color:var(--fg-subtle)] focus:outline-none focus:border-[color:var(--fg)] transition"
+                  className="flex-1 w-full appearance-none h-12 px-5 bg-white border border-[color:var(--border)] rounded-full text-base font-medium placeholder:text-[color:var(--fg-subtle)] focus:outline-none focus:border-[color:var(--fg)] transition"
                 />
                 <button
                   type="submit"

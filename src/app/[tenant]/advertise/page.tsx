@@ -7,6 +7,8 @@ import { sites, adSlots, users, posts } from "@/db/schema";
 import { and, eq, count } from "drizzle-orm";
 import { SLOT_TYPES } from "@/lib/advertising/slot-types";
 import { SLOT_COPY } from "@/lib/advertising/slot-copy";
+import Logo from "@/components/brand/Logo";
+import AdvertiseSelector, { type SelectorSlot } from "./AdvertiseSelector";
 
 export const dynamic = "force-dynamic";
 
@@ -95,9 +97,9 @@ export default async function AdvertiseLandingPage({ params }: Props) {
           <Link
             href="/"
             aria-label="BuildMy.Directory home"
-            className="text-xs text-white/50 hover:text-white tracking-wide uppercase transition"
+            className="opacity-80 hover:opacity-100 transition"
           >
-            BuildMy.Directory
+            <Logo height={22} variant="white" />
           </Link>
         </div>
       </header>
@@ -152,52 +154,19 @@ export default async function AdvertiseLandingPage({ params }: Props) {
         </div>
       </section>
 
-      {/* Slot grid */}
+      {/* Slot selector + bulk quote request */}
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-12">
-        {availableSlots.length === 0 ? (
-          <div className="bg-white border border-[#e5e1da] rounded-2xl p-10 text-center">
-            <p className="text-lg font-bold text-[#1a0a2e] mb-2">Ad formats coming soon</p>
-            <p className="text-sm text-[#56505e] max-w-md mx-auto">
-              {creatorName} hasn&apos;t opened any ad formats on this directory yet. Check back soon.
-            </p>
-          </div>
-        ) : (
-          <>
-            <h2 className="text-xl font-bold text-[#1a0a2e] mb-1">Available formats</h2>
-            <p className="text-sm text-[#56505e] mb-6">Click any format to see a live preview and request pricing.</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {availableSlots.map(({ def, row }) => (
-                <div
-                  key={def.id}
-                  className="bg-white border border-[#e5e1da] rounded-2xl p-5 flex flex-col gap-3"
-                >
-                  <div>
-                    <p className="font-bold text-[#1a0a2e]">{def.name}</p>
-                    <p className="text-sm text-[#56505e] mt-0.5">{def.tagline}</p>
-                  </div>
-                  <p className="text-xs text-[#56505e] leading-relaxed line-clamp-3">
-                    {SLOT_COPY[def.id]}
-                  </p>
-                  <div className="flex items-center justify-between mt-auto pt-2">
-                    <div>
-                      <p className="text-sm font-semibold text-[#1a0a2e]">Pricing on request</p>
-                      <p className="text-xs text-[#56505e]">
-                        {row.minWeeks}–{row.maxWeeks} week booking
-                      </p>
-                    </div>
-                    <Link
-                      href={`/${tenant}/advertise/${def.id}`}
-                      className="inline-flex items-center h-9 px-5 bg-[#1a0a2e] text-white text-sm font-semibold rounded-full hover:opacity-90 transition"
-                    >
-                      Request pricing
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
+        <AdvertiseSelector
+          siteSlug={tenant}
+          siteName={siteName}
+          creatorName={creatorName}
+          slots={availableSlots.map<SelectorSlot>(({ def }) => ({
+            id: def.id,
+            name: def.name,
+            tagline: def.tagline,
+            copy: SLOT_COPY[def.id],
+          }))}
+        />
         <p className="text-xs text-[#56505e] text-center mt-12 max-w-lg mx-auto">
           Every ad is reviewed by {creatorName} before it goes live. Payments secured by Stripe.
         </p>

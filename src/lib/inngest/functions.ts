@@ -261,9 +261,9 @@ export const pruneAnalyticsFunction = inngest.createFunction(
 
 // Plan ID mapping from Stripe price amounts (minor units) to plan IDs
 const PRICE_TO_PLAN: Record<number, string> = {
-  1999: "creator", // £19.99 GBP
-  3900: "pro",    // $39 USD
-  9900: "agency", // $99 USD
+  1999: "creator", // £19.99
+  3900: "pro",    // £39
+  9900: "agency", // £99
 };
 
 /**

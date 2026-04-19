@@ -26,14 +26,14 @@ const PLAN_PRICES: Record<string, { name: string; price: number; currency: strin
   },
   pro: {
     name: "Pro Plan",
-    price: 3900, // $39/month in cents
-    currency: "usd",
+    price: 3900, // £39/month in pence
+    currency: "gbp",
     features: "Everything in Creator + custom domain, SEO, AI insights, remove branding",
   },
   agency: {
     name: "Agency Plan",
-    price: 9900, // $99/month in cents
-    currency: "usd",
+    price: 9900, // £99/month in pence
+    currency: "gbp",
     features: "Everything in Pro + 10 sites, white-label, API access, bulk domains",
   },
 };

@@ -13,7 +13,7 @@ const POSTS: { title: string; cat: number }[] = [
   { title: "Why I stopped timing the market", cat: 1 },
   { title: "Setting financial boundaries with family", cat: 3 },
   { title: "Credit score myths you need to stop believing", cat: 2 },
-  { title: "Your first $10K — a step-by-step plan", cat: 0 },
+  { title: "Your first £10K — a step-by-step plan", cat: 0 },
 ];
 
 const CATS = ["Saving", "Investing", "Debt", "Mindset"];

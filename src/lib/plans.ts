@@ -42,7 +42,7 @@ type PlatformLimits = {
 type PlanConfig = {
   id: PlanId;
   name: string;
-  price: number; // monthly (creator: GBP, others: USD)
+  price: number; // monthly, GBP
   features: Set<FeatureKey>;
   postLimit: number; // 0 = unlimited
   siteLimit: number;

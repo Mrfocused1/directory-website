@@ -76,6 +76,70 @@ function Thumb({ post, className }: { post: DemoPost; className?: string }) {
   return <div className={className} style={{ background: colors[idx] }} />;
 }
 
+// Realistic-looking mock post card used inside the demos that show the
+// advertiser what a viewer was looking at when the ad fires. Populates
+// category, title, caption excerpt, and a few reference rows so the
+// preview doesn't feel empty next to the ad overlay.
+const DEMO_CAPTION =
+  "Breaking down how the numbers stacked up on this deal — purchase price, refurb budget, end value, and the lender's rate.";
+const DEMO_REFS = [
+  { n: 1, title: "GOV.UK — Stamp Duty calculator", host: "gov.uk" },
+  { n: 2, title: "RICS — Residential valuations", host: "rics.org" },
+  { n: 3, title: "Bank of England base rate", host: "bankofengland.co.uk" },
+];
+
+function MockPostCard({
+  site,
+  post,
+  compact,
+}: {
+  site: DemoSite;
+  post: DemoPost;
+  compact?: boolean;
+}) {
+  const w = compact ? "w-52" : "w-56";
+  const h = compact ? "h-[290px]" : "h-[340px]";
+  const thumbH = compact ? "h-24" : "h-32";
+  return (
+    <div className={`${w} ${h} bg-white rounded-xl overflow-hidden border border-black/5 shadow-sm flex flex-col`}>
+      <div className="relative">
+        <Thumb post={post} className={`w-full ${thumbH}`} />
+        {post.category && (
+          <span className="absolute top-2 left-2 text-[9px] font-semibold uppercase tracking-wide bg-black/70 text-white px-1.5 py-0.5 rounded">
+            {post.category}
+          </span>
+        )}
+      </div>
+      <div className="px-2.5 pt-2 pb-2 flex-1 flex flex-col min-h-0">
+        <p className="text-[11px] font-bold text-gray-900 leading-snug line-clamp-2">
+          {post.title || "Untitled"}
+        </p>
+        <p className="text-[9px] text-gray-500 leading-snug mt-1 line-clamp-2">
+          {DEMO_CAPTION}
+        </p>
+        <div className="mt-auto pt-1.5 border-t border-black/5">
+          <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
+            References
+          </p>
+          <div className="space-y-0.5">
+            {DEMO_REFS.map((r) => (
+              <div key={r.n} className="flex items-center gap-1.5 min-w-0">
+                <span
+                  className="shrink-0 w-3 h-3 rounded text-[7px] font-bold text-white flex items-center justify-center"
+                  style={{ background: site.accentColor }}
+                >
+                  {r.n}
+                </span>
+                <span className="text-[8px] text-gray-700 font-medium truncate">{r.title}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // PRE-ROLL VIDEO / IMAGE demo
 // ──────────────────────────────────────────────────────────────────────
@@ -102,15 +166,9 @@ function PreRollDemo({ site, samplePosts, isVideo, realBackdropSlug }: Props & {
           ))}
         </div>
       )}
-      {/* modal backdrop — small preview of a post the user was opening when the ad fired */}
+      {/* modal backdrop — preview of a post the user was opening when the ad fired */}
       <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-        <div className="w-48 h-64 bg-white rounded-xl overflow-hidden relative">
-          <Thumb post={posts[0]} className="w-full h-40" />
-          <div className="p-2">
-            <p className="text-[10px] font-semibold truncate">{posts[0].title}</p>
-            <p className="text-[9px] text-gray-400">{posts[0].category}</p>
-          </div>
-        </div>
+        <MockPostCard site={site} post={posts[0]} compact />
       </div>
 
       <AnimatePresence key={key}>
@@ -443,10 +501,7 @@ function PostViewOverlayDemo({ site, samplePosts, realBackdropSlug }: Props) {
             initial={{ opacity: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
           >
-            <div className="w-48 h-64 bg-white rounded-xl overflow-hidden">
-              <Thumb post={posts[0]} className="w-full h-40" />
-              <div className="p-2"><p className="text-[10px] font-semibold">{posts[0].title}</p></div>
-            </div>
+            <MockPostCard site={site} post={posts[0]} compact />
           </motion.div>
         ) : (
           <motion.div

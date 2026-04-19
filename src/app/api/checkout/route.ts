@@ -133,8 +133,16 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ url: session.url });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Stripe subscription checkout error:", message);
+    const e = err as { message?: string; type?: string; code?: string; statusCode?: number; raw?: unknown };
+    console.error("Stripe checkout error:", {
+      message: e.message,
+      type: e.type,
+      code: e.code,
+      statusCode: e.statusCode,
+      keyPrefix: process.env.STRIPE_SECRET_KEY?.slice(0, 12),
+      nodeVersion: process.version,
+    });
+    const message = e.message || "Unknown error";
     return NextResponse.json(
       { error: `Checkout failed: ${message}` },
       { status: 500 },

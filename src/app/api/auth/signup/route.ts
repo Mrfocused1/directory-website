@@ -135,15 +135,20 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Send our branded confirmation email via Resend
+  // Send our branded confirmation email via Resend. We only use the
+  // 6-digit email_otp — magic links got defeated by inbox prefetch
+  // scanners (security bots can fetch URLs but can't type codes).
   if (resend) {
-    // Supabase returns both a one-time magic URL *and* the 6-digit OTP
-    // in email_otp. We lead the email with the code (immune to inbox
-    // bots prefetching the link) and keep the URL as a fallback.
-    const template = signupConfirmEmail({
-      confirmUrl: linkData.properties.action_link,
-      code: (linkData.properties as { email_otp?: string }).email_otp,
-    });
+    const code = (linkData.properties as { email_otp?: string }).email_otp;
+    if (!code) {
+      await admin.auth.admin.deleteUser(created.user.id).catch(() => null);
+      console.error("[auth/signup] generateLink returned no email_otp");
+      return NextResponse.json(
+        { error: "Could not generate verification code. Please try again." },
+        { status: 500 },
+      );
+    }
+    const template = signupConfirmEmail({ code });
     const { error: sendErr } = await resend.emails.send({
       from: "BuildMy.Directory <hello@buildmy.directory>",
       to: email,

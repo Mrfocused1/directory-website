@@ -55,10 +55,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Could not generate link" }, { status: 500 });
   }
 
-  const template = signupConfirmEmail({
-    confirmUrl: linkData.properties.action_link,
-    code: (linkData.properties as { email_otp?: string }).email_otp,
-  });
+  const code = (linkData.properties as { email_otp?: string }).email_otp;
+  if (!code) {
+    console.error("[auth/resend-confirmation] generateLink returned no email_otp");
+    return NextResponse.json({ error: "Could not generate code" }, { status: 500 });
+  }
+  const template = signupConfirmEmail({ code });
   const { error: sendErr } = await resend.emails.send({
     from: "BuildMy.Directory <hello@buildmy.directory>",
     to: email,

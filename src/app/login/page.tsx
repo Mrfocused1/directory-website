@@ -64,6 +64,44 @@ function LoginContent() {
     });
   }, [supabase, router, nextPath]);
 
+  const verifyCode = async (raw: string) => {
+    const cleaned = raw.replace(/\D/g, "");
+    if (cleaned.length !== 6) {
+      setError("Enter the 6-digit code from your email.");
+      return;
+    }
+    setError(null);
+    setMessage(null);
+    setLoading(true);
+    try {
+      // type "email" is the umbrella for email-based OTPs — handles
+      // both the initial signup code and any resent magiclink code
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token: cleaned,
+        type: "email",
+      });
+      if (error) {
+        setError(error.message);
+        setLoading(false);
+      } else {
+        await fetch("/api/auth/me", { method: "POST" }).catch(() => {});
+        window.location.href = nextPath;
+      }
+    } catch {
+      setError("Couldn't verify the code. Please try again.");
+      setLoading(false);
+    }
+  };
+
+  // Auto-submit the moment all 6 digits are entered — saves a tap.
+  useEffect(() => {
+    if (mode === "verify" && code.length === 6 && !loading) {
+      verifyCode(code);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, code]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -88,24 +126,8 @@ function LoginContent() {
           setMessage(`We sent a 6-digit code to ${email}. Enter it below to finish.`);
         }
       } else if (mode === "verify") {
-        const cleaned = code.replace(/\D/g, "");
-        if (cleaned.length !== 6) {
-          setError("Enter the 6-digit code from your email.");
-        } else {
-          // type "email" is the umbrella for email-based OTPs — handles
-          // both the initial signup code and any resent magiclink code
-          const { error } = await supabase.auth.verifyOtp({
-            email,
-            token: cleaned,
-            type: "email",
-          });
-          if (error) {
-            setError(error.message);
-          } else {
-            await fetch("/api/auth/me", { method: "POST" }).catch(() => {});
-            window.location.href = nextPath;
-          }
-        }
+        await verifyCode(code);
+        return;
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,

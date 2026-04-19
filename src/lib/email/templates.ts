@@ -169,34 +169,25 @@ export function sanitizeFromName(name: string): string {
  * so clicking it still hands back a signed session just like the native
  * flow would.
  */
-export function signupConfirmEmail(opts: { confirmUrl: string; code?: string }) {
-  const codeBlock = opts.code
-    ? `<div style="text-align: center; margin: 0 0 24px;">
-        <div style="display: inline-block; background: #f6f6f2; border: 2px solid ${BD_DARK}; border-radius: 14px; padding: 18px 32px;">
-          <div style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 34px; font-weight: 800; color: ${BD_DARK}; letter-spacing: 8px; line-height: 1;">
-            ${esc(opts.code)}
-          </div>
-          <div style="color: ${BD_GREY}; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; margin-top: 8px;">
-            Your 6-digit code
-          </div>
-        </div>
-      </div>
-      <p style="color: ${BD_GREY}; font-size: 13px; text-align: center; margin: 0 0 28px;">
-        Type the code into the signup page to finish creating your account. Expires in 1 hour.
-      </p>`
-    : "";
-
+export function signupConfirmEmail(opts: { code: string }) {
   return brandedEmail(
     `<h1 style="font-size: 24px; font-weight: 800; color: ${BD_DARK}; margin: 0 0 8px;">Welcome to BuildMy.Directory</h1>
     <p style="color: ${BD_GREY}; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
       Finish creating your account by entering the code below.
     </p>
-    ${codeBlock}
-    <div style="text-align: center; margin: 0 0 20px;">
-      <a href="${escUrl(opts.confirmUrl)}" style="color: ${BD_GREY}; font-size: 13px; text-decoration: underline;">
-        Or click here instead
-      </a>
+    <div style="text-align: center; margin: 0 0 24px;">
+      <div style="display: inline-block; background: #f6f6f2; border: 2px solid ${BD_DARK}; border-radius: 14px; padding: 18px 32px;">
+        <div style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 34px; font-weight: 800; color: ${BD_DARK}; letter-spacing: 8px; line-height: 1;">
+          ${esc(opts.code)}
+        </div>
+        <div style="color: ${BD_GREY}; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; margin-top: 8px;">
+          Your 6-digit code
+        </div>
+      </div>
     </div>
+    <p style="color: ${BD_GREY}; font-size: 13px; text-align: center; margin: 0 0 28px;">
+      Enter this on the signup page. Expires in 1 hour.
+    </p>
     <p style="color: #999; font-size: 12px; margin: 0;">
       If you didn't create an account, you can safely ignore this email.
     </p>`,

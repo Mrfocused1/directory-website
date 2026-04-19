@@ -18,6 +18,8 @@ import BookmarkButton from "@/components/bookmarks/BookmarkButton";
 import SignInModal from "@/components/bookmarks/SignInModal";
 import CollectionsHeader from "@/components/bookmarks/CollectionsHeader";
 import { trackPostClick, trackSearch, trackCategoryClick } from "@/lib/analytics/tracker";
+import BannerTopAd from "@/components/advertising/BannerTopAd";
+import StickyRibbonAd from "@/components/advertising/StickyRibbonAd";
 
 const PAGE_SIZE = 12;
 
@@ -148,9 +150,14 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
     firstMount.current = false;
   }, []);
 
+  // derive the current path for ad tracking — basePath is already computed above
+  const adPath = basePath;
+
   return (
     <BookmarkProvider siteId={analyticsId}>
     <div className="min-h-screen relative">
+      {/* Banner ad above everything, only when siteId is known */}
+      {siteId && <BannerTopAd siteId={siteId} path={adPath} />}
       <AnalyticsProvider siteId={analyticsId} />
       <SignInModal />
       <div className="fixed inset-0 dotted-bg pointer-events-none" aria-hidden />
@@ -475,6 +482,8 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
       <PostModal post={selected} onClose={() => setSelected(null)} siteId={analyticsId} ttsEnabled={features?.tts !== false} />
       <BackToTop />
       {features?.newsletter !== false && <FloatingSubscribe siteId={analyticsId} />}
+      {/* Sticky ribbon ad fixed at bottom of viewport */}
+      {siteId && <StickyRibbonAd siteId={siteId} path={adPath} />}
     </div>
     </BookmarkProvider>
   );

@@ -9,6 +9,8 @@ import ReferencesAccordion from "./ReferencesAccordion";
 import ShareButtons from "./ShareButtons";
 import BookmarkButton from "@/components/bookmarks/BookmarkButton";
 import { SUPPORTED_LANGUAGES } from "@/lib/translate";
+import PreRollAd from "@/components/advertising/PreRollAd";
+
 export default function PostModal({
   post,
   onClose,
@@ -24,6 +26,22 @@ export default function PostModal({
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // pre-roll ad: true = still showing, false = done (or no ad)
+  const [showPreRoll, setShowPreRoll] = useState(false);
+  // track which post shortcodes have already shown the pre-roll this session
+  const seenShortcodes = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!post || !siteId) return;
+    if (seenShortcodes.current.has(post.shortcode)) {
+      setShowPreRoll(false);
+      return;
+    }
+    // mark as seen immediately so re-open skips it
+    seenShortcodes.current.add(post.shortcode);
+    setShowPreRoll(true);
+  }, [post, siteId]);
 
   useEffect(() => {
     if (!post) return;
@@ -100,6 +118,15 @@ export default function PostModal({
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Pre-roll ad overlay — covers the entire modal until dismissed */}
+            {showPreRoll && siteId && (
+              <PreRollAd
+                siteId={siteId}
+                path={typeof window !== "undefined" ? window.location.pathname : "/"}
+                onDone={() => setShowPreRoll(false)}
+              />
+            )}
+
             {/* Drag handle for mobile */}
             <div className="sm:hidden pt-2 pb-1 flex justify-center">
               <div className="w-10 h-1 rounded-full bg-[color:var(--fg)]/20" />

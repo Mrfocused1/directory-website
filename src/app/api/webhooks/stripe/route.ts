@@ -84,9 +84,9 @@ export async function POST(request: NextRequest) {
             });
 
             if (existingByCustomer) {
-              // Customer already linked — update their plan
+              // Customer already linked — update their plan + reactivate
               await db.update(users)
-                .set({ plan, updatedAt: new Date() })
+                .set({ plan, subscriptionStatus: "active", updatedAt: new Date() })
                 .where(eq(users.id, existingByCustomer.id));
             } else if (userId && userId !== "anonymous") {
               // First purchase — link the customer ID to the user
@@ -97,7 +97,12 @@ export async function POST(request: NextRequest) {
               });
               if (userExists) {
                 await db.update(users)
-                  .set({ plan, stripeCustomerId: customerId, updatedAt: new Date() })
+                  .set({
+                    plan,
+                    stripeCustomerId: customerId,
+                    subscriptionStatus: "active",
+                    updatedAt: new Date(),
+                  })
                   .where(eq(users.id, userId));
               }
             }
@@ -149,7 +154,7 @@ export async function POST(request: NextRequest) {
 
         if (plan && customerId && db) {
           await db.update(users)
-            .set({ plan, updatedAt: new Date() })
+            .set({ plan, subscriptionStatus: "active", updatedAt: new Date() })
             .where(eq(users.stripeCustomerId, customerId));
         }
         console.log(`[SUBSCRIPTION] Customer ${customerId} plan changed to ${plan} (${event.type})`);
@@ -160,17 +165,16 @@ export async function POST(request: NextRequest) {
         const subscription = event.data.object;
         const customerId = typeof subscription.customer === "string" ? subscription.customer : null;
 
-        // Cancellation destination: plan="free". We don't surface a
-        // free tier anywhere new, but we reuse the legacy plan value
-        // as the "inactive subscription" marker — their existing
-        // directory stays visible (free plan permits browsing) while
-        // new builds/syncs are blocked by Creator-gated feature checks.
+        // Cancellation: flip subscription_status → inactive but keep
+        // plan as-is. Their existing directory stays live for readers;
+        // the gates on new builds/syncs check subscription_status, so
+        // the creator loses self-serve actions until they resubscribe.
         if (customerId && db) {
           await db.update(users)
-            .set({ plan: "free", updatedAt: new Date() })
+            .set({ subscriptionStatus: "inactive", updatedAt: new Date() })
             .where(eq(users.stripeCustomerId, customerId));
         }
-        console.log(`[SUBSCRIPTION] Customer ${customerId} cancelled — moved to inactive (plan="free")`);
+        console.log(`[SUBSCRIPTION] Customer ${customerId} cancelled — subscription_status → inactive`);
         break;
       }
 

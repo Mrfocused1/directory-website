@@ -87,8 +87,19 @@ export async function POST(request: NextRequest) {
     const validPlans = ["creator", "pro", "agency", "free"]; // "free" kept as legacy tolerance
     const dbUser = await db.query.users.findFirst({
       where: eq(users.id, user.id),
-      columns: { plan: true },
+      columns: { plan: true, subscriptionStatus: true },
     });
+    // Subscription gate — cancelled creators keep their directory live
+    // but can't queue new builds without resubscribing.
+    if (dbUser?.subscriptionStatus === "inactive") {
+      return NextResponse.json(
+        {
+          error: "Your subscription is inactive. Resubscribe from Account → Plan to build a new directory.",
+          reason: "subscription_inactive",
+        },
+        { status: 403 },
+      );
+    }
     const planId = (validPlans.includes(dbUser?.plan as string) ? dbUser!.plan : "creator") as PlanId;
     const planConfig = getPlan(planId);
 

@@ -349,7 +349,7 @@ export const reconcileStripeFunction = inngest.createFunction(
             const customerId = typeof subscription.customer === "string" ? subscription.customer : null;
             if (plan && customerId) {
               await db.update(users)
-                .set({ plan, updatedAt: new Date() })
+                .set({ plan, subscriptionStatus: "active", updatedAt: new Date() })
                 .where(eq(users.stripeCustomerId, customerId));
             }
             break;
@@ -359,8 +359,9 @@ export const reconcileStripeFunction = inngest.createFunction(
             const subscription = event.data.object as unknown as Record<string, unknown>;
             const customerId = typeof subscription.customer === "string" ? subscription.customer : null;
             if (customerId) {
+              // Keep plan; just flip status. See webhook route for rationale.
               await db.update(users)
-                .set({ plan: "free", updatedAt: new Date() })
+                .set({ subscriptionStatus: "inactive", updatedAt: new Date() })
                 .where(eq(users.stripeCustomerId, customerId));
             }
             break;

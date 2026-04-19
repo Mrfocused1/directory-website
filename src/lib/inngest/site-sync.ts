@@ -10,8 +10,8 @@
 
 import { inngest } from "./client";
 import { db } from "@/db";
-import { sites } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { sites, users } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 import { runSync } from "@/lib/pipeline/sync";
 
 export const syncSiteFunction = inngest.createFunction(
@@ -39,23 +39,25 @@ export const scheduledSyncFunction = inngest.createFunction(
   async ({ step }) => {
     if (!db) return { skipped: "db not configured" };
 
-    // Fan out one sync event per published site. Inngest's concurrency
-    // cap on syncSiteFunction (limit: 4) controls how many run at once.
-    const published = await db.query.sites.findMany({
-      where: eq(sites.isPublished, true),
-      columns: { id: true, slug: true },
-    });
+    // Fan out one sync event per published site owned by a creator
+    // whose Stripe subscription is active. Cancelled creators keep
+    // their site live but don't get new posts pulled in.
+    const rows = await db
+      .select({ id: sites.id, slug: sites.slug })
+      .from(sites)
+      .innerJoin(users, eq(sites.userId, users.id))
+      .where(and(eq(sites.isPublished, true), eq(users.subscriptionStatus, "active")));
 
-    if (published.length === 0) return { enqueued: 0 };
+    if (rows.length === 0) return { enqueued: 0 };
 
     await step.sendEvent(
       "fan-out-sync-events",
-      published.map((s) => ({
+      rows.map((s) => ({
         name: "site/sync",
         data: { siteId: s.id, source: "scheduled-daily" },
       })),
     );
 
-    return { enqueued: published.length };
+    return { enqueued: rows.length };
   },
 );

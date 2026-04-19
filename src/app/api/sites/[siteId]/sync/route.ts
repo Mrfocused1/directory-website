@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getApiUser } from "@/lib/supabase/api";
 import { db } from "@/db";
-import { sites } from "@/db/schema";
+import { sites, users } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { inngest } from "@/lib/inngest/client";
 import { siteSyncLimiter } from "@/lib/rate-limit-middleware";
@@ -45,6 +45,22 @@ export async function POST(
     return NextResponse.json(
       { error: "Your directory is still being built — sync is only available after the initial build finishes." },
       { status: 400 },
+    );
+  }
+
+  // Subscription gate — cancelled subs keep the site live but can't
+  // trigger new syncs until the creator resubscribes.
+  const dbUser = await db.query.users.findFirst({
+    where: eq(users.id, user.id),
+    columns: { subscriptionStatus: true },
+  });
+  if (dbUser?.subscriptionStatus === "inactive") {
+    return NextResponse.json(
+      {
+        error: "Your subscription is inactive. Resubscribe from Account → Plan to keep syncing.",
+        reason: "subscription_inactive",
+      },
+      { status: 403 },
     );
   }
 

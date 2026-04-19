@@ -24,6 +24,12 @@ export const users = pgTable("users", {
   // from before the free tier was retired. Those are handled
   // read-only in plans.ts.
   plan: varchar("plan", { length: 32 }).notNull().default("creator"), // creator | pro | agency | free (legacy)
+  // Independent of plan. Stripe cancellation flips this to "inactive"
+  // without touching the plan column; re-subscription flips back to
+  // "active". Feature gates that matter (new builds, syncs) check
+  // status, not plan — so a cancelled creator's directory keeps
+  // rendering publicly but they can't trigger new work.
+  subscriptionStatus: varchar("subscription_status", { length: 16 }).notNull().default("active"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -9,6 +9,7 @@ import {
 } from "@/lib/inngest/functions";
 import { syncSiteFunction, scheduledSyncFunction } from "@/lib/inngest/site-sync";
 import { dailyAuditFunction } from "@/lib/inngest/audit";
+import { sweepStuckStatesFunction } from "@/lib/inngest/stuck-states";
 
 // Pipeline can take several minutes. Vercel Pro max is 300 seconds.
 // For longer pipelines, consider splitting into Inngest step.run() calls.
@@ -25,5 +26,6 @@ export const { GET, POST, PUT } = serve({
     syncSiteFunction,
     scheduledSyncFunction,
     dailyAuditFunction,
+    sweepStuckStatesFunction,
   ],
 });

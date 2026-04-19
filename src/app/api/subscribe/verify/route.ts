@@ -105,12 +105,13 @@ export async function GET(request: NextRequest) {
             totalSubscribers: countRow.count,
             dashboardUrl: `${origin}/dashboard/newsletter`,
           });
-          await resend.emails.send({
+          const { error: notifSendErr } = await resend.emails.send({
             from: "BuildMy.Directory <hello@buildmy.directory>",
             to: owner.email,
             subject: notif.subject,
             html: notif.html,
           });
+          if (notifSendErr) console.error("[subscribe/verify] Resend rejected owner notification:", notifSendErr);
         }
       }
     } catch (notifyErr) {

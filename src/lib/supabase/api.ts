@@ -28,7 +28,15 @@ export async function getApiUser(): Promise<{ id: string; email: string } | null
     },
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  return { id: user.id, email: user.email || "" };
+  const { data, error } = await supabase.auth.getUser();
+  if (error) {
+    // Silent return previously meant a transient Supabase error looked
+    // identical to "no session" — which could leak anonymous access if
+    // upstream defaults trust the return value. Log so Sentry sees it
+    // and return null explicitly.
+    console.warn("[getApiUser] auth.getUser failed:", error.message);
+    return null;
+  }
+  if (!data?.user) return null;
+  return { id: data.user.id, email: data.user.email || "" };
 }

@@ -4,7 +4,7 @@ import { sites } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
 import { resend } from "@/lib/email/resend";
-import { sanitizeFromName } from "@/lib/email/templates";
+import { sanitizeFromName, esc, escUrl, sanitizeHeader } from "@/lib/email/templates";
 import crypto from "crypto";
 import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 import { gateFeature } from "@/lib/plan-gate";
@@ -148,12 +148,13 @@ async function handleVerifyEmail(
 
   if (resend) {
     try {
-      await resend.emails.send({
+      const { error: sendErr } = await resend.emails.send({
         from: "BuildMy.Directory <hello@buildmy.directory>",
         to: email,
-        subject: `Verify your sender email for ${siteName}`,
+        subject: sanitizeHeader(`Verify your sender email for ${siteName}`),
         html: senderVerificationEmailHtml({ siteName, email, confirmUrl }),
       });
+      if (sendErr) throw new Error(String(sendErr));
     } catch (err) {
       console.error("[sender] Failed to send verification email:", err);
       return NextResponse.json({ error: "Failed to send verification email" }, { status: 500 });
@@ -287,14 +288,14 @@ function senderVerificationEmailHtml(opts: {
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 40px 20px;">
   <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 16px;">Verify your sender email</h2>
   <p style="font-size: 14px; color: #444; line-height: 1.6;">
-    You requested to send emails for <strong>${siteName}</strong> from
-    <strong>${email}</strong>.
+    You requested to send emails for <strong>${esc(siteName)}</strong> from
+    <strong>${esc(email)}</strong>.
   </p>
   <p style="font-size: 14px; color: #444; line-height: 1.6;">
     Click the button below to confirm this email address. The link expires in 24 hours.
   </p>
   <div style="margin: 28px 0;">
-    <a href="${confirmUrl}"
+    <a href="${escUrl(confirmUrl)}"
        style="display: inline-block; background: #000; color: #fff; font-size: 14px; font-weight: 600; padding: 12px 28px; border-radius: 8px; text-decoration: none;">
       Verify Email Address
     </a>

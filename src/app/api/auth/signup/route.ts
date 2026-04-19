@@ -102,12 +102,13 @@ export async function POST(request: NextRequest) {
   if (resend) {
     try {
       const template = platformWelcomeEmail();
-      await resend.emails.send({
+      const { error: welcomeSendErr } = await resend.emails.send({
         from: "BuildMy.Directory <hello@buildmy.directory>",
         to: email,
         subject: template.subject,
         html: template.html,
       });
+      if (welcomeSendErr) console.error("[auth/signup] Resend rejected welcome email:", welcomeSendErr);
     } catch (welcomeErr) {
       console.error("[auth/signup] Welcome email failed:", welcomeErr);
     }

@@ -606,12 +606,13 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
             siteUrl: `${publicOrigin}/${site.slug}`,
             postCount,
           });
-          await resend.emails.send({
+          const { error: sendErr } = await resend.emails.send({
             from: "BuildMy.Directory <hello@buildmy.directory>",
             to: ownerFull.email,
             subject: template.subject,
             html: template.html,
           });
+          if (sendErr) captureError(new Error(`Resend rejected build-complete email: ${JSON.stringify(sendErr)}`), { siteId });
         }
       }
     } catch (notifyErr) {

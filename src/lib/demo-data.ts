@@ -73,6 +73,10 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
 
   // Fetch posts with references. Order: pinned first, then by manual
   // sortOrder if the creator has reordered, then by takenAt (newest).
+  // Hard-cap at 2000: agency post_limit is 2000; anything past that is
+  // a data accident (import loop, webhook replay). Every page render
+  // ships the full post list to the client so unbounded here = OOM
+  // and pool starvation.
   const sitePosts = await db!.query.posts.findMany({
     where: and(eq(posts.siteId, site.id), eq(posts.isVisible, true)),
     orderBy: (posts, { desc, asc }) => [
@@ -80,6 +84,7 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
       asc(posts.sortOrder),
       desc(posts.takenAt),
     ],
+    limit: 2000,
   });
 
   // Batch-load ALL references for this site's posts in a single query

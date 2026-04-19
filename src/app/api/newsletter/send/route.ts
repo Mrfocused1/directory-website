@@ -80,17 +80,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get active, verified subscribers
+    // Get active, verified subscribers. Hard-cap at 50k: a legitimate
+    // creator list won't exceed that at current plan tiers, and an
+    // uncapped send could rack up $50+ of Resend spend from a single
+    // POST if the list was poisoned via scraped emails.
+    const MAX_RECIPIENTS = 50_000;
     const activeSubscribers = await db.query.subscribers.findMany({
       where: and(
         eq(subscribers.siteId, resolvedSiteId),
         eq(subscribers.isActive, true),
         eq(subscribers.isVerified, true),
       ),
+      limit: MAX_RECIPIENTS + 1,
     });
 
     if (activeSubscribers.length === 0) {
       return NextResponse.json({ error: "No active subscribers" }, { status: 400 });
+    }
+    if (activeSubscribers.length > MAX_RECIPIENTS) {
+      return NextResponse.json(
+        { error: `Subscriber list exceeds ${MAX_RECIPIENTS.toLocaleString()}. Contact support to enable bulk sending.` },
+        { status: 413 },
+      );
     }
 
     // Get recent posts (last 7 days or since last digest)

@@ -16,7 +16,7 @@ const LOGO_URL = "https://buildmy.directory/logo-white.svg";
 const FONT_STACK = "Arial, Helvetica, sans-serif";
 
 /** Escape HTML special characters to prevent XSS in email content */
-function esc(str: string): string {
+export function esc(str: string): string {
   return str
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -25,8 +25,13 @@ function esc(str: string): string {
     .replace(/'/g, "&#39;");
 }
 
+/** Strip characters that would allow header injection via subject / reply-to */
+export function sanitizeHeader(str: string): string {
+  return str.replace(/[\r\n]/g, " ").trim().slice(0, 200);
+}
+
 /** Escape a URL for safe use in href attributes (validates http(s) protocol via URL parser) */
-function escUrl(url: string): string {
+export function escUrl(url: string): string {
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "#";

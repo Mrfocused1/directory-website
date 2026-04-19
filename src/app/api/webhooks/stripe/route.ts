@@ -219,12 +219,13 @@ export async function POST(request: NextRequest) {
                 : null;
               if (pdfUrl && targetUser?.email) {
                 const template = invoiceEmail({ invoicePdfUrl: pdfUrl });
-                await resend.emails.send({
+                const { error: invoiceSendErr } = await resend.emails.send({
                   from: "BuildMy.Directory <hello@buildmy.directory>",
                   to: targetUser.email,
                   subject: template.subject,
                   html: template.html,
                 });
+                if (invoiceSendErr) captureError(new Error(`Resend rejected invoice email: ${JSON.stringify(invoiceSendErr)}`), { eventId: event.id });
               }
             }
           } catch (invoiceErr) {

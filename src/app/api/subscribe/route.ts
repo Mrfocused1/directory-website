@@ -82,12 +82,13 @@ export async function POST(request: NextRequest) {
         const verifyUrl = `${request.nextUrl.origin}/api/subscribe/verify?token=${existing.unsubscribeToken}&siteId=${resolvedSiteId}`;
         const template = verificationEmail({ siteName, verifyUrl });
         try {
-          await resend.emails.send({
+          const { error: resendErr } = await resend.emails.send({
             from: fromAddr,
             to: existing.email,
             subject: template.subject,
             html: template.html,
           });
+          if (resendErr) console.error("[subscribe] Resend rejected verification:", resendErr);
         } catch (err) {
           console.error("[subscribe] Resend verification failed:", err);
         }

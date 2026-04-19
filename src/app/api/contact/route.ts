@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resend } from "@/lib/email/resend";
-import { contactInquiryEmail } from "@/lib/email/templates";
+import { contactInquiryEmail, sanitizeHeader } from "@/lib/email/templates";
 import { emailLimiter, checkRateLimit } from "@/lib/rate-limit-middleware";
 
 const VALID_TOPICS = ["general", "sales", "support", "feedback", "press"];
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       const { error: sendError } = await resend.emails.send({
         from: "BuildMy.Directory <hello@buildmy.directory>",
         to: "hello@buildmy.directory",
-        replyTo: email.trim(),
+        replyTo: sanitizeHeader(email.trim()),
         subject: template.subject,
         html: template.html,
       });

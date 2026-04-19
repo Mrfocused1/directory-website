@@ -2,12 +2,12 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { db } from "@/db";
-import { sites, adSlots, stripeConnectAccounts, posts } from "@/db/schema";
+import { sites, adSlots, posts } from "@/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 import { SLOT_TYPES } from "@/lib/advertising/slot-types";
 import { SLOT_COPY } from "@/lib/advertising/slot-copy";
 import SlotDemo, { type DemoPost, type DemoSite } from "@/components/advertising/SlotDemo";
-import AdBuyForm from "./AdBuyForm";
+import RequestPricingForm from "./RequestPricingForm";
 
 export const dynamic = "force-dynamic";
 
@@ -35,21 +35,17 @@ async function getSlotData(slug: string, slotTypeId: string) {
 
   if (!site) return null;
 
-  const [connectAccount] = await db
-    .select({ chargesEnabled: stripeConnectAccounts.chargesEnabled })
-    .from(stripeConnectAccounts)
-    .where(eq(stripeConnectAccounts.userId, site.userId))
-    .limit(1);
-
-  if (!connectAccount?.chargesEnabled) return null;
-
+  // We deliberately don't gate on Stripe Connect state here — the public
+  // advertiser view just showcases the format and lets them request
+  // pricing. Connect state only matters when we actually take a payment,
+  // which happens via the creator's private link after pricing is agreed.
   const [slotRow] = await db
     .select()
     .from(adSlots)
     .where(and(eq(adSlots.siteId, site.id), eq(adSlots.slotType, slotTypeId)))
     .limit(1);
 
-  if (!slotRow || !slotRow.enabled || slotRow.pricePerWeekCents === null) return null;
+  if (!slotRow || !slotRow.enabled) return null;
 
   // Fetch recent posts to feed the animated demo. We keep posts without
   // thumbnails too — the Thumb component renders a coloured tile as
@@ -74,8 +70,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!data) return { title: "Not Found" };
   const siteName = data.site.displayName || tenant;
   return {
-    title: `Buy ${data.slotDef.name} on ${siteName}`,
-    description: `${data.slotDef.tagline} — advertise on ${siteName} from £${((data.slotRow.pricePerWeekCents ?? data.slotDef.defaultPriceCents) / 100).toFixed(0)}/week.`,
+    title: `${data.slotDef.name} on ${siteName}`,
+    description: `${data.slotDef.tagline} — request pricing to advertise on ${siteName}.`,
   };
 }
 
@@ -84,7 +80,7 @@ export default async function AdBuyPage({ params }: Props) {
   const data = await getSlotData(tenant, slotType);
   if (!data) notFound();
 
-  const { site, slotDef, slotRow, samplePosts } = data;
+  const { site, slotDef, samplePosts } = data;
   const siteName = site.displayName || tenant;
 
   const demoSite: DemoSite = {
@@ -139,14 +135,11 @@ export default async function AdBuyPage({ params }: Props) {
           </p>
         </section>
 
-        <AdBuyForm
-          siteId={site.id}
-          slug={tenant}
+        <RequestPricingForm
+          siteSlug={tenant}
           slotType={slotDef.id}
           slotName={slotDef.name}
-          pricePerWeekCents={slotRow.pricePerWeekCents ?? slotDef.defaultPriceCents}
-          minWeeks={slotRow.minWeeks}
-          maxWeeks={slotRow.maxWeeks}
+          siteName={siteName}
         />
       </main>
     </div>

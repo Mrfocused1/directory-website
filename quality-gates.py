@@ -3,12 +3,13 @@
 Tier 1 quality gates for a directory, applied post-pipeline.
 
 Gates (all auto-enforce):
-  1. Placeholder-title — title is "Untitled" or equals caption under 60 chars
+  1. Placeholder-title — title is literally "", "untitled", or "untitled post"
   2. Sponsored-post    — caption matches paid-partnership / promo-code patterns
   3. Duplicate-ref     — same URL attached twice to the same post → delete dupes
   4. Thumbnail-fetch   — post's thumb_url returns non-2xx/3xx → hide post
   5. Broken-link       — ref URL returns non-2xx/3xx → delete ref
-  6. Empty-shell re-check — a post made empty by gate 5 is hidden (pure stub now)
+  6. No-references     — any visible post with 0 refs is hidden. Directory
+                         value = references; no refs, no entry.
 
 Usage: DATABASE_URL=... python3 quality-gates.py <site_slug>
 """
@@ -183,18 +184,20 @@ def main():
         results["dead_refs_deleted"] = 0
     conn.commit()
 
-    # 6. Empty-shell re-check — a post that lost all refs may now be empty
+    # 6. No-references gate — any visible post with 0 refs gets hidden.
+    # Stricter than the empty-shell gate: even a post with a long transcript
+    # but no extracted refs doesn't earn a place in the directory. The
+    # directory is a references directory; a post without external sources
+    # doesn't help the reader go deeper. Paul set this rule 2026-04-19.
     cur.execute(
         '''
         UPDATE posts SET is_visible = false
         WHERE site_id = %s AND is_visible = true
-          AND transcript IS NULL
-          AND LENGTH(COALESCE(caption,'')) < 80
           AND NOT EXISTS (SELECT 1 FROM "references" r WHERE r.post_id = posts.id)
         ''',
         (site_id,),
     )
-    results["empty_shell_recheck"] = cur.rowcount
+    results["no_refs_hidden"] = cur.rowcount
     conn.commit()
 
     cur.execute(

@@ -100,22 +100,18 @@ export default function AddToQuoteButton({ siteSlug, slotType, slotName }: Props
           <>Add this format to my quote request</>
         )}
       </button>
-      <p className="text-xs text-[#56505e] mt-3">
-        {added ? (
-          <>
-            {slotName} is in your quote list. Send it all at once from the{" "}
-            <a
-              href={`/${siteSlug}/advertise#quote-form`}
-              className="underline underline-offset-4 hover:text-[#1a0a2e]"
-            >
-              main advertise page
-            </a>
-            .
-          </>
-        ) : (
-          "Stays on this page. You can add more formats before sending."
-        )}
-      </p>
+      {added && (
+        <p className="text-xs text-[#56505e] mt-3">
+          {slotName} is in your quote list. Send it all at once from the{" "}
+          <a
+            href={`/${siteSlug}/advertise#quote-form`}
+            className="underline underline-offset-4 hover:text-[#1a0a2e]"
+          >
+            main advertise page
+          </a>
+          .
+        </p>
+      )}
     </div>
   );
 }

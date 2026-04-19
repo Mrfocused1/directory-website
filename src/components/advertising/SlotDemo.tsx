@@ -61,8 +61,9 @@ function RealBackdrop({ slug }: { slug: string }) {
 
 // Phone-shaped vertical frame used by every demo. The directory is a
 // mobile-first product — landscape previews misrepresent how the ad
-// actually lands. Fixed width keeps the pixel details (padding, text
-// sizes) readable while aspect-[9/16] mimics a modern phone.
+// actually lands. Width + height set inline because Tailwind's
+// arbitrary `aspect-[9/16]` utility silently dropped through in
+// production (same issue that killed the hero gradient).
 function PhoneFrame({
   children,
   className = "",
@@ -73,9 +74,10 @@ function PhoneFrame({
   return (
     <div
       className={
-        "relative w-[280px] aspect-[9/16] mx-auto rounded-[28px] overflow-hidden border border-black/10 shadow-xl bg-white " +
+        "relative mx-auto rounded-[28px] overflow-hidden border border-black/10 shadow-xl bg-white " +
         className
       }
+      style={{ width: 280, height: Math.round(280 * 16 / 9) }}
     >
       {children}
     </div>

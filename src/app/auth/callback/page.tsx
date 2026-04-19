@@ -79,6 +79,22 @@ function CallbackHandler() {
         }
       }
 
+      // ── Flow 2b: Supabase responded with an error in the hash ──
+      // Typical cause: Gmail/Outlook's link-preview bot prefetched the
+      // confirm URL, consuming the one-time token. By the time the
+      // human clicks, Supabase returns otp_expired. The user's email
+      // IS confirmed (bot's GET verified it) — they just need to log
+      // in normally. Send them to login with a clear message.
+      if (hash && hash.includes("error=")) {
+        const errCode = new URLSearchParams(hash.slice(1)).get("error_code") || "";
+        if (errCode === "otp_expired") {
+          window.location.href = "/login?confirmed=1";
+          return;
+        }
+        window.location.href = "/login?error=auth";
+        return;
+      }
+
       // ── Flow 3: No code or hash — check if already logged in ──
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {

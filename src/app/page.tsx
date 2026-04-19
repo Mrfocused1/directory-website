@@ -59,7 +59,7 @@ const FEATURES: {
 const PRICING = [
   {
     name: "Creator",
-    price: "$19",
+    price: "£19.99",
     period: "/mo",
     tagline: "Everything you need to ship.",
     features: [

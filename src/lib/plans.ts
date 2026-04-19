@@ -42,7 +42,7 @@ type PlatformLimits = {
 type PlanConfig = {
   id: PlanId;
   name: string;
-  price: number; // monthly in dollars
+  price: number; // monthly (creator: GBP, others: USD)
   features: Set<FeatureKey>;
   postLimit: number; // 0 = unlimited
   siteLimit: number;
@@ -74,7 +74,7 @@ const PLANS: Record<PlanId, PlanConfig> = {
   creator: {
     id: "creator",
     name: "Creator",
-    price: 19,
+    price: 19.99,
     // Creator is now the only self-serve paid tier and gets the full
     // feature + post-limit set (previously split across Creator / Pro).
     // 500 posts covers effectively every real creator short of an

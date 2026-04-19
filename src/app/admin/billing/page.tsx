@@ -15,9 +15,9 @@ type EventRow = {
 
 const PLAN_PRICE_CENTS: Record<string, number> = {
   free: 0,
-  creator: 1900,
-  pro: 3900,
-  agency: 9900,
+  creator: 1999, // £19.99 GBP
+  pro: 3900,    // $39 USD
+  agency: 9900, // $99 USD
 };
 
 async function loadBilling() {

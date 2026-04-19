@@ -16,20 +16,23 @@ const PROMO_CODES: Record<string, { plan: string }> = {
  * In production, these would be pre-created Stripe Price IDs.
  * For now, we create ad-hoc prices via the API.
  */
-const PLAN_PRICES: Record<string, { name: string; price: number; features: string }> = {
+const PLAN_PRICES: Record<string, { name: string; price: number; currency: string; features: string }> = {
   creator: {
     name: "Creator Plan",
-    price: 1900, // $19/month in cents
+    price: 1999, // £19.99/month in pence
+    currency: "gbp",
     features: "Unlimited posts, all platforms, full analytics, newsletter, bookmarks",
   },
   pro: {
     name: "Pro Plan",
     price: 3900, // $39/month in cents
+    currency: "usd",
     features: "Everything in Creator + custom domain, SEO, AI insights, remove branding",
   },
   agency: {
     name: "Agency Plan",
     price: 9900, // $99/month in cents
+    currency: "usd",
     features: "Everything in Pro + 10 sites, white-label, API access, bulk domains",
   },
 };
@@ -106,7 +109,7 @@ export async function POST(request: NextRequest) {
       line_items: [
         {
           price_data: {
-            currency: "usd",
+            currency: planConfig.currency,
             product_data: {
               name: planConfig.name,
               description: planConfig.features,

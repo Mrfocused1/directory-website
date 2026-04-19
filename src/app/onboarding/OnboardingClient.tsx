@@ -819,7 +819,7 @@ function OnboardingContent() {
                 <div className="text-center mb-6">
                   <div className="font-display-tight text-[color:var(--bd-dark)] text-2xl mb-1">Creator</div>
                   <div className="flex items-baseline justify-center gap-1 mb-2">
-                    <span className="font-display-tight text-[3rem] leading-none text-[color:var(--bd-dark)]">$19</span>
+                    <span className="font-display-tight text-[3rem] leading-none text-[color:var(--bd-dark)]">£19.99</span>
                     <span className="text-sm text-[color:var(--bd-grey)]">/mo</span>
                   </div>
                   <p className="text-xs text-[color:var(--bd-grey)]">

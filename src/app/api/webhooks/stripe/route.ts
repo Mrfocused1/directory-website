@@ -10,9 +10,9 @@ import { notifyAdPurchased } from "@/lib/notifications/ad-purchase";
 
 // Plan ID mapping from Stripe price amounts (cents) to plan IDs
 const PRICE_TO_PLAN: Record<number, string> = {
-  1900: "creator",
-  3900: "pro",
-  9900: "agency",
+  1999: "creator", // £19.99 GBP
+  3900: "pro",    // $39 USD
+  9900: "agency", // $99 USD
 };
 
 // POST /api/webhooks/stripe — Handle Stripe webhook events

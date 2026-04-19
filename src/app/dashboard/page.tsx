@@ -233,7 +233,7 @@ export default function DashboardPage() {
               }
               title="Free build used"
               description="Your free directory build has been used. Upgrade to Creator to build more directories, sync your content, and unlock analytics, newsletters, and more."
-              action={{ href: "/dashboard/account#plan", label: "Upgrade to Creator — $19/mo" }}
+              action={{ href: "/dashboard/account#plan", label: "Upgrade to Creator — £19.99/mo" }}
             />
             )
           ) : (

@@ -134,7 +134,14 @@ function buildClaudePrompt(payload: BuildRequestPayload): string {
 }
 
 async function sendOperatorEmail(payload: BuildRequestPayload, claudePrompt: string): Promise<boolean> {
-  if (!resend || !ALERT_EMAIL) return false;
+  if (!resend) {
+    console.warn("[build-request] RESEND_API_KEY not set, skipping operator email");
+    return false;
+  }
+  if (!ALERT_EMAIL) {
+    console.warn("[build-request] BUILD_OPERATOR_EMAIL/SESSION_RECOVERY_ALERT_EMAIL not set, skipping operator email");
+    return false;
+  }
   const { siteId, slug, platform, handle, displayName, userEmail, plan, postLimit } = payload;
   const subject = `[BuildMy.Directory] New build request: @${handle}`;
   const text = `

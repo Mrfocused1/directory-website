@@ -31,6 +31,14 @@ export const adUploadLimiter = createLimiter({ max: 5, window: "1h", prefix: "ad
 export const adPurchaseLimiter = createLimiter({ max: 3, window: "1h", prefix: "ad-purchase" });
 
 /**
+ * Subscription checkout (plan upgrade flow): 10 per IP per minute.
+ * Kept isolated from apiLimiter because someone loading the dashboard
+ * can burn through the shared 30/min bucket in seconds, blocking the
+ * critical "click Pricing → go to Stripe" flow.
+ */
+export const checkoutLimiter = createLimiter({ max: 10, window: "1m", prefix: "checkout" });
+
+/**
  * Extract the client IP from a request and check it against a limiter.
  * Returns a 429 NextResponse if the limit is exceeded, or null if OK.
  */

@@ -4,7 +4,7 @@ import { getApiUser } from "@/lib/supabase/api";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
+import { checkRateLimit, checkoutLimiter } from "@/lib/rate-limit-middleware";
 
 /** Promo codes that bypass Stripe and grant a plan directly. */
 const PROMO_CODES: Record<string, { plan: string }> = {
@@ -45,7 +45,7 @@ const PLAN_PRICES: Record<string, { name: string; price: number; currency: strin
  * Body: { plan: "creator" | "pro" | "agency", promoCode?: string }
  */
 export async function POST(request: NextRequest) {
-  const limited = await checkRateLimit(request, apiLimiter);
+  const limited = await checkRateLimit(request, checkoutLimiter);
   if (limited) return limited;
   try {
     const body = await request.json();

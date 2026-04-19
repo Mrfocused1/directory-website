@@ -46,6 +46,13 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "*.tiktokcdn.com",
       },
+      {
+        // unavatar.io — free proxy for public IG/TikTok profile pics.
+        // Used as a sites.avatar_url fallback when we don't have the
+        // creator's direct CDN URL yet.
+        protocol: "https",
+        hostname: "unavatar.io",
+      },
     ],
   },
 };

@@ -7,7 +7,6 @@ import { and, desc, eq } from "drizzle-orm";
 import { SLOT_TYPES } from "@/lib/advertising/slot-types";
 import { SLOT_COPY } from "@/lib/advertising/slot-copy";
 import SlotDemo, { type DemoPost, type DemoSite } from "@/components/advertising/SlotDemo";
-import RequestPricingForm from "./RequestPricingForm";
 
 export const dynamic = "force-dynamic";
 
@@ -118,7 +117,7 @@ export default async function AdBuyPage({ params }: Props) {
         </div>
       </div>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10 space-y-6">
         {/* Live demo — shows the advertiser what they're buying */}
         <section className="bg-white border border-[#e5e1da] rounded-2xl p-6">
           <p className="text-xs font-semibold text-[#56505e] uppercase tracking-wide mb-4">
@@ -135,12 +134,20 @@ export default async function AdBuyPage({ params }: Props) {
           </p>
         </section>
 
-        <RequestPricingForm
-          siteSlug={tenant}
-          slotType={slotDef.id}
-          slotName={slotDef.name}
-          siteName={siteName}
-        />
+        {/* No form here — the quote-request form only lives on the
+            main /advertise page, where advertisers can bulk-select
+            multiple formats in one request. */}
+        <div className="text-center">
+          <Link
+            href={`/${tenant}/advertise#quote-form`}
+            className="inline-flex items-center h-11 px-6 bg-[#1a0a2e] text-white text-sm font-semibold rounded-full hover:opacity-90 transition"
+          >
+            Add this format to my quote request
+          </Link>
+          <p className="text-xs text-[#56505e] mt-3">
+            All quote requests are sent together from the main advertise page.
+          </p>
+        </div>
       </main>
     </div>
   );

@@ -97,9 +97,9 @@ export default async function AdvertiseLandingPage({ params }: Props) {
           <Link
             href="/"
             aria-label="BuildMy.Directory home"
-            className="opacity-80 hover:opacity-100 transition"
+            className="opacity-90 hover:opacity-100 transition"
           >
-            <Logo height={22} variant="white" />
+            <Logo height={36} variant="white" />
           </Link>
         </div>
       </header>

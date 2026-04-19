@@ -1,6 +1,32 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getSiteData } from "@/lib/demo-data";
 import Directory from "@/components/directory/Directory";
+import { db } from "@/db";
+import { sites, adSlots, stripeConnectAccounts } from "@/db/schema";
+import { and, eq } from "drizzle-orm";
+
+async function isAdvertisingAvailable(siteId: string): Promise<boolean> {
+  if (!db) return false;
+  const [site] = await db
+    .select({ userId: sites.userId, isPublished: sites.isPublished })
+    .from(sites)
+    .where(eq(sites.id, siteId))
+    .limit(1);
+  if (!site?.isPublished) return false;
+  const [conn] = await db
+    .select({ chargesEnabled: stripeConnectAccounts.chargesEnabled })
+    .from(stripeConnectAccounts)
+    .where(eq(stripeConnectAccounts.userId, site.userId))
+    .limit(1);
+  if (!conn?.chargesEnabled) return false;
+  const slots = await db
+    .select({ id: adSlots.id })
+    .from(adSlots)
+    .where(and(eq(adSlots.siteId, siteId), eq(adSlots.enabled, true)))
+    .limit(1);
+  return slots.length > 0;
+}
 
 // CDN-cache tenant pages for 5 minutes. Pipeline completion and site
 // profile edits call revalidatePath("/" + slug) so changes show up
@@ -88,6 +114,8 @@ export default async function TenantDirectoryPage({
     },
   };
 
+  const adsAvailable = await isAdvertisingAvailable(data.siteId);
+
   return (
     <>
       <script
@@ -96,6 +124,18 @@ export default async function TenantDirectoryPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <Directory site={data.site} posts={data.posts} siteId={data.siteId} branding={data.branding} features={data.features} />
+      {adsAvailable && (
+        <div className="border-t border-[color:var(--border)] bg-[color:var(--bg)]">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-center">
+            <Link
+              href={`/${tenant}/advertise`}
+              className="text-sm text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] underline underline-offset-4 transition"
+            >
+              Advertise on this directory &rarr;
+            </Link>
+          </div>
+        </div>
+      )}
     </>
   );
 }

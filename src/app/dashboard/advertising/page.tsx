@@ -131,7 +131,11 @@ export default function AdvertisingPage() {
           assetUrl: a.assetUrl,
           status: a.status,
         }));
-        setPendingAds(all.filter((a) => a.status === "pending_review"));
+        setPendingAds(
+          all.filter(
+            (a) => a.status === "pending_approval" || a.status === "pending_review",
+          ),
+        );
       })
       .catch(() => setPendingAds([]));
   }, [selectedSiteId]);
@@ -153,23 +157,31 @@ export default function AdvertisingPage() {
     }
   }, []);
 
-  const handleReject = useCallback(async (adId: string) => {
-    if (!confirm("Reject this ad and issue a full refund to the advertiser?")) return;
-    setAdActionLoading(adId);
-    try {
-      const res = await fetch(`/api/advertising/ads/${adId}/reject`, { method: "POST" });
-      if (res.ok) {
-        setPendingAds((prev) => prev.filter((a) => a.id !== adId));
-      } else {
-        const data = await res.json().catch(() => ({}));
-        alert(data.error || "Failed to reject ad");
+  const handleReject = useCallback(
+    async (adId: string) => {
+      const target = pendingAds.find((a) => a.id === adId);
+      const prompt =
+        target?.status === "pending_review"
+          ? "Reject this ad and issue a full refund to the advertiser?"
+          : "Decline this ad request? The advertiser will be emailed; no payment has been taken.";
+      if (!confirm(prompt)) return;
+      setAdActionLoading(adId);
+      try {
+        const res = await fetch(`/api/advertising/ads/${adId}/reject`, { method: "POST" });
+        if (res.ok) {
+          setPendingAds((prev) => prev.filter((a) => a.id !== adId));
+        } else {
+          const data = await res.json().catch(() => ({}));
+          alert(data.error || "Failed to decline ad");
+        }
+      } catch {
+        alert("Network error — please try again");
+      } finally {
+        setAdActionLoading(null);
       }
-    } catch {
-      alert("Network error — please try again");
-    } finally {
-      setAdActionLoading(null);
-    }
-  }, []);
+    },
+    [pendingAds],
+  );
 
   async function handleConnect() {
     if (connecting) return;
@@ -270,7 +282,7 @@ export default function AdvertisingPage() {
                 <div className="mb-8">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <h2 className="text-base font-bold">Pending review</h2>
+                      <h2 className="text-base font-bold">Awaiting your approval</h2>
                       <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-400 text-white text-[10px] font-bold">
                         {pendingAds.length}
                       </span>
@@ -327,7 +339,7 @@ export default function AdvertisingPage() {
                               disabled={isBusy}
                               className="h-7 px-3 border border-red-300 text-red-600 text-xs font-semibold rounded-full hover:bg-red-50 transition disabled:opacity-50 flex items-center gap-1"
                             >
-                              Reject
+                              {ad.status === "pending_review" ? "Reject" : "Decline"}
                             </button>
                           </div>
                         </div>

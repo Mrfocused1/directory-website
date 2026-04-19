@@ -12,6 +12,9 @@ import {
   adPurchaseNotificationEmail,
   adApprovedEmail,
   adRejectedEmail,
+  adRequestNotificationEmail,
+  adApprovalPaymentEmail,
+  adDeclinedEmail,
 } from "@/lib/email/templates";
 
 const ORIGIN =
@@ -149,6 +152,117 @@ export async function notifyAdApproved(opts: {
       html: template.html,
     })
     .catch((e) => console.warn("[ad-purchase] approve email failed:", e));
+}
+
+/**
+ * Fire when an advertiser submits a new pre-payment request.
+ * Notifies the creator via email + Telegram. No payment has been taken.
+ */
+export async function notifyAdRequested(opts: {
+  siteName: string;
+  creatorEmail: string;
+  advertiserName: string;
+  advertiserEmail: string;
+  advertiserWebsite?: string | null;
+  slotName: string;
+  amountCents: number;
+  creatorAmountCents: number;
+  weeks: number;
+}) {
+  const inboxUrl = `${ORIGIN}/dashboard/advertising/inbox`;
+  const amount = formatGBP(opts.amountCents);
+  const creatorAmount = formatGBP(opts.creatorAmountCents);
+
+  const tg = [
+    `*New ad request (unpaid)*`,
+    `*${opts.siteName}* · ${opts.slotName} · ${opts.weeks}w`,
+    `Advertiser: ${opts.advertiserName} (${opts.advertiserEmail})`,
+    `Quoted: ${amount} → creator gets ${creatorAmount}`,
+    ``,
+    `Review: ${inboxUrl}`,
+  ].join("\n");
+
+  const creatorTemplate = adRequestNotificationEmail({
+    siteName: opts.siteName,
+    advertiserName: opts.advertiserName,
+    advertiserEmail: opts.advertiserEmail,
+    advertiserWebsite: opts.advertiserWebsite ?? undefined,
+    slotName: opts.slotName,
+    amount,
+    creatorAmount,
+    weeks: opts.weeks,
+    inboxUrl,
+  });
+
+  await Promise.all([
+    sendTelegramMessage(tg).catch(() => null),
+    resend
+      ? resend.emails.send({
+          from: "BuildMy.Directory <hello@buildmy.directory>",
+          to: opts.creatorEmail,
+          subject: creatorTemplate.subject,
+          html: creatorTemplate.html,
+        }).catch((e) => console.warn("[ad-request] creator email failed:", e))
+      : Promise.resolve(),
+  ]);
+}
+
+/**
+ * Fire when creator approves a pre-payment request.
+ * Emails advertiser with a one-time Stripe Checkout link.
+ */
+export async function notifyAdApprovedPayment(opts: {
+  advertiserName: string;
+  advertiserEmail: string;
+  siteName: string;
+  slotName: string;
+  amountCents: number;
+  weeks: number;
+  checkoutUrl: string;
+}) {
+  if (!resend) return;
+  const template = adApprovalPaymentEmail({
+    advertiserName: opts.advertiserName,
+    siteName: opts.siteName,
+    slotName: opts.slotName,
+    amount: formatGBP(opts.amountCents),
+    weeks: opts.weeks,
+    checkoutUrl: opts.checkoutUrl,
+  });
+  await resend.emails
+    .send({
+      from: "BuildMy.Directory <hello@buildmy.directory>",
+      to: opts.advertiserEmail,
+      subject: template.subject,
+      html: template.html,
+    })
+    .catch((e) => console.warn("[ad-request] approve-payment email failed:", e));
+}
+
+/**
+ * Fire when creator declines a pre-payment request.
+ * No refund is needed because no payment was taken.
+ */
+export async function notifyAdDeclined(opts: {
+  advertiserName: string;
+  advertiserEmail: string;
+  siteName: string;
+  reason?: string;
+}) {
+  if (!resend) return;
+  const template = adDeclinedEmail({
+    advertiserName: opts.advertiserName,
+    siteName: opts.siteName,
+    reason: opts.reason,
+  });
+  await resend.emails
+    .send({
+      from: "BuildMy.Directory <hello@buildmy.directory>",
+      to: opts.advertiserEmail,
+      subject: template.subject,
+      html: template.html,
+    })
+    .catch((e) => console.warn("[ad-request] decline email failed:", e));
 }
 
 /**

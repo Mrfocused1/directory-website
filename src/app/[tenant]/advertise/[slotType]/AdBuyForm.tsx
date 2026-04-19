@@ -144,7 +144,7 @@ export default function AdBuyForm({
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/advertising/purchase", {
+      const res = await fetch("/api/advertising/requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -169,8 +169,8 @@ export default function AdBuyForm({
         setSubmitError(data.error || "Something went wrong. Please try again.");
         return;
       }
-      if (data.url) {
-        window.location.href = data.url;
+      if (data.ok) {
+        window.location.href = `/${slug}/advertise/request-sent`;
       }
     } catch {
       setSubmitError("Network error. Please try again.");
@@ -388,15 +388,15 @@ export default function AdBuyForm({
           {submitting ? (
             <>
               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Redirecting to Stripe...
+              Sending request...
             </>
           ) : (
-            `Pay ${formatGBP(totalCents)} with Stripe`
+            "Send request for approval"
           )}
         </button>
 
         <p className="text-xs text-[#56505e] text-center">
-          You&apos;ll be redirected to Stripe&apos;s secure checkout. Your ad goes live only after the creator approves it.
+          The creator reviews your creative first. <strong>No payment is taken yet.</strong> Once approved, we&apos;ll email you a secure Stripe link to pay {formatGBP(totalCents)} and your ad will go live.
         </p>
       </form>
 

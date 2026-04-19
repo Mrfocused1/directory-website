@@ -633,6 +633,115 @@ export function adApprovedEmail(opts: {
 }
 
 /**
+ * Sent to the creator when a new advertiser request arrives (pre-payment).
+ * Creator reviews the creative and pricing, then approves or declines.
+ * No money has changed hands yet — no refund is needed on decline.
+ */
+export function adRequestNotificationEmail(opts: {
+  siteName: string;
+  advertiserName: string;
+  advertiserEmail: string;
+  advertiserWebsite?: string | null;
+  slotName: string;
+  amount: string;
+  creatorAmount: string;
+  weeks: number;
+  inboxUrl: string;
+}): { subject: string; html: string } {
+  const websiteRow = opts.advertiserWebsite
+    ? `<tr><td style="padding:4px 0;color:${BD_GREY};">Website</td><td style="padding:4px 0;"><a href="${escUrl(opts.advertiserWebsite)}" style="color:${BD_DARK};">${esc(opts.advertiserWebsite)}</a></td></tr>`
+    : "";
+  const content = `
+<h1 style="font-size:24px;font-weight:800;margin:0 0 16px;color:${BD_DARK};">New ad request on ${esc(opts.siteName)}</h1>
+<p style="margin:0 0 20px;">
+  An advertiser wants to run a <strong>${esc(opts.slotName)}</strong> on your directory for
+  ${opts.weeks} week${opts.weeks === 1 ? "" : "s"}.
+  Review their creative in your dashboard &mdash; no payment has been taken. The advertiser only pays after you approve.
+</p>
+<div style="background:#f7f5f3;border-radius:8px;padding:20px 24px;margin:0 0 24px;">
+  <table style="width:100%;font-size:14px;border-collapse:collapse;">
+    <tr><td style="padding:4px 0;color:${BD_GREY};width:140px;">Advertiser</td><td style="padding:4px 0;font-weight:600;">${esc(opts.advertiserName)}</td></tr>
+    <tr><td style="padding:4px 0;color:${BD_GREY};">Email</td><td style="padding:4px 0;">${esc(opts.advertiserEmail)}</td></tr>
+    ${websiteRow}
+    <tr><td style="padding:4px 0;color:${BD_GREY};">Slot</td><td style="padding:4px 0;">${esc(opts.slotName)}</td></tr>
+    <tr><td style="padding:4px 0;color:${BD_GREY};">Duration</td><td style="padding:4px 0;">${opts.weeks} week${opts.weeks === 1 ? "" : "s"}</td></tr>
+    <tr><td style="padding:4px 0;color:${BD_GREY};">Quoted amount</td><td style="padding:4px 0;font-weight:700;">${esc(opts.amount)}</td></tr>
+    <tr><td style="padding:4px 0;color:${BD_GREY};">Your cut (90%)</td><td style="padding:4px 0;font-weight:700;color:#16a34a;">${esc(opts.creatorAmount)}</td></tr>
+  </table>
+</div>
+<div style="text-align:center;margin:0 0 16px;">
+  <a href="${escUrl(opts.inboxUrl)}" style="display:inline-block;background-color:${BD_LIME};color:${BD_DARK};padding:14px 36px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none;">
+    Review in dashboard
+  </a>
+</div>
+<p style="font-size:13px;color:${BD_GREY};margin:0;text-align:center;">
+  The advertiser pays only after you approve. Decline sends an automated email &mdash; no refund needed.
+</p>`;
+  return brandedEmail(content, `New ad request on ${opts.siteName}`);
+}
+
+/**
+ * Sent to the advertiser when the creator approves their request.
+ * Contains a one-time Stripe Checkout link to complete payment.
+ */
+export function adApprovalPaymentEmail(opts: {
+  advertiserName: string;
+  siteName: string;
+  slotName: string;
+  amount: string;
+  weeks: number;
+  checkoutUrl: string;
+}): { subject: string; html: string } {
+  const content = `
+<h1 style="font-size:24px;font-weight:800;margin:0 0 16px;color:${BD_DARK};">Your ad request was approved!</h1>
+<p style="margin:0 0 20px;">
+  Hi ${esc(opts.advertiserName)}, the creator of <strong>${esc(opts.siteName)}</strong> has approved your
+  <strong>${esc(opts.slotName)}</strong> for ${opts.weeks} week${opts.weeks === 1 ? "" : "s"}.
+  Click below to complete payment and your ad will go live immediately.
+</p>
+<div style="background:#f7f5f3;border-radius:8px;padding:20px 24px;margin:0 0 24px;">
+  <p style="margin:0 0 6px;font-size:13px;color:${BD_GREY};">Amount due</p>
+  <p style="margin:0;font-size:24px;font-weight:800;color:${BD_DARK};">${esc(opts.amount)}</p>
+</div>
+<div style="text-align:center;margin:0 0 16px;">
+  <a href="${escUrl(opts.checkoutUrl)}" style="display:inline-block;background-color:${BD_LIME};color:${BD_DARK};padding:14px 36px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none;">
+    Pay ${esc(opts.amount)} with Stripe
+  </a>
+</div>
+<p style="font-size:13px;color:${BD_GREY};margin:0;text-align:center;">
+  Questions? Reply to this email or contact
+  <a href="mailto:hello@buildmy.directory" style="color:${BD_DARK};">hello@buildmy.directory</a>.
+</p>`;
+  return brandedEmail(content, `Your ad request on ${opts.siteName} was approved — pay to go live`);
+}
+
+/**
+ * Sent to the advertiser when the creator declines a pre-payment request.
+ * No refund &mdash; no payment was taken in the first place.
+ */
+export function adDeclinedEmail(opts: {
+  advertiserName: string;
+  siteName: string;
+  reason?: string;
+}): { subject: string; html: string } {
+  const content = `
+<h1 style="font-size:24px;font-weight:800;margin:0 0 16px;color:${BD_DARK};">Your ad request was declined</h1>
+<p style="margin:0 0 20px;">
+  Hi ${esc(opts.advertiserName)}, unfortunately the creator of <strong>${esc(opts.siteName)}</strong>
+  was unable to approve your ad request. No payment was taken.
+</p>
+${opts.reason ? `
+<div style="background:#fff5f5;border-radius:8px;padding:16px 20px;margin:0 0 20px;">
+  <p style="margin:0 0 4px;font-size:13px;color:${BD_GREY};">Reason</p>
+  <p style="margin:0;font-size:14px;">${esc(opts.reason)}</p>
+</div>` : ""}
+<p style="font-size:13px;color:${BD_GREY};margin:0;">
+  Questions? Email us at <a href="mailto:hello@buildmy.directory" style="color:${BD_DARK};">hello@buildmy.directory</a>.
+</p>`;
+  return brandedEmail(content, `Ad request declined — ${opts.siteName}`);
+}
+
+/**
  * Sent to the advertiser when the creator rejects their ad.
  * Includes refund notice.
  */

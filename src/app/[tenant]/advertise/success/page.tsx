@@ -130,21 +130,20 @@ export default function AdvertiseSuccessPage() {
             </svg>
           </div>
 
-          <h1 className="text-2xl font-extrabold text-[#1a0a2e] mb-2">Payment received!</h1>
+          <h1 className="text-2xl font-extrabold text-[#1a0a2e] mb-2">Your ad is live!</h1>
           <p className="text-[#56505e] leading-relaxed mb-6">
-            The creator will review your ad within{" "}
-            <strong>48 hours</strong>.
+            Payment received. Your ad is now running on the directory.
             {data.advertiserEmail && (
               <>
-                {" "}You&apos;ll receive a confirmation at{" "}
-                <strong>{data.advertiserEmail}</strong> when it goes live.
+                {" "}A receipt has been sent to{" "}
+                <strong>{data.advertiserEmail}</strong>.
               </>
             )}
           </p>
 
           {data.startsAt && data.endsAt && (
             <div className="bg-[#f7f5f3] rounded-xl p-4 mb-6 text-sm">
-              <p className="text-[#56505e] mb-1">Campaign window (pending approval)</p>
+              <p className="text-[#56505e] mb-1">Campaign window</p>
               <p className="font-semibold text-[#1a0a2e]">
                 {formatDate(data.startsAt)} &rarr; {formatDate(data.endsAt)}
               </p>

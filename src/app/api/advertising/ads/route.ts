@@ -57,17 +57,8 @@ export async function GET(request: NextRequest) {
     })
     .from(ads)
     .innerJoin(adSlots, eq(ads.slotId, adSlots.id))
-    .where(
-      and(
-        eq(ads.siteId, siteId),
-        // Exclude incomplete payments that never hit the webhook
-        // pending_review | active | paused | expired | rejected
-      ),
-    )
+    .where(eq(ads.siteId, siteId))
     .orderBy(desc(ads.createdAt));
 
-  // Filter out bare pending_payment rows (no payment_intent set = Checkout was abandoned)
-  const filtered = rows.filter((r) => r.status !== "pending_payment");
-
-  return NextResponse.json({ ads: filtered });
+  return NextResponse.json({ ads: rows });
 }

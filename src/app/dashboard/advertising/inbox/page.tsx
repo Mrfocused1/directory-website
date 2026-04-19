@@ -30,6 +30,8 @@ function formatGBP(cents: number) {
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
+    pending_approval: "bg-amber-100 text-amber-700",
+    pending_payment: "bg-purple-100 text-purple-700",
     pending_review: "bg-amber-100 text-amber-700",
     active: "bg-green-100 text-green-700",
     rejected: "bg-red-100 text-red-700",
@@ -37,9 +39,11 @@ function StatusBadge({ status }: { status: string }) {
     expired: "bg-gray-100 text-gray-600",
   };
   const labels: Record<string, string> = {
-    pending_review: "Pending review",
+    pending_approval: "Awaiting your approval",
+    pending_payment: "Approved · awaiting payment",
+    pending_review: "Pending review (legacy)",
     active: "Active",
-    rejected: "Rejected",
+    rejected: "Declined",
     paused: "Paused",
     expired: "Expired",
   };
@@ -135,6 +139,37 @@ function AdCard({ ad, siteSlug, onApprove, onReject, actionLoading }: PendingCar
           )}
         </div>
 
+        {ad.status === "pending_approval" && (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => onApprove(ad.id)}
+              disabled={isBusy}
+              className="flex-1 h-9 bg-green-600 text-white text-sm font-semibold rounded-full hover:bg-green-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isBusy ? (
+                <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : "Approve & send pay link"}
+            </button>
+            <button
+              type="button"
+              onClick={() => onReject(ad.id)}
+              disabled={isBusy}
+              className="flex-1 h-9 border border-red-300 text-red-600 text-sm font-semibold rounded-full hover:bg-red-50 transition disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {isBusy ? (
+                <span className="w-3.5 h-3.5 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" />
+              ) : "Decline"}
+            </button>
+          </div>
+        )}
+
+        {ad.status === "pending_payment" && (
+          <p className="text-xs text-[color:var(--fg-muted)] bg-purple-50 border border-purple-200 rounded-lg px-3 py-2">
+            Approved — waiting for the advertiser to pay via the Stripe link emailed to them. The ad goes live automatically once payment clears.
+          </p>
+        )}
+
         {ad.status === "pending_review" && (
           <div className="flex gap-2">
             <button
@@ -170,7 +205,7 @@ export default function AdInboxPage() {
   const [ads, setAds] = useState<AdRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [filterStatus, setFilterStatus] = useState<string>("pending_review");
+  const [filterStatus, setFilterStatus] = useState<string>("pending_approval");
 
   useEffect(() => {
     fetch("/api/sites")
@@ -209,10 +244,11 @@ export default function AdInboxPage() {
     setActionLoading(adId);
     try {
       const res = await fetch(`/api/advertising/ads/${adId}/approve`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        setAds((prev) => prev.map((a) => (a.id === adId ? { ...a, status: "active" } : a)));
+        const nextStatus: string = data.status || "active";
+        setAds((prev) => prev.map((a) => (a.id === adId ? { ...a, status: nextStatus } : a)));
       } else {
-        const data = await res.json().catch(() => ({}));
         alert(data.error || "Failed to approve ad");
       }
     } catch {
@@ -223,7 +259,12 @@ export default function AdInboxPage() {
   }
 
   async function handleReject(adId: string) {
-    if (!confirm("Reject this ad and issue a full refund to the advertiser?")) return;
+    const target = ads.find((a) => a.id === adId);
+    const prompt =
+      target && target.status === "pending_review"
+        ? "Reject this ad and issue a full refund to the advertiser?"
+        : "Decline this ad request? The advertiser will be emailed; no payment has been taken.";
+    if (!confirm(prompt)) return;
     setActionLoading(adId);
     try {
       const res = await fetch(`/api/advertising/ads/${adId}/reject`, { method: "POST" });
@@ -231,7 +272,7 @@ export default function AdInboxPage() {
         setAds((prev) => prev.map((a) => (a.id === adId ? { ...a, status: "rejected" } : a)));
       } else {
         const data = await res.json().catch(() => ({}));
-        alert(data.error || "Failed to reject ad");
+        alert(data.error || "Failed to decline ad");
       }
     } catch {
       alert("Network error — please try again");
@@ -244,9 +285,10 @@ export default function AdInboxPage() {
   const filteredAds = filterStatus === "all" ? ads : ads.filter((a) => a.status === filterStatus);
 
   const STATUS_TABS = [
-    { value: "pending_review", label: "Pending", count: ads.filter((a) => a.status === "pending_review").length },
+    { value: "pending_approval", label: "Requests", count: ads.filter((a) => a.status === "pending_approval").length },
+    { value: "pending_payment", label: "Awaiting payment", count: ads.filter((a) => a.status === "pending_payment").length },
     { value: "active", label: "Active", count: ads.filter((a) => a.status === "active").length },
-    { value: "rejected", label: "Rejected", count: ads.filter((a) => a.status === "rejected").length },
+    { value: "rejected", label: "Declined", count: ads.filter((a) => a.status === "rejected").length },
     { value: "expired", label: "Expired", count: ads.filter((a) => a.status === "expired").length },
     { value: "all", label: "All", count: ads.length },
   ];
@@ -317,9 +359,11 @@ export default function AdInboxPage() {
             <div className="text-center py-16 text-[color:var(--fg-muted)]">
               <p className="font-semibold mb-1">No ads here</p>
               <p className="text-sm">
-                {filterStatus === "pending_review"
-                  ? "No ads waiting for review."
-                  : `No ${filterStatus.replace("_", " ")} ads.`}
+                {filterStatus === "pending_approval"
+                  ? "No advertiser requests waiting for your approval."
+                  : filterStatus === "pending_payment"
+                    ? "No advertisers in the pay-to-go-live step."
+                    : `No ${filterStatus.replace(/_/g, " ")} ads.`}
               </p>
             </div>
           ) : (

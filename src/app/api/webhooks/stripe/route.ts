@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { db } from "@/db";
 import { users, stripeEvents, ads, adSlots, sites } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { captureError } from "@/lib/error";
 import { resend } from "@/lib/email/resend";
 import { invoiceEmail } from "@/lib/email/templates";
-import { notifyAdPurchased } from "@/lib/notifications/ad-purchase";
+import { notifyAdPurchased, notifyAdApproved } from "@/lib/notifications/ad-purchase";
 
 // Plan ID mapping from Stripe price amounts (cents) to plan IDs
 const PRICE_TO_PLAN: Record<number, string> = {
@@ -76,9 +76,76 @@ export async function POST(request: NextRequest) {
         if (session.mode === "payment" && metadata.adPurchase === "1") {
           const paymentIntentId =
             typeof session.payment_intent === "string" ? session.payment_intent : null;
+          const adId = metadata.adId;
           const slotId = metadata.slotId;
           const siteId = metadata.siteId;
 
+          // NEW FLOW: ad row already exists in pending_payment, flip to active
+          if (db && paymentIntentId && adId) {
+            try {
+              const weeks = parseInt(metadata.weeks || "1", 10);
+              const startsAt = new Date();
+              const endsAt = new Date(
+                startsAt.getTime() + weeks * 7 * 24 * 60 * 60 * 1000,
+              );
+              const updated = await db
+                .update(ads)
+                .set({
+                  status: "active",
+                  stripePaymentIntentId: paymentIntentId,
+                  startsAt,
+                  endsAt,
+                  updatedAt: new Date(),
+                })
+                .where(and(eq(ads.id, adId), eq(ads.status, "pending_payment")))
+                .returning({
+                  id: ads.id,
+                  siteId: ads.siteId,
+                  advertiserEmail: ads.advertiserEmail,
+                  advertiserName: ads.advertiserName,
+                });
+
+              if (updated.length === 0) {
+                console.log(
+                  `[stripe] ad ${adId} not in pending_payment (likely retry or declined) — no-op`,
+                );
+              } else {
+                // Notify advertiser the ad is now live (non-blocking)
+                const activatedAd = updated[0];
+                try {
+                  const [siteRow] = await db
+                    .select({ slug: sites.slug, displayName: sites.displayName })
+                    .from(sites)
+                    .where(eq(sites.id, activatedAd.siteId))
+                    .limit(1);
+                  if (siteRow && activatedAd.advertiserEmail) {
+                    await notifyAdApproved({
+                      advertiserName: activatedAd.advertiserName || activatedAd.advertiserEmail,
+                      advertiserEmail: activatedAd.advertiserEmail,
+                      siteName: siteRow.displayName || siteRow.slug,
+                      siteSlug: siteRow.slug,
+                      startsAt,
+                      endsAt,
+                    });
+                  }
+                } catch (notifyErr) {
+                  captureError(notifyErr, {
+                    context: "stripe-webhook-ad-live-notify",
+                    eventId: event.id,
+                  });
+                }
+              }
+            } catch (adErr) {
+              captureError(adErr, {
+                context: "stripe-webhook-ad-activate",
+                eventId: event.id,
+              });
+              throw adErr;
+            }
+            break;
+          }
+
+          // LEGACY FLOW: no adId — fall through to old insert-on-pay path
           if (db && paymentIntentId && slotId && siteId) {
             try {
               // Compute dates: 48h review window, then weeks * 7 days campaign

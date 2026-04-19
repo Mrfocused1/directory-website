@@ -2,15 +2,14 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { db } from "@/db";
-import { sites, adSlots, stripeConnectAccounts } from "@/db/schema";
-import { and, eq } from "drizzle-orm";
+import { sites, adSlots, stripeConnectAccounts, posts } from "@/db/schema";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { SLOT_TYPES } from "@/lib/advertising/slot-types";
+import { SLOT_COPY } from "@/lib/advertising/slot-copy";
+import SlotDemo, { type DemoPost, type DemoSite } from "@/components/advertising/SlotDemo";
 import AdBuyForm from "./AdBuyForm";
 
 export const dynamic = "force-dynamic";
-
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://buildmy.directory";
 
 type Props = { params: Promise<{ tenant: string; slotType: string }> };
 
@@ -25,6 +24,8 @@ async function getSlotData(slug: string, slotTypeId: string) {
       id: sites.id,
       slug: sites.slug,
       displayName: sites.displayName,
+      avatarUrl: sites.avatarUrl,
+      accentColor: sites.accentColor,
       isPublished: sites.isPublished,
       userId: sites.userId,
     })
@@ -50,7 +51,18 @@ async function getSlotData(slug: string, slotTypeId: string) {
 
   if (!slotRow || !slotRow.enabled || slotRow.pricePerWeekCents === null) return null;
 
-  return { site, slotDef, slotRow };
+  // Fetch a few posts with thumbnails to give the demo real context
+  const samplePosts = await db
+    .select({
+      thumbUrl: posts.thumbUrl,
+      title: posts.title,
+      category: posts.category,
+    })
+    .from(posts)
+    .where(and(eq(posts.siteId, site.id), isNotNull(posts.thumbUrl)))
+    .limit(6);
+
+  return { site, slotDef, slotRow, samplePosts };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -69,8 +81,20 @@ export default async function AdBuyPage({ params }: Props) {
   const data = await getSlotData(tenant, slotType);
   if (!data) notFound();
 
-  const { site, slotDef, slotRow } = data;
+  const { site, slotDef, slotRow, samplePosts } = data;
   const siteName = site.displayName || tenant;
+
+  const demoSite: DemoSite = {
+    slug: site.slug,
+    displayName: siteName,
+    avatarUrl: site.avatarUrl ?? null,
+    accentColor: site.accentColor || "#1a0a2e",
+  };
+  const demoPosts: DemoPost[] = samplePosts.map((p) => ({
+    thumbUrl: p.thumbUrl,
+    title: p.title ?? "",
+    category: p.category ?? "",
+  }));
 
   return (
     <div className="min-h-screen bg-[#f7f5f3]">
@@ -95,7 +119,18 @@ export default async function AdBuyPage({ params }: Props) {
         </div>
       </div>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10 space-y-8">
+        {/* Live demo — shows the advertiser what they're buying */}
+        <section className="bg-white border border-[#e5e1da] rounded-2xl p-6">
+          <p className="text-xs font-semibold text-[#56505e] uppercase tracking-wide mb-4">
+            What your ad will look like
+          </p>
+          <SlotDemo slotType={slotDef.id} site={demoSite} samplePosts={demoPosts} />
+          <p className="text-sm text-[#56505e] leading-relaxed mt-6">
+            {SLOT_COPY[slotDef.id]}
+          </p>
+        </section>
+
         <AdBuyForm
           siteId={site.id}
           slug={tenant}

@@ -45,7 +45,7 @@ function LoginContent() {
   );
   const [message, setMessage] = useState<string | null>(
     searchParams.get("confirmed") === "1"
-      ? "Email confirmed! Your inbox's security scanner may have already opened the confirm link — just sign in below and you're good."
+      ? "Email confirmed! Sign in below to continue."
       : null,
   );
 

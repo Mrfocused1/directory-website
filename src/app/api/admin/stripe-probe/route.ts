@@ -20,11 +20,6 @@ export async function GET() {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
       apiVersion: "2026-03-25.dahlia",
     });
-    const account = await stripe.accounts.retrieve();
-    diag.accountOk = true;
-    diag.accountId = account.id;
-    diag.chargesEnabled = account.charges_enabled;
-
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       line_items: [{

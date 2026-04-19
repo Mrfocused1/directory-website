@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import DashboardNav from "@/components/dashboard/DashboardNav";
 import { SLOT_TYPES, type SlotType } from "@/lib/advertising/slot-types";
@@ -26,6 +26,18 @@ type SlotRow = {
   slotType: string;
   enabled: boolean;
   pricePerWeekCents: number;
+};
+
+type PendingAd = {
+  id: string;
+  slotType: string;
+  advertiserName: string | null;
+  advertiserEmail: string;
+  amountCents: number;
+  creatorAmountCents: number;
+  headline: string | null;
+  assetUrl: string | null;
+  status: string;
 };
 
 // Inline SVG icons keyed by iconName
@@ -68,8 +80,10 @@ export default function AdvertisingPage() {
   const [sites, setSites] = useState<Site[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [slots, setSlots] = useState<SlotRow[]>([]);
+  const [pendingAds, setPendingAds] = useState<PendingAd[]>([]);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
+  const [adActionLoading, setAdActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -101,7 +115,61 @@ export default function AdvertisingPage() {
       .then((r) => r.json())
       .then((data) => setSlots(data.slots ?? []))
       .catch(() => setSlots([]));
+
+    // Fetch pending ads for the selected site
+    fetch(`/api/advertising/ads?siteId=${selectedSiteId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const all: PendingAd[] = (data.ads ?? []).map((a: Record<string, unknown>) => ({
+          id: a.id,
+          slotType: a.slotType,
+          advertiserName: a.advertiserName,
+          advertiserEmail: a.advertiserEmail,
+          amountCents: a.amountCents,
+          creatorAmountCents: a.creatorAmountCents,
+          headline: a.headline,
+          assetUrl: a.assetUrl,
+          status: a.status,
+        }));
+        setPendingAds(all.filter((a) => a.status === "pending_review"));
+      })
+      .catch(() => setPendingAds([]));
   }, [selectedSiteId]);
+
+  const handleApprove = useCallback(async (adId: string) => {
+    setAdActionLoading(adId);
+    try {
+      const res = await fetch(`/api/advertising/ads/${adId}/approve`, { method: "POST" });
+      if (res.ok) {
+        setPendingAds((prev) => prev.filter((a) => a.id !== adId));
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Failed to approve ad");
+      }
+    } catch {
+      alert("Network error — please try again");
+    } finally {
+      setAdActionLoading(null);
+    }
+  }, []);
+
+  const handleReject = useCallback(async (adId: string) => {
+    if (!confirm("Reject this ad and issue a full refund to the advertiser?")) return;
+    setAdActionLoading(adId);
+    try {
+      const res = await fetch(`/api/advertising/ads/${adId}/reject`, { method: "POST" });
+      if (res.ok) {
+        setPendingAds((prev) => prev.filter((a) => a.id !== adId));
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Failed to reject ad");
+      }
+    } catch {
+      alert("Network error — please try again");
+    } finally {
+      setAdActionLoading(null);
+    }
+  }, []);
 
   async function handleConnect() {
     if (connecting) return;
@@ -199,6 +267,78 @@ export default function AdvertisingPage() {
                   </span>
                 )}
               </div>
+
+              {/* Pending review section */}
+              {pendingAds.length > 0 && (
+                <div className="mb-8">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-base font-bold">Pending review</h2>
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-400 text-white text-[10px] font-bold">
+                        {pendingAds.length}
+                      </span>
+                    </div>
+                    <Link
+                      href="/dashboard/advertising/inbox"
+                      className="text-xs font-semibold text-[color:var(--fg-muted)] hover:text-[color:var(--fg)] transition underline"
+                    >
+                      View all ads
+                    </Link>
+                  </div>
+                  <div className="space-y-3">
+                    {pendingAds.map((ad) => {
+                      const isBusy = adActionLoading === ad.id;
+                      const isImg = ad.assetUrl && /\.(jpe?g|png|webp)$/i.test(ad.assetUrl);
+                      return (
+                        <div
+                          key={ad.id}
+                          className="bg-white border border-amber-200 rounded-xl p-4 flex gap-4 items-start"
+                        >
+                          {isImg && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={ad.assetUrl!}
+                              alt={ad.headline ?? "creative"}
+                              className="w-20 h-14 object-cover rounded-lg shrink-0 border border-[color:var(--border)]"
+                            />
+                          )}
+                          {!isImg && ad.assetUrl && (
+                            <div className="w-20 h-14 bg-[#f7f5f3] rounded-lg shrink-0 flex items-center justify-center border border-[color:var(--border)]">
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5" aria-hidden>
+                                <rect x="2" y="3" width="20" height="14" rx="2" />
+                                <path d="M8 21h8M12 17v4" />
+                              </svg>
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate">{ad.headline ?? "(no headline)"}</p>
+                            <p className="text-xs text-[color:var(--fg-muted)] truncate">{ad.advertiserName || ad.advertiserEmail}</p>
+                            <p className="text-xs font-medium mt-0.5">{ad.slotType.replace(/_/g, " ")} · £{(ad.amountCents / 100).toFixed(2)}</p>
+                          </div>
+                          <div className="flex gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleApprove(ad.id)}
+                              disabled={isBusy}
+                              className="h-7 px-3 bg-green-600 text-white text-xs font-semibold rounded-full hover:bg-green-700 transition disabled:opacity-50 flex items-center gap-1"
+                            >
+                              {isBusy ? <span className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" /> : "Approve"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleReject(ad.id)}
+                              disabled={isBusy}
+                              className="h-7 px-3 border border-red-300 text-red-600 text-xs font-semibold rounded-full hover:bg-red-50 transition disabled:opacity-50 flex items-center gap-1"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Earnings widget */}
               {earnings && (

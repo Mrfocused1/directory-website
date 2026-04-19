@@ -19,6 +19,18 @@ export const apiLimiter = createLimiter({ max: 30, window: "1m", prefix: "api" }
 export const siteSyncLimiter = createLimiter({ max: 1, window: "1h", prefix: "site-sync" });
 
 /**
+ * Ad creative uploads: 5 per IP per hour.
+ * Prevents storage abuse from unauthenticated public upload endpoint.
+ */
+export const adUploadLimiter = createLimiter({ max: 5, window: "1h", prefix: "ad-upload" });
+
+/**
+ * Ad purchase (Stripe Checkout creation): 3 per IP per hour.
+ * A legitimate advertiser rarely creates more than one session per slot.
+ */
+export const adPurchaseLimiter = createLimiter({ max: 3, window: "1h", prefix: "ad-purchase" });
+
+/**
  * Extract the client IP from a request and check it against a limiter.
  * Returns a 429 NextResponse if the limit is exceeded, or null if OK.
  */

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { db } from "@/db";
-import { users, stripeEvents } from "@/db/schema";
+import { users, stripeEvents, ads, adSlots, sites } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { captureError } from "@/lib/error";
 import { resend } from "@/lib/email/resend";
 import { invoiceEmail } from "@/lib/email/templates";
+import { notifyAdPurchased } from "@/lib/notifications/ad-purchase";
 
 // Plan ID mapping from Stripe price amounts (cents) to plan IDs
 const PRICE_TO_PLAN: Record<number, string> = {
@@ -71,7 +72,96 @@ export async function POST(request: NextRequest) {
         const session = event.data.object;
         const metadata = session.metadata ?? {};
 
-        // Handle plan subscription checkout
+        // ── Ad purchase ─────────────────────────────────────────────────
+        if (session.mode === "payment" && metadata.adPurchase === "1") {
+          const paymentIntentId =
+            typeof session.payment_intent === "string" ? session.payment_intent : null;
+          const slotId = metadata.slotId;
+          const siteId = metadata.siteId;
+
+          if (db && paymentIntentId && slotId && siteId) {
+            try {
+              // Compute dates: 48h review window, then weeks * 7 days campaign
+              const weeks = parseInt(metadata.weeks || "1", 10);
+              const startsAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+              const endsAt = new Date(startsAt.getTime() + weeks * 7 * 24 * 60 * 60 * 1000);
+              const amountCents = parseInt(metadata.amountCents || "0", 10);
+              const platformFeeCents = parseInt(metadata.platformFeeCents || "0", 10);
+              const creatorAmountCents = amountCents - platformFeeCents;
+
+              const [adRow] = await db
+                .insert(ads)
+                .values({
+                  slotId,
+                  siteId,
+                  advertiserEmail: metadata.advertiserEmail || "",
+                  advertiserName: metadata.advertiserName || null,
+                  advertiserWebsite: metadata.advertiserWebsite || null,
+                  stripePaymentIntentId: paymentIntentId,
+                  amountCents,
+                  platformFeeCents,
+                  creatorAmountCents,
+                  status: "pending_review",
+                  assetUrl: metadata.assetUrl || null,
+                  clickUrl: metadata.clickUrl || null,
+                  headline: metadata.headline || null,
+                  body: metadata.body || null,
+                  startsAt,
+                  endsAt,
+                })
+                .onConflictDoNothing({ target: ads.stripePaymentIntentId })
+                .returning();
+
+              // If adRow is undefined, it was a duplicate — already processed
+              if (adRow) {
+                // Fetch creator email for notification
+                const [siteRow] = await db
+                  .select({ slug: sites.slug, displayName: sites.displayName, userId: sites.userId })
+                  .from(sites)
+                  .where(eq(sites.id, siteId))
+                  .limit(1);
+
+                const [slotRow] = await db
+                  .select({ slotType: adSlots.slotType })
+                  .from(adSlots)
+                  .where(eq(adSlots.id, slotId))
+                  .limit(1);
+
+                const [creatorUser] = siteRow
+                  ? await db
+                      .select({ email: users.email })
+                      .from(users)
+                      .where(eq(users.id, siteRow.userId))
+                      .limit(1)
+                  : [null];
+
+                if (siteRow && creatorUser) {
+                  await notifyAdPurchased({
+                    adId: adRow.id,
+                    siteId,
+                    siteSlug: siteRow.slug,
+                    siteName: siteRow.displayName || siteRow.slug,
+                    creatorEmail: creatorUser.email,
+                    advertiserName: metadata.advertiserName || metadata.advertiserEmail || "",
+                    advertiserEmail: metadata.advertiserEmail || "",
+                    slotName: slotRow?.slotType || metadata.slotType || "Ad slot",
+                    amountCents,
+                    creatorAmountCents,
+                  }).catch((err) =>
+                    captureError(err, { context: "stripe-webhook-ad-notify", eventId: event.id }),
+                  );
+                }
+              }
+            } catch (adErr) {
+              captureError(adErr, { context: "stripe-webhook-ad-insert", eventId: event.id });
+              throw adErr; // re-throw so Stripe retries the webhook
+            }
+          }
+
+          break;
+        }
+
+        // ── Plan subscription checkout ───────────────────────────────────
         if (metadata.type === "subscription" && metadata.plan) {
           const plan = metadata.plan;
           const userId = metadata.userId;

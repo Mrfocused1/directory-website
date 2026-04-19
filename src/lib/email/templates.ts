@@ -516,6 +516,141 @@ ${
  * Monitor alert email — sent to platform admins when the health check
  * detects degraded or down services.
  */
+// ─── Advertising email templates ─────────────────────────────────────
+
+/**
+ * Sent to the advertiser immediately after Stripe confirms payment.
+ * Lets them know their creative is in review.
+ */
+export function adPurchaseConfirmationEmail(opts: {
+  advertiserName: string;
+  siteName: string;
+  slotName: string;
+  amount: string; // formatted, e.g. "£25.00"
+  reviewWindow: string; // e.g. "48 hours"
+}): { subject: string; html: string } {
+  const content = `
+<h1 style="font-size:24px;font-weight:800;margin:0 0 16px;color:${BD_DARK};">Your ad order is confirmed</h1>
+<p style="margin:0 0 20px;">
+  Hi ${esc(opts.advertiserName)}, thanks for advertising on <strong>${esc(opts.siteName)}</strong>!
+  Your payment of <strong>${esc(opts.amount)}</strong> has been received.
+</p>
+<div style="background:#f7f5f3;border-radius:8px;padding:20px 24px;margin:0 0 24px;">
+  <p style="margin:0 0 6px;font-size:13px;color:${BD_GREY};">Ad slot</p>
+  <p style="margin:0 0 14px;font-size:16px;font-weight:700;">${esc(opts.slotName)}</p>
+  <p style="margin:0;font-size:13px;color:${BD_GREY};">Amount charged: <strong>${esc(opts.amount)}</strong></p>
+</div>
+<p style="margin:0 0 20px;">
+  The directory creator will review your creative within <strong>${esc(opts.reviewWindow)}</strong>.
+  You&rsquo;ll receive an email the moment your ad goes live.
+</p>
+<p style="font-size:13px;color:${BD_GREY};margin:0;">
+  Questions? Reply to this email or contact us at
+  <a href="mailto:hello@buildmy.directory" style="color:${BD_DARK};">hello@buildmy.directory</a>.
+</p>`;
+  return brandedEmail(content, `Ad order confirmed — ${opts.siteName}`);
+}
+
+/**
+ * Sent to the creator when a new paid ad lands in their review queue.
+ */
+export function adPurchaseNotificationEmail(opts: {
+  siteName: string;
+  advertiserName: string;
+  advertiserEmail: string;
+  slotName: string;
+  amount: string;
+  creatorAmount: string;
+  inboxUrl: string;
+}): { subject: string; html: string } {
+  const content = `
+<h1 style="font-size:24px;font-weight:800;margin:0 0 16px;color:${BD_DARK};">New ad purchase on ${esc(opts.siteName)}</h1>
+<p style="margin:0 0 20px;">
+  Someone just bought a <strong>${esc(opts.slotName)}</strong> slot on your directory.
+  Review and approve it before it goes live.
+</p>
+<div style="background:#f7f5f3;border-radius:8px;padding:20px 24px;margin:0 0 24px;">
+  <table style="width:100%;font-size:14px;border-collapse:collapse;">
+    <tr><td style="padding:4px 0;color:${BD_GREY};width:140px;">Advertiser</td><td style="padding:4px 0;font-weight:600;">${esc(opts.advertiserName)}</td></tr>
+    <tr><td style="padding:4px 0;color:${BD_GREY};">Email</td><td style="padding:4px 0;">${esc(opts.advertiserEmail)}</td></tr>
+    <tr><td style="padding:4px 0;color:${BD_GREY};">Slot</td><td style="padding:4px 0;">${esc(opts.slotName)}</td></tr>
+    <tr><td style="padding:4px 0;color:${BD_GREY};">Amount paid</td><td style="padding:4px 0;font-weight:700;">${esc(opts.amount)}</td></tr>
+    <tr><td style="padding:4px 0;color:${BD_GREY};">Your cut (90%)</td><td style="padding:4px 0;font-weight:700;color:#16a34a;">${esc(opts.creatorAmount)}</td></tr>
+  </table>
+</div>
+<div style="text-align:center;margin:0 0 16px;">
+  <a href="${escUrl(opts.inboxUrl)}" style="display:inline-block;background-color:${BD_LIME};color:${BD_DARK};padding:14px 36px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none;">
+    Review in dashboard
+  </a>
+</div>
+<p style="font-size:13px;color:${BD_GREY};margin:0;text-align:center;">
+  If you reject the ad, a full refund is issued automatically.
+</p>`;
+  return brandedEmail(content, `New ad on ${opts.siteName} — review required`);
+}
+
+/**
+ * Sent to the advertiser when the creator approves their ad.
+ */
+export function adApprovedEmail(opts: {
+  advertiserName: string;
+  siteName: string;
+  siteUrl: string;
+  startsAt: string;
+  endsAt: string;
+}): { subject: string; html: string } {
+  const content = `
+<h1 style="font-size:24px;font-weight:800;margin:0 0 16px;color:${BD_DARK};">Your ad is live!</h1>
+<p style="margin:0 0 20px;">
+  Hi ${esc(opts.advertiserName)}, great news — your ad on <strong>${esc(opts.siteName)}</strong> has been approved and is now running.
+</p>
+<div style="background:#f0fdf4;border-radius:8px;padding:20px 24px;margin:0 0 24px;">
+  <p style="margin:0 0 6px;font-size:13px;color:${BD_GREY};">Campaign window</p>
+  <p style="margin:0;font-size:15px;font-weight:700;">${esc(opts.startsAt)} &rarr; ${esc(opts.endsAt)}</p>
+</div>
+<div style="text-align:center;margin:0 0 16px;">
+  <a href="${escUrl(opts.siteUrl)}" style="display:inline-block;background-color:${BD_LIME};color:${BD_DARK};padding:14px 36px;border-radius:8px;font-size:15px;font-weight:700;text-decoration:none;">
+    View the directory
+  </a>
+</div>
+<p style="font-size:13px;color:${BD_GREY};margin:0;text-align:center;">
+  Questions? Email us at <a href="mailto:hello@buildmy.directory" style="color:${BD_DARK};">hello@buildmy.directory</a>.
+</p>`;
+  return brandedEmail(content, `Your ad on ${opts.siteName} is live`);
+}
+
+/**
+ * Sent to the advertiser when the creator rejects their ad.
+ * Includes refund notice.
+ */
+export function adRejectedEmail(opts: {
+  advertiserName: string;
+  siteName: string;
+  reason?: string;
+  refundAmount: string;
+}): { subject: string; html: string } {
+  const content = `
+<h1 style="font-size:24px;font-weight:800;margin:0 0 16px;color:${BD_DARK};">Your ad was not approved</h1>
+<p style="margin:0 0 20px;">
+  Hi ${esc(opts.advertiserName)}, unfortunately the creator of <strong>${esc(opts.siteName)}</strong>
+  was unable to approve your ad at this time.
+</p>
+${opts.reason ? `
+<div style="background:#fff5f5;border-radius:8px;padding:16px 20px;margin:0 0 20px;">
+  <p style="margin:0 0 4px;font-size:13px;color:${BD_GREY};">Reason</p>
+  <p style="margin:0;font-size:14px;">${esc(opts.reason)}</p>
+</div>` : ""}
+<div style="background:#f0fdf4;border-radius:8px;padding:20px 24px;margin:0 0 24px;">
+  <p style="margin:0 0 6px;font-size:13px;color:${BD_GREY};">Refund issued</p>
+  <p style="margin:0;font-size:18px;font-weight:800;color:#16a34a;">${esc(opts.refundAmount)}</p>
+  <p style="margin:6px 0 0;font-size:13px;color:${BD_GREY};">Your payment has been fully refunded. It may take 5–10 business days to appear on your statement.</p>
+</div>
+<p style="font-size:13px;color:${BD_GREY};margin:0;">
+  Questions? Contact us at <a href="mailto:hello@buildmy.directory" style="color:${BD_DARK};">hello@buildmy.directory</a>.
+</p>`;
+  return brandedEmail(content, `Ad refunded — ${opts.siteName}`);
+}
+
 export function monitorAlertEmail(opts: {
   severity: "info" | "warning" | "critical";
   services: { service: string; status: string; latencyMs: number; message: string }[];

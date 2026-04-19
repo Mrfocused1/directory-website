@@ -39,9 +39,17 @@ type DirectoryProps = {
   initialShortcode?: string;
   branding?: SiteBranding;
   features?: DirectoryFeatures;
+  /**
+   * Preview mode: used by /{tenant}/preview, which is iframed by the
+   * advertiser slot demo so the ad animation overlays a real page.
+   * Suppresses ad slots + analytics so an inert render doesn't inflate
+   * impression counts or show other advertisers' creative inside the
+   * preview frame.
+   */
+  preview?: boolean;
 };
 
-export default function Directory({ site, siteId, posts, initialShortcode, branding, features }: DirectoryProps) {
+export default function Directory({ site, siteId, posts, initialShortcode, branding, features, preview }: DirectoryProps) {
   const analyticsId = siteId || site.slug;
   const allCategories = ["All", ...site.categories];
 
@@ -160,10 +168,10 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
     <BookmarkProvider siteId={analyticsId}>
     <div className="min-h-screen relative">
       {/* Banner ad above everything, only when siteId is known */}
-      {siteId && <BannerTopAd siteId={siteId} path={adPath} />}
+      {siteId && !preview && <BannerTopAd siteId={siteId} path={adPath} />}
       {/* Homepage takeover — full-screen welcome overlay, session-deduped inside component */}
-      {siteId && <HomepageTakeoverAd siteId={siteId} path={adPath} siteName={site.displayName} />}
-      <AnalyticsProvider siteId={analyticsId} />
+      {siteId && !preview && <HomepageTakeoverAd siteId={siteId} path={adPath} siteName={site.displayName} />}
+      {!preview && <AnalyticsProvider siteId={analyticsId} />}
       <SignInModal />
       <div className="fixed inset-0 dotted-bg pointer-events-none" aria-hidden />
       <div className="fixed inset-0 bg-gradient-to-br from-[var(--bg)]/70 via-[var(--bg)]/30 to-[var(--bg)]/70 pointer-events-none" aria-hidden />
@@ -253,7 +261,7 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
           {allCategories.length > 1 && (
             <nav aria-label="Filter by category" className="flex justify-center mb-8 animate-fade-in overflow-x-auto px-1">
               <div className="flex items-center gap-1 bg-[color:var(--card)] border border-[color:var(--border)] backdrop-blur-md py-1 px-1 rounded-full shadow-sm overflow-x-auto scrollbar-hide max-w-full">
-                {siteId && <PromotedCategoryAd siteId={siteId} path={adPath} />}
+                {siteId && !preview && <PromotedCategoryAd siteId={siteId} path={adPath} />}
                 {allCategories.map((c) => {
                   const isActive = category === c;
                   const count = counts[c] ?? 0;
@@ -485,7 +493,7 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
           )}
 
           </div>{/* end flex-1 */}
-          {siteId && <SidebarCardAd siteId={siteId} path={adPath} />}
+          {siteId && !preview && <SidebarCardAd siteId={siteId} path={adPath} />}
           </div>{/* end sidebar flex */}
 
           {/* Powered-by footer (respects remove_branding / white_label) */}
@@ -497,7 +505,7 @@ export default function Directory({ site, siteId, posts, initialShortcode, brand
       <BackToTop />
       {features?.newsletter !== false && <FloatingSubscribe siteId={analyticsId} />}
       {/* Sticky ribbon ad fixed at bottom of viewport */}
-      {siteId && <StickyRibbonAd siteId={siteId} path={adPath} />}
+      {siteId && !preview && <StickyRibbonAd siteId={siteId} path={adPath} />}
     </div>
     </BookmarkProvider>
   );

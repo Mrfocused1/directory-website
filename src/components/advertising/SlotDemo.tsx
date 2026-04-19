@@ -20,6 +20,13 @@ type Props = {
   slotType: string;
   site: DemoSite;
   samplePosts: DemoPost[];
+  /**
+   * When set, the demos that show a directory backdrop iframe
+   * /{slug}/preview (the real page, sans ads + analytics) instead of
+   * rendering a stylised mock grid. Advertisers then see the ad
+   * animating over the creator's actual directory.
+   */
+  realBackdropSlug?: string;
 };
 
 const FALLBACK_POSTS: DemoPost[] = [
@@ -33,6 +40,23 @@ const FALLBACK_POSTS: DemoPost[] = [
 
 function usePosts(samplePosts: DemoPost[]) {
   return samplePosts.length > 0 ? samplePosts : FALLBACK_POSTS;
+}
+
+// Iframe backdrop of the real tenant directory, used when we want the
+// ad to appear over the creator's actual page instead of a stylised mock.
+// pointer-events-none keeps clicks from landing inside the preview; the
+// sandbox lets scripts run (the page is a client component with state)
+// but strips form submission and top-level navigation.
+function RealBackdrop({ slug }: { slug: string }) {
+  return (
+    <iframe
+      src={`/${slug}/preview`}
+      className="absolute inset-0 w-full h-full border-0 pointer-events-none"
+      title="Directory preview"
+      sandbox="allow-scripts allow-same-origin"
+      loading="lazy"
+    />
+  );
 }
 
 // Thumb: gradient tile if no real image
@@ -55,7 +79,7 @@ function Thumb({ post, className }: { post: DemoPost; className?: string }) {
 // ──────────────────────────────────────────────────────────────────────
 // PRE-ROLL VIDEO / IMAGE demo
 // ──────────────────────────────────────────────────────────────────────
-function PreRollDemo({ site, samplePosts, isVideo }: Props & { isVideo: boolean }) {
+function PreRollDemo({ site, samplePosts, isVideo, realBackdropSlug }: Props & { isVideo: boolean }) {
   const posts = usePosts(samplePosts);
   const [showing, setShowing] = useState(true);
   const [key, setKey] = useState(0);
@@ -68,13 +92,17 @@ function PreRollDemo({ site, samplePosts, isVideo }: Props & { isVideo: boolean 
 
   return (
     <div className="relative w-[280px] h-[420px] mx-auto rounded-2xl overflow-hidden border border-black/10 shadow-xl bg-white">
-      {/* post grid in background */}
-      <div className="absolute inset-0 grid grid-cols-3 gap-0.5 opacity-40 pointer-events-none">
-        {posts.slice(0, 6).map((p, i) => (
-          <Thumb key={i} post={p} className="w-full h-full" />
-        ))}
-      </div>
-      {/* modal backdrop */}
+      {/* backdrop: real page iframe OR stylised grid */}
+      {realBackdropSlug ? (
+        <RealBackdrop slug={realBackdropSlug} />
+      ) : (
+        <div className="absolute inset-0 grid grid-cols-3 gap-0.5 opacity-40 pointer-events-none">
+          {posts.slice(0, 6).map((p, i) => (
+            <Thumb key={i} post={p} className="w-full h-full" />
+          ))}
+        </div>
+      )}
+      {/* modal backdrop — small preview of a post the user was opening when the ad fired */}
       <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
         <div className="w-48 h-64 bg-white rounded-xl overflow-hidden relative">
           <Thumb post={posts[0]} className="w-full h-40" />
@@ -127,7 +155,7 @@ function PreRollDemo({ site, samplePosts, isVideo }: Props & { isVideo: boolean 
 // ──────────────────────────────────────────────────────────────────────
 // BANNER TOP demo
 // ──────────────────────────────────────────────────────────────────────
-function BannerTopDemo({ site, samplePosts }: Props) {
+function BannerTopDemo({ site, samplePosts, realBackdropSlug }: Props) {
   const posts = usePosts(samplePosts);
   const [showing, setShowing] = useState(false);
   const [key, setKey] = useState(0);
@@ -138,6 +166,31 @@ function BannerTopDemo({ site, samplePosts }: Props) {
     const restart = setTimeout(() => { setShowing(false); setKey((k) => k + 1); }, 6500);
     return () => { clearTimeout(delay); clearTimeout(hide); clearTimeout(restart); };
   }, [key]);
+
+  // When iframing the real page we overlay the banner animation on top
+  // instead of stacking it above the mock directory layout.
+  if (realBackdropSlug) {
+    return (
+      <div className="relative w-full max-w-lg h-[420px] mx-auto rounded-2xl overflow-hidden border border-black/10 shadow-xl bg-white">
+        <RealBackdrop slug={realBackdropSlug} />
+        <AnimatePresence key={key}>
+          {showing && (
+            <motion.div
+              className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-2.5 text-white text-sm font-semibold z-10"
+              style={{ background: site.accentColor }}
+              initial={{ y: "-100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "-100%", opacity: 0 }}
+              transition={{ duration: 0.35 }}
+            >
+              <span className="text-xs">Sponsored by Sponsor · Learn more</span>
+              <button className="text-white/70 hover:text-white text-base leading-none">×</button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-lg mx-auto rounded-2xl overflow-hidden border border-black/10 shadow-xl bg-white">
@@ -184,7 +237,7 @@ function BannerTopDemo({ site, samplePosts }: Props) {
 // ──────────────────────────────────────────────────────────────────────
 // STICKY RIBBON demo
 // ──────────────────────────────────────────────────────────────────────
-function StickyRibbonDemo({ site, samplePosts }: Props) {
+function StickyRibbonDemo({ site, samplePosts, realBackdropSlug }: Props) {
   const posts = usePosts(samplePosts);
   const [showing, setShowing] = useState(false);
   const [key, setKey] = useState(0);
@@ -198,14 +251,17 @@ function StickyRibbonDemo({ site, samplePosts }: Props) {
 
   return (
     <div className="relative w-full max-w-lg mx-auto rounded-2xl overflow-hidden border border-black/10 shadow-xl bg-white" style={{ height: 380 }}>
-      {/* post grid */}
-      <div className="p-3 grid grid-cols-3 gap-1.5">
-        {posts.slice(0, 6).map((p, i) => (
-          <div key={i} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
-            <Thumb post={p} className="w-full h-full" />
-          </div>
-        ))}
-      </div>
+      {realBackdropSlug ? (
+        <RealBackdrop slug={realBackdropSlug} />
+      ) : (
+        <div className="p-3 grid grid-cols-3 gap-1.5">
+          {posts.slice(0, 6).map((p, i) => (
+            <div key={i} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+              <Thumb post={p} className="w-full h-full" />
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* sticky ribbon at bottom */}
       <AnimatePresence key={key}>
@@ -359,7 +415,7 @@ function MidRollVideoDemo({ site, samplePosts }: Props) {
 // ──────────────────────────────────────────────────────────────────────
 // POST-VIEW OVERLAY demo
 // ──────────────────────────────────────────────────────────────────────
-function PostViewOverlayDemo({ site, samplePosts }: Props) {
+function PostViewOverlayDemo({ site, samplePosts, realBackdropSlug }: Props) {
   const posts = usePosts(samplePosts);
   const [phase, setPhase] = useState<"post" | "ad">("post");
   const [key, setKey] = useState(0);
@@ -372,9 +428,13 @@ function PostViewOverlayDemo({ site, samplePosts }: Props) {
 
   return (
     <div className="relative w-[280px] h-[420px] mx-auto rounded-2xl overflow-hidden border border-black/10 shadow-xl bg-gray-50">
-      <div className="absolute inset-0 grid grid-cols-3 gap-0.5 opacity-30">
-        {posts.slice(0, 6).map((p, i) => <Thumb key={i} post={p} className="w-full h-full" />)}
-      </div>
+      {realBackdropSlug ? (
+        <RealBackdrop slug={realBackdropSlug} />
+      ) : (
+        <div className="absolute inset-0 grid grid-cols-3 gap-0.5 opacity-30">
+          {posts.slice(0, 6).map((p, i) => <Thumb key={i} post={p} className="w-full h-full" />)}
+        </div>
+      )}
       <AnimatePresence mode="wait">
         {phase === "post" ? (
           <motion.div
@@ -522,7 +582,7 @@ function SidebarCardDemo({ site, samplePosts }: Props) {
 // ──────────────────────────────────────────────────────────────────────
 // HOMEPAGE TAKEOVER demo
 // ──────────────────────────────────────────────────────────────────────
-function HomepageTakeoverDemo({ site, samplePosts }: Props) {
+function HomepageTakeoverDemo({ site, samplePosts, realBackdropSlug }: Props) {
   const posts = usePosts(samplePosts);
   const [showing, setShowing] = useState(true);
   const [key, setKey] = useState(0);
@@ -535,14 +595,17 @@ function HomepageTakeoverDemo({ site, samplePosts }: Props) {
 
   return (
     <div className="relative w-full max-w-lg mx-auto rounded-2xl border border-black/10 shadow-xl bg-white overflow-hidden" style={{ height: 380 }}>
-      {/* site content */}
-      <div className="p-3 grid grid-cols-3 gap-1.5">
-        {posts.slice(0, 6).map((p, i) => (
-          <div key={i} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
-            <Thumb post={p} className="w-full h-full" />
-          </div>
-        ))}
-      </div>
+      {realBackdropSlug ? (
+        <RealBackdrop slug={realBackdropSlug} />
+      ) : (
+        <div className="p-3 grid grid-cols-3 gap-1.5">
+          {posts.slice(0, 6).map((p, i) => (
+            <div key={i} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+              <Thumb post={p} className="w-full h-full" />
+            </div>
+          ))}
+        </div>
+      )}
 
       <AnimatePresence key={key}>
         {showing && (
@@ -581,8 +644,8 @@ function HomepageTakeoverDemo({ site, samplePosts }: Props) {
 // ──────────────────────────────────────────────────────────────────────
 // Main export
 // ──────────────────────────────────────────────────────────────────────
-export default function SlotDemo({ slotType, site, samplePosts }: Props) {
-  const commonProps = { slotType, site, samplePosts };
+export default function SlotDemo({ slotType, site, samplePosts, realBackdropSlug }: Props) {
+  const commonProps = { slotType, site, samplePosts, realBackdropSlug };
 
   switch (slotType) {
     case "pre_roll_video":

@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { db } from "@/db";
 import { sites, adSlots, stripeConnectAccounts, posts } from "@/db/schema";
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { SLOT_TYPES } from "@/lib/advertising/slot-types";
 import { SLOT_COPY } from "@/lib/advertising/slot-copy";
 import SlotDemo, { type DemoPost, type DemoSite } from "@/components/advertising/SlotDemo";
@@ -51,7 +51,9 @@ async function getSlotData(slug: string, slotTypeId: string) {
 
   if (!slotRow || !slotRow.enabled || slotRow.pricePerWeekCents === null) return null;
 
-  // Fetch a few posts with thumbnails to give the demo real context
+  // Fetch recent posts to feed the animated demo. We keep posts without
+  // thumbnails too — the Thumb component renders a coloured tile as
+  // fallback, so a title-only post is still usable.
   const samplePosts = await db
     .select({
       thumbUrl: posts.thumbUrl,
@@ -59,8 +61,9 @@ async function getSlotData(slug: string, slotTypeId: string) {
       category: posts.category,
     })
     .from(posts)
-    .where(and(eq(posts.siteId, site.id), isNotNull(posts.thumbUrl)))
-    .limit(6);
+    .where(and(eq(posts.siteId, site.id), eq(posts.isVisible, true)))
+    .orderBy(desc(posts.takenAt))
+    .limit(12);
 
   return { site, slotDef, slotRow, samplePosts };
 }
@@ -125,7 +128,12 @@ export default async function AdBuyPage({ params }: Props) {
           <p className="text-xs font-semibold text-[#56505e] uppercase tracking-wide mb-4">
             What your ad will look like
           </p>
-          <SlotDemo slotType={slotDef.id} site={demoSite} samplePosts={demoPosts} />
+          <SlotDemo
+            slotType={slotDef.id}
+            site={demoSite}
+            samplePosts={demoPosts}
+            realBackdropSlug={tenant}
+          />
           <p className="text-sm text-[#56505e] leading-relaxed mt-6">
             {SLOT_COPY[slotDef.id]}
           </p>

@@ -58,27 +58,6 @@ const FEATURES: {
 
 const PRICING = [
   {
-    name: "Free",
-    price: "$0",
-    period: "",
-    tagline: "Try it out.",
-    features: [
-      "1 directory site",
-      "Up to 9 posts (one-shot build)",
-      "1 Instagram account",
-      "AI transcription + key takeaways",
-      "Smart references (articles + YouTube)",
-      "Auto-categorization with AI titles",
-      "AI-generated talking points",
-      "Search, sort, filters, post modal",
-      "Transcript translation (9 languages)",
-      "buildmy.directory/yourname URL",
-    ],
-    cta: "Start free",
-    planId: null as string | null,
-    highlight: false,
-  },
-  {
     name: "Creator",
     price: "$19",
     period: "/mo",
@@ -162,10 +141,10 @@ export default function LandingPage() {
 
               <div className="flex items-center gap-3 flex-wrap">
                 <Link
-                  href="/onboarding"
+                  href="/#pricing"
                   className="inline-flex items-center h-12 px-6 rounded-full bg-[color:var(--bd-lime)] text-[color:var(--bd-dark)] text-base font-semibold hover:opacity-90 transition"
                 >
-                  Start free
+                  See pricing
                 </Link>
                 <Link
                   href="/#how"
@@ -176,7 +155,7 @@ export default function LandingPage() {
               </div>
 
               <p className="mt-6 text-sm text-white/50">
-                Free to try. No credit card required.
+                Cancel anytime. No long-term contract.
               </p>
             </div>
 
@@ -243,13 +222,13 @@ export default function LandingPage() {
               Pricing
             </div>
             <h2 className="font-display-tight text-[2.75rem] sm:text-[4rem] lg:text-[5rem] mb-4">
-              Start free.
+              Pick a plan.
               <br />
-              Upgrade when ready.
+              Start building.
             </h2>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto">
             {PRICING.map((p) => (
               <div
                 key={p.name}

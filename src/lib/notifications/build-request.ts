@@ -33,12 +33,14 @@ export async function notifyBuildRequested(payload: BuildRequestPayload) {
 
   // Telegram has a 4096-char cap per message — keep the header
   // compact so the full Claude prompt fits comfortably below.
+  // Plain text only: the Claude prompt body contains ** markers, dots,
+  // parens, backticks, dashes — all of which break Telegram Markdown.
   const header = [
-    `🆕 *New build requested*`,
-    `*${escapeMarkdown(displayName)}* · ${userEmail || "no email"}`,
-    `@${escapeMarkdown(handle)} · ${platform} · ${plan || "creator"}${postLimit ? ` (${postLimit})` : ""}`,
+    `🆕 NEW BUILD REQUESTED`,
+    `${displayName} · ${userEmail || "no email"}`,
+    `@${handle} · ${platform} · ${plan || "creator"}${postLimit ? ` (${postLimit})` : ""}`,
     ``,
-    `📋 *Copy everything below into Claude:*`,
+    `📋 Copy everything below into Claude:`,
     `—————————————————————`,
   ].join("\n");
 
@@ -47,7 +49,7 @@ export async function notifyBuildRequested(payload: BuildRequestPayload) {
   const fullMessage = `${header}\n\n${claudePrompt}`;
 
   const [telegramOk, emailOk] = await Promise.all([
-    sendTelegramMessage(fullMessage),
+    sendTelegramMessage(fullMessage, { plain: true }),
     sendOperatorEmail(payload, claudePrompt),
   ]);
 
@@ -168,10 +170,3 @@ ${claudePrompt}
   }
 }
 
-/**
- * Escape Markdown special chars so usernames/names with underscores
- * (which are common) don't accidentally italicize half the message.
- */
-function escapeMarkdown(s: string): string {
-  return (s || "").replace(/([_*`\[\]()])/g, "\\$1");
-}

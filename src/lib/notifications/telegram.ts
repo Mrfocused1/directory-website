@@ -4,7 +4,10 @@
  * config never crashes a caller — just skips the notification.
  */
 
-export async function sendTelegramMessage(text: string): Promise<boolean> {
+export async function sendTelegramMessage(
+  text: string,
+  opts: { plain?: boolean } = {},
+): Promise<boolean> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
   if (!token || !chatId) {
@@ -13,15 +16,17 @@ export async function sendTelegramMessage(text: string): Promise<boolean> {
   }
 
   try {
+    const payload: Record<string, unknown> = {
+      chat_id: chatId,
+      text,
+      disable_web_page_preview: true,
+    };
+    if (!opts.plain) payload.parse_mode = "Markdown";
+
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text,
-        parse_mode: "Markdown",
-        disable_web_page_preview: true,
-      }),
+      body: JSON.stringify(payload),
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) {

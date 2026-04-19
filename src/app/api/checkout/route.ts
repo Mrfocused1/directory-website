@@ -9,6 +9,7 @@ import { checkRateLimit, checkoutLimiter } from "@/lib/rate-limit-middleware";
 /** Promo codes that bypass Stripe and grant a plan directly. */
 const PROMO_CODES: Record<string, { plan: string }> = {
   INFLUENCER123: { plan: "pro" },
+  INFLUENCER12345: { plan: "agency" },
 };
 
 /**
@@ -71,11 +72,15 @@ export async function POST(request: NextRequest) {
       }
 
       await db.update(users)
-        .set({ plan: promo.plan, updatedAt: new Date() })
+        .set({
+          plan: promo.plan,
+          subscriptionStatus: "active",
+          updatedAt: new Date(),
+        })
         .where(eq(users.id, user.id));
 
       return NextResponse.json({
-        url: `${request.nextUrl.origin}/onboarding?plan=${promo.plan}&paid=true`,
+        url: `${request.nextUrl.origin}/dashboard?promo=applied`,
       });
     }
 

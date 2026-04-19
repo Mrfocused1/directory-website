@@ -5,6 +5,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
 import { revalidateTenantBySiteId } from "@/lib/cache";
 import { deleteFile } from "@/lib/pipeline/storage";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 /**
  * POST /api/dashboard/posts/bulk
@@ -15,6 +16,8 @@ import { deleteFile } from "@/lib/pipeline/storage";
  * ownership filter to avoid partial execution.
  */
 export async function POST(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });

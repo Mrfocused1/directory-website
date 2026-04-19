@@ -5,6 +5,7 @@ import { eq, desc } from "drizzle-orm";
 import { ownedSiteId } from "@/db/utils";
 import { getApiUser } from "@/lib/supabase/api";
 import { hasFeature, type PlanId } from "@/lib/plans";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 const VALID_PLANS = new Set(["free", "creator", "pro", "agency"]);
 
@@ -14,6 +15,8 @@ const VALID_PLANS = new Set(["free", "creator", "pro", "agency"]);
  * Returns newsletter dashboard data: subscribers, digests, growth.
  */
 export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   const siteId = request.nextUrl.searchParams.get("siteId");
 
   if (!siteId) {

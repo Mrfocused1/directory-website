@@ -5,9 +5,12 @@ import { eq, and, count } from "drizzle-orm";
 import { ownedSiteId } from "@/db/utils";
 import { getApiUser } from "@/lib/supabase/api";
 import { getPlan, type PlanId, type Platform } from "@/lib/plans";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 // GET /api/platforms?siteId=xxx — List platform connections for a site
 export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   const siteId = request.nextUrl.searchParams.get("siteId");
 
   if (!siteId) {
@@ -55,6 +58,8 @@ export async function GET(request: NextRequest) {
 
 // POST /api/platforms — Connect a new platform to a site
 export async function POST(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   try {
     const user = await getApiUser();
     if (!user) {
@@ -163,6 +168,8 @@ export async function POST(request: NextRequest) {
 
 // PATCH /api/platforms — Sync or disconnect a platform
 export async function PATCH(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   try {
     const user = await getApiUser();
     if (!user) {

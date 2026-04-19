@@ -5,6 +5,7 @@ import { ads, adSlots, sites } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { notifyAdApproved } from "@/lib/notifications/ad-purchase";
 import { captureError } from "@/lib/error";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 /**
  * POST /api/advertising/ads/[id]/approve
@@ -20,6 +21,8 @@ export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const limited = await checkRateLimit(_request, apiLimiter);
+  if (limited) return limited;
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!db) return NextResponse.json({ error: "Database unavailable" }, { status: 503 });

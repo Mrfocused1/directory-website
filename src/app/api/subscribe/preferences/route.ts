@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { subscribers, posts } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { resolveSiteId } from "@/db/utils";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 /**
  * GET /api/subscribe/preferences?token=xxx&siteId=xxx
@@ -12,6 +13,8 @@ import { resolveSiteId } from "@/db/utils";
  * Token-authenticated (from digest emails) — no session required.
  */
 export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
   const siteId = request.nextUrl.searchParams.get("siteId");

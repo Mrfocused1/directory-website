@@ -4,6 +4,7 @@ import { getApiUser } from "@/lib/supabase/api";
 import { db } from "@/db";
 import { users, stripeConnectAccounts } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 /**
  * POST /api/advertising/stripe/onboard
@@ -14,6 +15,8 @@ import { eq } from "drizzle-orm";
  * Response: { url: string }
  */
 export async function POST(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!stripe) {
     return NextResponse.json({ error: "Stripe is not configured" }, { status: 500 });
   }

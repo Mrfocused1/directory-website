@@ -4,6 +4,7 @@ import { subscribers, sites, users } from "@/db/schema";
 import { eq, and, count } from "drizzle-orm";
 import { resend } from "@/lib/email/resend";
 import { welcomeEmail, newSubscriberNotification } from "@/lib/email/templates";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 /**
  * GET /api/subscribe/verify?token=xxx&siteId=xxx
@@ -12,6 +13,8 @@ import { welcomeEmail, newSubscriberNotification } from "@/lib/email/templates";
  * Redirects to the directory page on success.
  */
 export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   const token = request.nextUrl.searchParams.get("token");
   const siteId = request.nextUrl.searchParams.get("siteId");
 

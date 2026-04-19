@@ -6,11 +6,14 @@ import { getApiUser } from "@/lib/supabase/api";
 import { createClient as createServerSupabase } from "@/lib/supabase/server";
 import { createClient as createServiceRoleClient } from "@supabase/supabase-js";
 import { stripe } from "@/lib/stripe";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 /**
  * GET /api/dashboard/account — return the caller's profile + plan info.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
@@ -45,6 +48,8 @@ export async function GET() {
  * Email changes route through Supabase (triggers confirmation).
  */
 export async function PATCH(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
@@ -84,7 +89,9 @@ export async function PATCH(request: NextRequest) {
  * Cancels Stripe subscription, deletes the Supabase auth user, and the
  * DB cascade removes sites/posts/subscribers.
  */
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });

@@ -15,6 +15,7 @@
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { getApiUser } from "@/lib/supabase/api";
+import { redactEmail } from "@/lib/error";
 
 function getAllowedEmails(): Set<string> {
   const raw = process.env.ADMIN_EMAILS || "";
@@ -51,7 +52,7 @@ export async function requireAdmin(): Promise<{ id: string; email: string }> {
   try {
     const h = await headers();
     const path = h.get("x-invoke-path") || h.get("referer") || "";
-    console.log(`[admin] ${user.email} → ${path}`);
+    console.log(`[admin] ${redactEmail(user.email)} → ${path}`);
   } catch {
     // headers() can throw outside RSC contexts — best-effort log only
   }

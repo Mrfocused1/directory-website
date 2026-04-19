@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { references, posts, sites } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 /**
  * /api/dashboard/posts/[postId]/references
@@ -92,6 +93,8 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ postId: string }> },
 ) {
+  const limited = await checkRateLimit(_request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
@@ -121,6 +124,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ postId: string }> },
 ) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
@@ -155,6 +160,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ postId: string }> },
 ) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
@@ -198,6 +205,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ postId: string }> },
 ) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });

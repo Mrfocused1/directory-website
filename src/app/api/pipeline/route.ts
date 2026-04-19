@@ -5,6 +5,7 @@ import { eq, and, desc, count } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
 import { inngest } from "@/lib/inngest/client";
 import { getPlan, type PlanId } from "@/lib/plans";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 // Reserved slugs that conflict with app routes or are commonly squatted
 // Slugs that conflict with app routes or are commonly squatted.
@@ -29,6 +30,8 @@ const RESERVED_SLUGS = new Set([
 
 // POST /api/pipeline — Start a new pipeline for a site
 export async function POST(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   try {
     // Require authentication — pipeline triggers paid services (Apify, Deepgram, Claude)
     const user = await getApiUser();
@@ -201,6 +204,8 @@ export async function POST(request: NextRequest) {
 
 // GET /api/pipeline?siteId=xxx — Check pipeline status
 export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   // Require authentication — pipeline status may reveal site details.
   const user = await getApiUser();
   if (!user) {

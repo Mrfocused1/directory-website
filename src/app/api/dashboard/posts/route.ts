@@ -7,12 +7,15 @@ import { revalidateTenantBySiteId } from "@/lib/cache";
 import { uploadBuffer, deleteFile } from "@/lib/pipeline/storage";
 import { getPlan, type PlanId } from "@/lib/plans";
 import crypto from "node:crypto";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 /**
  * GET /api/dashboard/posts?siteId=xxx
  * Returns posts for a site owned by the authenticated user.
  */
 export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
@@ -100,6 +103,8 @@ function getFileExtension(name: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
@@ -268,6 +273,8 @@ export async function POST(request: NextRequest) {
  * Updates title/caption/category/isVisible for a post owned by the caller.
  */
 export async function PATCH(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
@@ -376,6 +383,8 @@ export async function PATCH(request: NextRequest) {
  * Deletes a post owned by the caller.
  */
 export async function DELETE(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });

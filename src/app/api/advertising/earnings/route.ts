@@ -1,12 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getApiUser } from "@/lib/supabase/api";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 import { db } from "@/db";
 import { sites, ads, adImpressions, adClicks } from "@/db/schema";
 import { and, eq, gte, sum, count, inArray } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!db) return NextResponse.json({ error: "DB unavailable" }, { status: 503 });

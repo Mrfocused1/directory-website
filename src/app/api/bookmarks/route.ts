@@ -4,9 +4,12 @@ import { visitorProfiles, collections, bookmarks } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { resolveSiteId } from "@/db/utils";
 import crypto from "crypto";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 // GET /api/bookmarks?siteId=xxx&email=xxx — Get visitor's collections and bookmarks
 export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   const siteId = request.nextUrl.searchParams.get("siteId");
   const email = request.nextUrl.searchParams.get("email");
 
@@ -65,6 +68,8 @@ export async function GET(request: NextRequest) {
 
 // POST /api/bookmarks — Sign in + bookmark a post, or create a collection
 export async function POST(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   try {
     const body = await request.json();
     const { siteId, email, name, action } = body;
@@ -279,6 +284,8 @@ export async function POST(request: NextRequest) {
 
 // DELETE /api/bookmarks — Remove a collection
 export async function DELETE(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   try {
     const body = await request.json();
     const { siteId, email, collectionId } = body;

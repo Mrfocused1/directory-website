@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getApiUser } from "@/lib/supabase/api";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 /**
  * GET /api/instagram/lookup?q=handle
@@ -20,6 +21,8 @@ interface ProfileResult {
 }
 
 export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   const user = await getApiUser();
   if (!user) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });

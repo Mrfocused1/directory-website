@@ -3,10 +3,13 @@ import { getApiUser } from "@/lib/supabase/api";
 import { db } from "@/db";
 import { sites, posts } from "@/db/schema";
 import { and, eq, isNotNull } from "drizzle-orm";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!db) return NextResponse.json({ error: "DB unavailable" }, { status: 503 });

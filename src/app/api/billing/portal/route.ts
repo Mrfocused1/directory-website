@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 /**
  * POST /api/billing/portal
@@ -13,6 +14,8 @@ import { getApiUser } from "@/lib/supabase/api";
  * Returns { url } for the client to redirect to.
  */
 export async function POST(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!stripe) return NextResponse.json({ error: "Stripe is not configured" }, { status: 500 });
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 

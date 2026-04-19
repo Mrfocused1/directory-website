@@ -6,6 +6,7 @@ import { getApiUser } from "@/lib/supabase/api";
 import { resend } from "@/lib/email/resend";
 import { sanitizeFromName } from "@/lib/email/templates";
 import crypto from "crypto";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 const VERIFICATION_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -35,6 +36,8 @@ export function resolveFromAddress(site: {
 // ─── GET /api/dashboard/sender ──────────────────────────────────────
 
 export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
   // Handle email verification confirmation via query param
@@ -72,6 +75,8 @@ export async function GET(request: NextRequest) {
 // ─── POST /api/dashboard/sender ─────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 
   const user = await getApiUser();

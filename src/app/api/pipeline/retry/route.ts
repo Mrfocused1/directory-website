@@ -6,6 +6,7 @@ import { getApiUser } from "@/lib/supabase/api";
 import { inngest } from "@/lib/inngest/client";
 import { ensureInngestRegistered } from "@/lib/inngest/sync";
 import { getPlan, hasFeature, type PlanId } from "@/lib/plans";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 const VALID_PLANS = new Set(["free", "creator", "pro", "agency"]);
 
@@ -61,6 +62,8 @@ async function countSyncsThisMonth(userId: string): Promise<number> {
  * Resets any failed jobs to pending and dispatches a fresh Inngest event.
  */
 export async function POST(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });

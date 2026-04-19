@@ -3,6 +3,7 @@ import { getApiUser } from "@/lib/supabase/api";
 import { db } from "@/db";
 import { ads, adSlots, sites } from "@/db/schema";
 import { and, desc, eq } from "drizzle-orm";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 /**
  * GET /api/advertising/ads?siteId=X
@@ -15,6 +16,8 @@ import { and, desc, eq } from "drizzle-orm";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!db) return NextResponse.json({ error: "Database unavailable" }, { status: 503 });

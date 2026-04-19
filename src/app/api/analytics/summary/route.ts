@@ -4,6 +4,7 @@ import { pageViews, postClicks, searchEvents, categoryClicks, dailyStats, posts 
 import { eq, and, gte, count, sql, desc, isNotNull } from "drizzle-orm";
 import { ownedSiteId } from "@/db/utils";
 import { getApiUser } from "@/lib/supabase/api";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 /**
  * GET /api/analytics/summary?siteId=xxx&days=30
@@ -12,6 +13,8 @@ import { getApiUser } from "@/lib/supabase/api";
  * Falls back to empty data when DB is unavailable.
  */
 export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   const siteId = request.nextUrl.searchParams.get("siteId");
   let days = parseInt(request.nextUrl.searchParams.get("days") || "30", 10);
   if (isNaN(days) || days < 1) days = 30;

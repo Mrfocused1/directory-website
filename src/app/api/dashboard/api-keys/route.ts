@@ -5,6 +5,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
 import { generateApiKey } from "@/lib/api-auth";
 import { hasFeature, type PlanId } from "@/lib/plans";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 const VALID_PLANS = new Set(["free", "creator", "pro", "agency"]);
 
@@ -19,7 +20,9 @@ async function requireApiAccess(userId: string) {
 }
 
 // GET /api/dashboard/api-keys — list the caller's keys (without exposing raw key)
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
@@ -50,6 +53,8 @@ export async function GET() {
 
 // POST /api/dashboard/api-keys — create a new key (returns raw value ONE time)
 export async function POST(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
@@ -92,6 +97,8 @@ export async function POST(request: NextRequest) {
 
 // DELETE /api/dashboard/api-keys?id=xxx — revoke a key
 export async function DELETE(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });

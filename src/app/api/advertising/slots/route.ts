@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { adSlots, sites } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { SLOT_TYPES } from "@/lib/advertising/slot-types";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,8 @@ async function verifyOwnership(userId: string, siteId: string) {
 // GET /api/advertising/slots?siteId=X
 // Returns all 11 slot shapes zipped with any existing DB rows
 export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!db) return NextResponse.json({ error: "DB unavailable" }, { status: 503 });
@@ -60,6 +63,8 @@ export async function GET(request: NextRequest) {
 // POST /api/advertising/slots
 // Upserts a slot row for (siteId, slotType)
 export async function POST(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!db) return NextResponse.json({ error: "DB unavailable" }, { status: 503 });
@@ -105,6 +110,8 @@ export async function POST(request: NextRequest) {
 // DELETE /api/advertising/slots?id=X
 // Soft-disable — never hard-delete (would cascade to purchased ads)
 export async function DELETE(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!db) return NextResponse.json({ error: "DB unavailable" }, { status: 503 });

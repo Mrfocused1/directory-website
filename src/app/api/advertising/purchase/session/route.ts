@@ -3,6 +3,7 @@ import { stripe } from "@/lib/stripe";
 import { db } from "@/db";
 import { ads } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 /**
  * GET /api/advertising/purchase/session?id=<cs_...>
@@ -16,6 +17,8 @@ import { eq } from "drizzle-orm";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   const sessionId = request.nextUrl.searchParams.get("id");
   if (!sessionId || !sessionId.startsWith("cs_")) {
     return NextResponse.json({ error: "Invalid session id" }, { status: 400 });

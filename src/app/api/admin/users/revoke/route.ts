@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { requireAdmin } from "@/lib/admin";
 import { createClient } from "@supabase/supabase-js";
 import { stripe } from "@/lib/stripe";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,6 +26,8 @@ const supabaseAdmin = createClient(
  * Irreversible. The user's content is gone.
  */
 export async function POST(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   const caller = await requireAdmin();
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 

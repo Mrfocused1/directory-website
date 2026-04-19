@@ -4,6 +4,7 @@ import { posts, sites } from "@/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
 import { revalidateTenantBySiteId } from "@/lib/cache";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 /**
  * POST /api/dashboard/posts/reorder
@@ -14,6 +15,8 @@ import { revalidateTenantBySiteId } from "@/lib/cache";
  * owned by the caller.
  */
 export async function POST(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const database = db; // narrow the nullable type for closures
   const user = await getApiUser();

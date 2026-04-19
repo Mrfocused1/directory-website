@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { sites, subscribers } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { authApiRequest } from "@/lib/api-auth";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 /**
  * GET /api/v1/subscribers?siteId=xxx
@@ -11,6 +12,8 @@ import { authApiRequest } from "@/lib/api-auth";
  * always included (auth-gated by API key + ownership check).
  */
 export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   const auth = await authApiRequest(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 

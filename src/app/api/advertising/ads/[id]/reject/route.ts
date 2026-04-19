@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { stripe } from "@/lib/stripe";
 import { notifyAdRejected } from "@/lib/notifications/ad-purchase";
 import { captureError } from "@/lib/error";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 /**
  * POST /api/advertising/ads/[id]/reject
@@ -23,6 +24,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!db) return NextResponse.json({ error: "Database unavailable" }, { status: 503 });

@@ -5,6 +5,7 @@ import { eq, desc } from "drizzle-orm";
 import { ownedSiteId } from "@/db/utils";
 import { getApiUser } from "@/lib/supabase/api";
 import { hasFeature, type PlanId } from "@/lib/plans";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 /**
  * GET /api/newsletter/export?siteId=xxx
@@ -13,6 +14,8 @@ import { hasFeature, type PlanId } from "@/lib/plans";
  * Requires authentication and the caller must own the site.
  */
 export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   const siteId = request.nextUrl.searchParams.get("siteId");
   if (!siteId) {
     return NextResponse.json({ error: "Missing siteId" }, { status: 400 });

@@ -7,6 +7,8 @@ import { resend } from "@/lib/email/resend";
 import { digestEmail, sanitizeFromName } from "@/lib/email/templates";
 import { getApiUser } from "@/lib/supabase/api";
 import { hasFeature, type PlanId } from "@/lib/plans";
+import { redactEmail } from "@/lib/error";
+import { checkRateLimit, emailLimiter } from "@/lib/rate-limit-middleware";
 
 const VALID_PLANS = new Set(["free", "creator", "pro", "agency"]);
 
@@ -21,6 +23,8 @@ export const maxDuration = 60;
  * Body: { siteId: string }
  */
 export async function POST(request: NextRequest) {
+  const limited = await checkRateLimit(request, emailLimiter);
+  if (limited) return limited;
   try {
     // Require authentication
     const user = await getApiUser();
@@ -147,13 +151,13 @@ export async function POST(request: NextRequest) {
         });
         if (sendError) {
           errors.push(sub.email);
-          console.error(`[newsletter/send] Resend rejected ${sub.email}:`, sendError);
+          console.error(`[newsletter/send] Resend rejected ${redactEmail(sub.email)}:`, sendError);
         } else {
           sentCount++;
         }
       } catch (err) {
         errors.push(sub.email);
-        console.error(`[newsletter/send] Failed to send to ${sub.email}:`, err);
+        console.error(`[newsletter/send] Failed to send to ${redactEmail(sub.email)}:`, err);
       }
     }
 

@@ -4,6 +4,7 @@ import { posts, sites } from "@/db/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
 import { revalidateTenantBySiteId } from "@/lib/cache";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 async function ensureSiteOwnership(siteId: string, userId: string) {
   if (!db) return null;
@@ -20,6 +21,8 @@ async function ensureSiteOwnership(siteId: string, userId: string) {
  * Categories that exist in posts but not in the array are appended at the end.
  */
 export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
@@ -73,6 +76,8 @@ export async function GET(request: NextRequest) {
  * Updates posts AND the sites.categories array to keep them in sync.
  */
 export async function PATCH(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
@@ -137,6 +142,8 @@ export async function PATCH(request: NextRequest) {
  * Body: { siteId, action: "add"|"delete"|"reorder", ... }
  */
 export async function POST(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   const user = await getApiUser();
   if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });

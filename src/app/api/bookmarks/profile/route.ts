@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { visitorProfiles } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { resolveSiteId } from "@/db/utils";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 /**
  * DELETE /api/bookmarks/profile
@@ -18,6 +19,8 @@ import { resolveSiteId } from "@/db/utils";
  * no escalation because this endpoint only ever removes data.
  */
 export async function DELETE(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   try {
     const body = await request.json();
     const { siteId, email } = body;

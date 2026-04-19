@@ -4,9 +4,12 @@ import { db } from "@/db";
 import { sites, posts } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { getApiUser } from "@/lib/supabase/api";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 // GET /api/sites — List sites for the authenticated user
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) {
     return NextResponse.json({ sites: [] });
   }
@@ -68,6 +71,8 @@ export async function GET() {
 // DELETE /api/sites?id=xxx — Delete a site owned by the authenticated user.
 // Cascading FKs in the schema delete posts, jobs, subscribers, etc.
 export async function DELETE(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) {
     return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   }
@@ -101,6 +106,8 @@ export async function DELETE(request: NextRequest) {
 
 // PATCH /api/sites?id=xxx — Update editable site fields (newsletter settings, etc.)
 export async function PATCH(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   if (!db) {
     return NextResponse.json({ error: "Database not configured" }, { status: 503 });
   }

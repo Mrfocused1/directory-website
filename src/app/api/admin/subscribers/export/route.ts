@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { subscribers, sites, adminAuditLog } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { requireAdmin } from "@/lib/admin";
+import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 
 /**
  * GET /api/admin/subscribers/export?siteId=xxx
@@ -15,6 +16,8 @@ import { requireAdmin } from "@/lib/admin";
  * save it as `<slug>-subscribers-YYYYMMDD.csv`.
  */
 export async function GET(request: NextRequest) {
+  const limited = await checkRateLimit(request, apiLimiter);
+  if (limited) return limited;
   const caller = await requireAdmin();
   if (!db) return NextResponse.json({ error: "Database not configured" }, { status: 503 });
 

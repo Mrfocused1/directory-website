@@ -72,9 +72,16 @@ export default function PricingButton({
         window.location.href = data.url;
         return;
       }
-      // If auth required with promo code, redirect to signup with promo preserved
-      if (res.status === 401 && usePromo && promoCode.trim()) {
-        window.location.href = `/login?next=${encodeURIComponent(`/onboarding?promo=${promoCode.trim()}`)}`;
+      // Not signed in → bounce through login and auto-resume checkout
+      // at /checkout-redirect. No error toast; a crisp login page is a
+      // better first-touch than "Authentication required. Please sign
+      // in before upgrading."
+      if (res.status === 401) {
+        const qs = new URLSearchParams();
+        qs.set("plan", plan);
+        if (usePromo && promoCode.trim()) qs.set("promo", promoCode.trim());
+        const next = `/checkout-redirect?${qs.toString()}`;
+        window.location.href = `/login?next=${encodeURIComponent(next)}`;
         return;
       }
       setError(data.error || "Checkout unavailable. Please try again.");

@@ -26,11 +26,12 @@ function LoginContent() {
     ? rawNext
     : "/dashboard";
 
-  // Users redirected here from /onboarding are almost certainly new — default
-  // to signup so they don't have to click "Sign up" first.
-  const [mode, setMode] = useState<"login" | "signup">(
-    nextPath.startsWith("/onboarding") ? "signup" : "login",
-  );
+  // Users redirected here from /onboarding or /checkout-redirect are
+  // almost certainly new — default to signup so they don't have to
+  // click "Sign up" first.
+  const isSignupContext =
+    nextPath.startsWith("/onboarding") || nextPath.startsWith("/checkout-redirect");
+  const [mode, setMode] = useState<"login" | "signup">(isSignupContext ? "signup" : "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);

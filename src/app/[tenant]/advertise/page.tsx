@@ -104,17 +104,31 @@ export default async function AdvertiseLandingPage({ params }: Props) {
         </div>
       </header>
 
-      {/* Hero — gradient + avatar + split layout */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#1a0a2e] via-[#2a1248] to-[#1a0a2e] text-white">
-        <div className="absolute inset-0 pointer-events-none opacity-40" style={{
+      {/* Hero — inline-styled gradient so arbitrary Tailwind colors can't
+          silently drop out at build time. Dark purple base with two radial
+          purple/blue glows for depth. */}
+      <section
+        className="relative overflow-hidden text-white"
+        style={{
           background:
-            "radial-gradient(60% 80% at 85% 20%, rgba(168,85,247,0.35) 0%, transparent 60%), " +
-            "radial-gradient(50% 60% at 15% 80%, rgba(59,130,246,0.25) 0%, transparent 60%)",
-        }} />
+            "linear-gradient(135deg, #1a0a2e 0%, #2a1248 45%, #1a0a2e 100%)",
+        }}
+      >
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(60% 80% at 85% 15%, rgba(168,85,247,0.35) 0%, transparent 60%), " +
+              "radial-gradient(55% 70% at 10% 90%, rgba(59,130,246,0.28) 0%, transparent 60%)",
+          }}
+        />
         <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 sm:gap-8">
-            {site.avatarUrl && (
-              <div className="shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden ring-2 ring-white/20 shadow-lg">
+            <div
+              className="shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden ring-2 ring-white/20 shadow-lg flex items-center justify-center text-2xl sm:text-3xl font-extrabold tracking-wide"
+              style={{ background: "rgba(255,255,255,0.1)" }}
+            >
+              {site.avatarUrl ? (
                 <Image
                   src={site.avatarUrl}
                   alt={siteName}
@@ -123,30 +137,35 @@ export default async function AdvertiseLandingPage({ params }: Props) {
                   className="w-full h-full object-cover"
                   priority
                 />
-              </div>
-            )}
+              ) : (
+                <span className="text-white/90">
+                  {siteName.slice(0, 2).toUpperCase()}
+                </span>
+              )}
+            </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs sm:text-sm font-semibold tracking-[0.2em] uppercase text-purple-300/90 mb-2">
+              <p className="text-xs sm:text-sm font-semibold tracking-[0.2em] uppercase mb-2" style={{ color: "#c8a2ff" }}>
                 Advertising opportunities
               </p>
               <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-[1.05]">
-                Advertise on <span className="text-purple-300">{siteName}</span>
+                Advertise on{" "}
+                <span style={{ color: "#d3fd74" }}>{siteName}</span>
               </h1>
-              <p className="text-white/70 text-base sm:text-lg mt-4 max-w-xl leading-relaxed">
+              <p className="text-base sm:text-lg mt-4 max-w-xl leading-relaxed" style={{ color: "rgba(255,255,255,0.75)" }}>
                 Reach a curated audience that trusts {creatorName}. Explore the formats below, then request pricing to get started.
               </p>
               <div className="flex flex-wrap gap-8 mt-8">
                 <div>
                   <p className="text-2xl sm:text-3xl font-extrabold">{postCount.toLocaleString()}</p>
-                  <p className="text-xs sm:text-sm text-white/60 mt-0.5">posts indexed</p>
+                  <p className="text-xs sm:text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>posts indexed</p>
                 </div>
                 <div>
                   <p className="text-2xl sm:text-3xl font-extrabold">{availableSlots.length}</p>
-                  <p className="text-xs sm:text-sm text-white/60 mt-0.5">ad format{availableSlots.length === 1 ? "" : "s"}</p>
+                  <p className="text-xs sm:text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>ad format{availableSlots.length === 1 ? "" : "s"}</p>
                 </div>
                 <div>
                   <p className="text-2xl sm:text-3xl font-extrabold">1:1</p>
-                  <p className="text-xs sm:text-sm text-white/60 mt-0.5">creator review</p>
+                  <p className="text-xs sm:text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>creator review</p>
                 </div>
               </div>
             </div>

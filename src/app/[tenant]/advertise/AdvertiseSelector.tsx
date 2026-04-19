@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { SLOT_REQUIREMENTS } from "@/lib/advertising/slot-requirements";
 
@@ -22,7 +22,44 @@ const MAX_TOTAL_BYTES = 35 * 1024 * 1024; // leave headroom below Resend's 40MB 
 const MAX_FILES = 5;
 
 export default function AdvertiseSelector({ siteSlug, siteName, creatorName, slots }: Props) {
+  // Selection is shared with the slot-detail page's AddToQuoteButton
+  // via localStorage under this key. Navigating between pages keeps
+  // the advertiser's picks intact.
+  const storageKey = `bmd:quote:${siteSlug}`;
+
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Hydrate from localStorage on mount and subscribe to cross-tab changes.
+  useEffect(() => {
+    const validIds = new Set(slots.map((s) => s.id));
+    const read = () => {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return;
+        const list: string[] = JSON.parse(raw);
+        if (!Array.isArray(list)) return;
+        setSelected(new Set(list.filter((id) => validIds.has(id))));
+      } catch {
+        // ignore malformed
+      }
+    };
+    read();
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === storageKey) read();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [storageKey, slots]);
+
+  // Persist selection on every change.
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(Array.from(selected)));
+    } catch {
+      // storage quota / disabled — silently ignore
+    }
+  }, [storageKey, selected]);
+
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [website, setWebsite] = useState("");
@@ -97,6 +134,8 @@ export default function AdvertiseSelector({ siteSlug, siteName, creatorName, slo
         setError(data.error || "Failed to send");
       } else {
         setSent(true);
+        // Clear the shared selection so a future visit starts fresh.
+        try { localStorage.removeItem(storageKey); } catch { /* noop */ }
       }
     } catch {
       setError("Network error — please try again");

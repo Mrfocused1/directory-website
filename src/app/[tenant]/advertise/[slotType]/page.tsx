@@ -7,6 +7,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { SLOT_TYPES } from "@/lib/advertising/slot-types";
 import { SLOT_COPY } from "@/lib/advertising/slot-copy";
 import SlotDemo, { type DemoPost, type DemoSite } from "@/components/advertising/SlotDemo";
+import AddToQuoteButton from "./AddToQuoteButton";
 
 export const dynamic = "force-dynamic";
 
@@ -135,19 +136,14 @@ export default async function AdBuyPage({ params }: Props) {
         </section>
 
         {/* No form here — the quote-request form only lives on the
-            main /advertise page, where advertisers can bulk-select
-            multiple formats in one request. */}
-        <div className="text-center">
-          <Link
-            href={`/${tenant}/advertise#quote-form`}
-            className="inline-flex items-center h-11 px-6 bg-[#1a0a2e] text-white text-sm font-semibold rounded-full hover:opacity-90 transition"
-          >
-            Add this format to my quote request
-          </Link>
-          <p className="text-xs text-[#56505e] mt-3">
-            All quote requests are sent together from the main advertise page.
-          </p>
-        </div>
+            main /advertise page. Clicking the button mutates a
+            localStorage list shared with AdvertiseSelector so the
+            format is pre-checked when the advertiser returns. */}
+        <AddToQuoteButton
+          siteSlug={tenant}
+          slotType={slotDef.id}
+          slotName={slotDef.name}
+        />
       </main>
     </div>
   );

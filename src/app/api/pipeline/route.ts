@@ -149,31 +149,47 @@ export async function POST(request: NextRequest) {
       isPublished: false,
     }).returning();
 
-    // Create initial pipeline job record
+    // Create initial pipeline job record — "pending" with a queued
+    // message. The operator will flip this to "running" when they
+    // fire `bash scripts/build-site.sh <slug>` from their Mac.
     await db.insert(pipelineJobs).values({
       siteId: site.id,
       step: "scrape",
       status: "pending",
       progress: 0,
-      message: "Queued for processing",
+      message: "Queued for build — usually ready in 10–20 minutes",
     });
 
-    // Make sure Inngest Cloud knows about our function definitions for
-    // this deployment. Idempotent + memoized — only does real work on
-    // the first POST after a fresh deploy.
-    const { ensureInngestRegistered } = await import("@/lib/inngest/sync");
-    await ensureInngestRegistered(request.nextUrl.origin);
-
-    // Trigger the background pipeline via Inngest
-    await inngest.send({
-      name: "pipeline/run",
-      data: { siteId: site.id },
-    });
+    // Manual build workflow: instead of auto-firing the pipeline,
+    // notify the operator via email + telegram. They'll run the
+    // pipeline from the CLI when they're at their terminal.
+    //
+    // Why manual: the pipeline depends on too many fragile services
+    // (IG session cookies, residential proxy, SearXNG, LibreTranslate,
+    // Anthropic credits) for self-serve to be reliable yet. Hands-on
+    // build is a quality gate + buys time to harden the infra.
+    try {
+      const { notifyBuildRequested } = await import("@/lib/notifications/build-request");
+      await notifyBuildRequested({
+        siteId: site.id,
+        slug,
+        platform,
+        handle,
+        displayName,
+        userEmail: user.email,
+        plan: planId,
+        postLimit: planConfig.postLimit,
+      });
+    } catch (notifyErr) {
+      // Best-effort — never block site creation on a missed
+      // notification. Operator can poll the admin queue if needed.
+      console.error("[pipeline] operator notification failed:", notifyErr);
+    }
 
     return NextResponse.json({
       siteId: site.id,
-      status: "started",
-      message: "Pipeline started. Your directory will be ready in a few minutes.",
+      status: "queued",
+      message: "Your directory is queued for build. Usually ready in 10–20 minutes, can take up to 24 hours.",
     });
   } catch (error) {
     console.error("Pipeline error:", error);

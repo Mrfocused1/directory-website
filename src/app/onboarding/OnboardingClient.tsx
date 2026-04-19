@@ -232,21 +232,47 @@ function ProcessingStep({
 
   const frame = DEMO_FRAMES[carouselFrame];
 
+  // Queued state: the user just clicked "Build my directory" and the
+  // operator hasn't yet run the CLI. Show a calmer screen — ETA range
+  // instead of a ticking countdown, and reassurance that an email is
+  // coming. As soon as the pipeline's first updateJob() fires, the
+  // polled message changes and we fall through to the normal UI.
+  const isQueued =
+    pipelineStatus.step === "scrape" &&
+    pipelineStatus.progress === 0 &&
+    /^queued/i.test(pipelineStatus.message);
+
   return (
     <div className="animate-fade-in text-center pt-4">
       {/* Timeline prediction header */}
       <div className="mb-5">
         <h1 className="font-display-tight text-[2rem] sm:text-[2.75rem] text-[color:var(--bd-dark)] leading-tight">
-          Building @{cleanHandle}
+          {isQueued ? "Queued" : "Building"} @{cleanHandle}
         </h1>
         <p className="text-[color:var(--bd-grey)] text-sm mt-1">
           {pipelineStatus.step === "error"
             ? "Something went wrong"
+            : isQueued
+            ? "Usually 10–20 minutes · up to 24 hours"
             : remainingSeconds > 0
             ? `~${remainingMinutes} minute${remainingMinutes !== 1 ? "s" : ""} remaining`
             : "Almost done…"}
         </p>
       </div>
+
+      {/* Queued callout — swaps in for the fun-facts ticker while we wait */}
+      {isQueued && (
+        <div className="max-w-sm mx-auto bg-[color:var(--bd-lime)]/20 border border-[color:var(--bd-lime)] rounded-xl px-4 py-3 mb-5 text-left">
+          <p className="text-xs font-semibold text-[color:var(--bd-dark)] mb-1">
+            You can close this tab.
+          </p>
+          <p className="text-xs text-[color:var(--bd-dark)]/80 leading-relaxed">
+            We&apos;ll email you the moment your directory is live — usually
+            within 10–20 minutes, sometimes up to a day if we&apos;re batching
+            builds. This page auto-updates if you stay on it.
+          </p>
+        </div>
+      )}
 
       {/* Phone mockup carousel */}
       <div className="max-w-[200px] mx-auto mb-6 relative">

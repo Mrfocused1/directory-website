@@ -2,8 +2,7 @@
 #
 # One-command IG session refresh for the Hetzner scraper.
 #
-# Run this whenever you get the "session dead" email from
-# /api/session/recover. It will:
+# Run this whenever you get the "session dead" email. It will:
 #   1. Pull stored IG credentials from the VPS
 #   2. Log into IG from your Mac's residential IP
 #   3. Push the fresh cookies back to the VPS

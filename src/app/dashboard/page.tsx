@@ -21,14 +21,6 @@ type SiteData = {
   accentColor?: string;
 };
 
-type SyncStatus = {
-  enabled: boolean;
-  used: number;
-  limit: number;
-  remaining: number;
-  requiredPlan?: string;
-};
-
 export default function DashboardPage() {
   const searchParams = useSearchParams();
   const newDirectorySlug = searchParams.get("new_directory");
@@ -46,24 +38,6 @@ export default function DashboardPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [editingProfile, setEditingProfile] = useState<SiteData | null>(null);
-  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
-  const [canBuildMore, setCanBuildMore] = useState(true);
-
-  const refreshSyncStatus = async () => {
-    try {
-      const res = await fetch("/api/pipeline/sync-status");
-      if (res.ok) {
-        const data = await res.json();
-        setSyncStatus(data);
-        setCanBuildMore(data.canBuildMore !== false);
-      }
-    } catch {
-      // ignore — UI falls back to hiding the counter
-    }
-  };
-
-  useEffect(() => { refreshSyncStatus(); }, []);
-
   const handleSync = async (site: SiteData) => {
     if (syncingId) return;
     setSyncingId(site.id);
@@ -77,7 +51,6 @@ export default function DashboardPage() {
           "Sync queued ✅\n\nWe'll check Instagram for your latest 12 posts and add any new ones to your directory. Usually takes under a minute — refresh your directory to see them.",
         );
         setSyncingId(null);
-        refreshSyncStatus();
         return;
       }
       if (res.status === 429) {
@@ -193,7 +166,7 @@ export default function DashboardPage() {
                 Manage your content directories
               </p>
             </div>
-            {canBuildMore ? (
+            {true ? (
               <Link
                 href="/onboarding"
                 className="h-10 px-5 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-full text-sm font-semibold flex items-center gap-2 hover:opacity-90 transition"
@@ -223,7 +196,7 @@ export default function DashboardPage() {
               <p className="text-sm text-[color:var(--fg-muted)]">Loading your directories...</p>
             </div>
           ) : sites.length === 0 ? (
-            canBuildMore ? (
+            true ? (
             <EmptyState
               icon={
                 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -325,33 +298,15 @@ export default function DashboardPage() {
                         </svg>
                       </Link>
                       )}
-                      {syncStatus?.enabled ? (
-                        <button
-                          type="button"
-                          onClick={() => handleSync(site)}
-                          disabled={syncingId === site.id || syncStatus.remaining <= 0}
-                          className="h-9 px-4 bg-black/5 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:bg-black/10 disabled:opacity-50 transition"
-                          title={
-                            syncStatus.remaining <= 0
-                              ? `You've used all ${syncStatus.limit} syncs this month — resets on the 1st`
-                              : `Re-pull latest posts — ${syncStatus.remaining} of ${syncStatus.limit} syncs left this month`
-                          }
-                        >
-                          {syncingId === site.id ? "Queuing…" : "Sync now"}
-                        </button>
-                      ) : (
-                        <Link
-                          href="/dashboard/account#plan"
-                          className="h-9 px-4 bg-purple-50 text-purple-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:bg-purple-100 transition"
-                          title="Sync is a Creator-plan feature"
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
-                            <rect width="18" height="11" x="3" y="11" rx="2" />
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                          </svg>
-                          Sync — upgrade
-                        </Link>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleSync(site)}
+                        disabled={syncingId === site.id}
+                        className="h-9 px-4 bg-black/5 rounded-lg text-xs font-semibold flex items-center gap-1.5 hover:bg-black/10 disabled:opacity-50 transition"
+                        title="Pull in new posts — rate-limited to once per hour"
+                      >
+                        {syncingId === site.id ? "Queuing…" : "Sync now"}
+                      </button>
                       <button
                         type="button"
                         onClick={() => setEditingProfile(site)}

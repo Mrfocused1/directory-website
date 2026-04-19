@@ -388,14 +388,3 @@ export const reconcileStripeFunction = inngest.createFunction(
   },
 );
 
-/**
- * Self-healing monitor cron — runs every 5 minutes.
- * Checks all services, attempts auto-repairs, and emails admins on problems.
- */
-export const monitorHealthFunction = inngest.createFunction(
-  { id: "monitor-health", retries: 0, triggers: [{ cron: "*/5 * * * *" }] },
-  async () => {
-    const { runMonitorCycle } = await import("@/lib/monitor");
-    return await runMonitorCycle();
-  },
-);

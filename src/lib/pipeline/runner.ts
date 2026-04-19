@@ -621,7 +621,6 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     captureError(error, { step: currentStep, siteId });
     const message = error instanceof Error ? error.message : "Pipeline failed";
     await updateJob(siteId, currentStep, "failed", 0, message);
-    await import("@/lib/monitor/pipeline-watcher").then(m => m.diagnosePipelineFailure(siteId, error instanceof Error ? error : new Error(String(error)), currentStep)).catch(() => {});
     throw error;
   }
 }

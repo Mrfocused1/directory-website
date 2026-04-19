@@ -24,10 +24,6 @@ export const users = pgTable("users", {
   // from before the free tier was retired. Those are handled
   // read-only in plans.ts.
   plan: varchar("plan", { length: 32 }).notNull().default("creator"), // creator | pro | agency | free (legacy)
-  // Legacy: tracked whether a free-tier user had already used their
-  // one-shot build. Kept in the schema so existing rows aren't broken;
-  // no new code references it.
-  freeBuildUsedAt: timestamp("free_build_used_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -483,24 +479,6 @@ export const adminAuditLog = pgTable(
     index("admin_audit_log_action_idx").on(table.action),
     index("admin_audit_log_created_at_idx").on(table.createdAt),
   ],
-);
-
-// ─── IG scraper session lifecycle (observability) ────────────────────
-// Logged only on state transitions from POST /api/session/recover:
-//   - `died`       → previous check said valid, this one says invalid
-//   - `refreshed`  → previous check said invalid, this one says valid
-// Use `/api/session/stats` to see lifespan distributions over time.
-export const sessionEvents = pgTable(
-  "session_events",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    eventType: varchar("event_type", { length: 16 }).notNull(), // died | refreshed
-    reason: text("reason"), // passthrough of VPS /check-session reason
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-  },
-  (t) => ({
-    createdAtIdx: index("session_events_created_at_idx").on(t.createdAt),
-  }),
 );
 
 // ─── Stripe Webhook Events (idempotency tracking) ────────────────────

@@ -218,53 +218,50 @@ export default function AdvertisingPage() {
               <div className="w-8 h-8 border-2 border-[color:var(--fg)] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
               <p className="text-sm text-[color:var(--fg-muted)]">Loading advertising settings...</p>
             </div>
-          ) : !isFullyConnected ? (
-            <div className="bg-white border-2 border-[color:var(--border)] rounded-2xl p-8 sm:p-12 text-center">
-              <div className="w-16 h-16 bg-black/5 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="5" width="20" height="14" rx="2" />
-                  <path d="M2 10h20" />
-                </svg>
-              </div>
-              <h2 className="text-xl font-bold mb-2">Connect your bank account to start selling ads</h2>
-              <p className="text-sm text-[color:var(--fg-muted)] mb-8 max-w-sm mx-auto">
-                We use Stripe Connect to send your ad revenue directly to your bank account. Setup takes about 2 minutes.
-              </p>
-              <button
-                type="button"
-                onClick={handleConnect}
-                disabled={connecting}
-                className="h-12 px-8 bg-[color:var(--fg)] text-[color:var(--bg)] rounded-full text-sm font-semibold hover:opacity-90 transition disabled:opacity-50 inline-flex items-center gap-2"
-              >
-                {connecting ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Redirecting to Stripe...
-                  </>
-                ) : (
-                  "Connect bank account via Stripe"
-                )}
-              </button>
-              {status?.hasAccount && !status?.detailsSubmitted && status?.onboardingUrl && (
-                <p className="text-xs text-[color:var(--fg-muted)] mt-4">
-                  Already started?{" "}
-                  <a href={status.onboardingUrl} className="underline hover:text-[color:var(--fg)] transition">
-                    Continue your Stripe setup
-                  </a>
-                </p>
-              )}
-            </div>
           ) : (
             <div>
-              <div className="flex items-center gap-2 mb-6">
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-green-100 text-green-700 px-2.5 py-1 rounded-full">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="12" /></svg>
-                  Bank account connected
-                </span>
-                {status?.payoutsEnabled && (
-                  <span className="text-xs font-semibold bg-green-50 text-green-600 px-2.5 py-1 rounded-full border border-green-200">
-                    Payouts enabled
-                  </span>
+              {/* Status chip: connected, in-progress, or not-yet. Non-blocking —
+                  the slot config renders underneath either way. Creators can
+                  set up their offer now and come back to connect payouts later;
+                  the advertiser-facing /{slug}/advertise page stays 404 until
+                  payouts are actually enabled, so no money flows before they're
+                  ready. */}
+              <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+                {isFullyConnected ? (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-green-100 text-green-700 px-2.5 py-1 rounded-full">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="12" /></svg>
+                      Bank account connected
+                    </span>
+                    {status?.payoutsEnabled && (
+                      <span className="text-xs font-semibold bg-green-50 text-green-600 px-2.5 py-1 rounded-full border border-green-200">
+                        Payouts enabled
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex-1 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-3">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="1.8" className="shrink-0 mt-0.5" aria-hidden>
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M12 8v4M12 16h.01" />
+                    </svg>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-amber-900">
+                        {status?.hasAccount ? "Finish your Stripe setup to start receiving payouts" : "Connect your bank to receive payouts"}
+                      </p>
+                      <p className="text-xs text-amber-800 mt-0.5">
+                        You can configure slots and prices now — your public ad page goes live once Stripe onboarding is complete.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleConnect}
+                      disabled={connecting}
+                      className="shrink-0 h-8 px-3 text-xs font-semibold bg-amber-900 text-amber-50 rounded-full hover:opacity-90 transition disabled:opacity-50"
+                    >
+                      {connecting ? "Redirecting..." : status?.hasAccount ? "Continue" : "Connect"}
+                    </button>
+                  </div>
                 )}
               </div>
 

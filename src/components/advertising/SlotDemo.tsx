@@ -59,6 +59,29 @@ function RealBackdrop({ slug }: { slug: string }) {
   );
 }
 
+// Phone-shaped vertical frame used by every demo. The directory is a
+// mobile-first product — landscape previews misrepresent how the ad
+// actually lands. Fixed width keeps the pixel details (padding, text
+// sizes) readable while aspect-[9/16] mimics a modern phone.
+function PhoneFrame({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={
+        "relative w-[280px] aspect-[9/16] mx-auto rounded-[28px] overflow-hidden border border-black/10 shadow-xl bg-white " +
+        className
+      }
+    >
+      {children}
+    </div>
+  );
+}
+
 // Thumb: gradient tile if no real image
 function Thumb({ post, className }: { post: DemoPost; className?: string }) {
   const colors = ["#e0e7ff", "#fce7f3", "#d1fae5", "#fef3c7", "#ede9fe", "#fee2e2"];
@@ -155,7 +178,7 @@ function PreRollDemo({ site, samplePosts, isVideo, realBackdropSlug }: Props & {
   }, [key]);
 
   return (
-    <div className="relative w-[280px] h-[420px] mx-auto rounded-2xl overflow-hidden border border-black/10 shadow-xl bg-white">
+    <PhoneFrame>
       {/* backdrop: real page iframe OR stylised grid */}
       {realBackdropSlug ? (
         <RealBackdrop slug={realBackdropSlug} />
@@ -206,7 +229,7 @@ function PreRollDemo({ site, samplePosts, isVideo, realBackdropSlug }: Props & {
           {isVideo ? "pre_roll_video demo" : "pre_roll_image demo"}
         </span>
       </div>
-    </div>
+    </PhoneFrame>
   );
 }
 
@@ -229,66 +252,70 @@ function BannerTopDemo({ site, samplePosts, realBackdropSlug }: Props) {
   // instead of stacking it above the mock directory layout.
   if (realBackdropSlug) {
     return (
-      <div className="relative w-full max-w-lg h-[420px] mx-auto rounded-2xl overflow-hidden border border-black/10 shadow-xl bg-white">
+      <PhoneFrame>
         <RealBackdrop slug={realBackdropSlug} />
         <AnimatePresence key={key}>
           {showing && (
             <motion.div
-              className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-2.5 text-white text-sm font-semibold z-10"
+              className="absolute top-0 left-0 right-0 flex items-center justify-between px-3 py-2 text-white text-xs font-semibold z-10"
               style={{ background: site.accentColor }}
               initial={{ y: "-100%", opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: "-100%", opacity: 0 }}
               transition={{ duration: 0.35 }}
             >
-              <span className="text-xs">Sponsored by Sponsor · Learn more</span>
+              <span className="text-[11px]">Sponsored by Sponsor · Learn more</span>
               <button className="text-white/70 hover:text-white text-base leading-none">×</button>
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </PhoneFrame>
     );
   }
 
   return (
-    <div className="w-full max-w-lg mx-auto rounded-2xl overflow-hidden border border-black/10 shadow-xl bg-white">
-      {/* banner slot */}
-      <AnimatePresence key={key}>
-        {showing && (
-          <motion.div
-            className="relative flex items-center justify-between px-4 py-2.5 text-white text-sm font-semibold"
+    <PhoneFrame>
+      <div className="absolute inset-0 flex flex-col">
+        {/* banner slot */}
+        <AnimatePresence key={key}>
+          {showing && (
+            <motion.div
+              className="flex items-center justify-between px-3 py-2 text-white text-xs font-semibold shrink-0"
+              style={{ background: site.accentColor }}
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 36, opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.35 }}
+            >
+              <span className="text-[11px] truncate">Sponsored by Sponsor</span>
+              <button className="text-white/70 hover:text-white text-base leading-none">×</button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* directory header */}
+        <div className="flex items-center gap-2 px-3 py-2.5 border-b border-black/5">
+          <div
+            className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold"
             style={{ background: site.accentColor }}
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 44, opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.35 }}
           >
-            <span className="text-xs">Sponsored by Sponsor · Learn more</span>
-            <button className="text-white/70 hover:text-white text-base leading-none">×</button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* directory header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-black/5">
-        <div
-          className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
-          style={{ background: site.accentColor }}
-        >
-          {(site.displayName ?? "S")[0].toUpperCase()}
-        </div>
-        <span className="font-bold text-sm">{site.displayName}</span>
-      </div>
-
-      {/* mini post grid */}
-      <div className="grid grid-cols-3 gap-0.5 p-2">
-        {posts.slice(0, 6).map((p, i) => (
-          <div key={i} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
-            <Thumb post={p} className="w-full h-full" />
+            {(site.displayName ?? "S")[0].toUpperCase()}
           </div>
-        ))}
+          <span className="font-bold text-sm truncate">{site.displayName}</span>
+        </div>
+
+        {/* mini post grid — vertical scroll on a phone */}
+        <div className="flex-1 overflow-hidden p-2">
+          <div className="grid grid-cols-2 gap-1.5">
+            {posts.slice(0, 8).map((p, i) => (
+              <div key={i} className="aspect-[3/4] rounded-lg overflow-hidden bg-gray-100">
+                <Thumb post={p} className="w-full h-full" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
-    </div>
+    </PhoneFrame>
   );
 }
 
@@ -308,13 +335,13 @@ function StickyRibbonDemo({ site, samplePosts, realBackdropSlug }: Props) {
   }, [key]);
 
   return (
-    <div className="relative w-full max-w-lg mx-auto rounded-2xl overflow-hidden border border-black/10 shadow-xl bg-white" style={{ height: 380 }}>
+    <PhoneFrame>
       {realBackdropSlug ? (
         <RealBackdrop slug={realBackdropSlug} />
       ) : (
-        <div className="p-3 grid grid-cols-3 gap-1.5">
-          {posts.slice(0, 6).map((p, i) => (
-            <div key={i} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+        <div className="p-2 grid grid-cols-2 gap-1.5">
+          {posts.slice(0, 8).map((p, i) => (
+            <div key={i} className="aspect-[3/4] rounded-lg overflow-hidden bg-gray-100">
               <Thumb post={p} className="w-full h-full" />
             </div>
           ))}
@@ -325,19 +352,19 @@ function StickyRibbonDemo({ site, samplePosts, realBackdropSlug }: Props) {
       <AnimatePresence key={key}>
         {showing && (
           <motion.div
-            className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-4 py-2.5 text-white text-xs font-semibold shadow-lg"
+            className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-2.5 text-white text-xs font-semibold shadow-lg"
             style={{ background: site.accentColor }}
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", stiffness: 300, damping: 35 }}
           >
-            <span>Sponsor · Your trusted partner</span>
-            <button className="opacity-70 hover:opacity-100">×</button>
+            <span className="text-[11px] truncate">Sponsor · Your trusted partner</span>
+            <button className="opacity-70 hover:opacity-100 shrink-0">×</button>
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </PhoneFrame>
   );
 }
 
@@ -362,56 +389,58 @@ function PreRollAudioDemo({ site }: Props) {
   }, [phase, seconds, key]);
 
   return (
-    <div className="w-full max-w-lg mx-auto rounded-2xl border border-black/10 shadow-xl bg-white p-6">
-      <AnimatePresence mode="wait">
-        {phase === "sponsor" ? (
-          <motion.div
-            key="sponsor"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="text-center space-y-4"
-          >
-            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Sponsor message</p>
-            <div
-              className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-white text-2xl font-bold"
-              style={{ background: site.accentColor }}
+    <PhoneFrame>
+      <div className="absolute inset-0 flex flex-col items-center justify-center p-6">
+        <AnimatePresence mode="wait">
+          {phase === "sponsor" ? (
+            <motion.div
+              key="sponsor"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-center space-y-4"
             >
-              S
-            </div>
-            <p className="text-sm font-semibold">This episode is brought to you by Sponsor</p>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-white text-xs font-semibold" style={{ background: site.accentColor }}>
-              <span className="w-2 h-2 rounded-full bg-white/70 animate-pulse" />
-              {seconds}s remaining
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="playing"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="text-center space-y-4"
-          >
-            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Now playing</p>
-            <div className="flex items-center justify-center gap-1 h-16">
-              {[3, 7, 5, 9, 4, 8, 3, 6, 7, 4, 9, 5].map((h, i) => (
-                <motion.div
-                  key={i}
-                  className="w-1.5 rounded-full"
-                  style={{ background: site.accentColor }}
-                  animate={{ height: [h * 4, h * 6, h * 3, h * 5] }}
-                  transition={{ duration: 0.6, repeat: Infinity, repeatType: "reverse", delay: i * 0.05 }}
-                />
-              ))}
-            </div>
-            <div className="px-4 py-2 rounded-full border border-black/10 text-xs font-medium inline-block">
-              Listen in Spanish
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+              <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Sponsor message</p>
+              <div
+                className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center text-white text-2xl font-bold"
+                style={{ background: site.accentColor }}
+              >
+                S
+              </div>
+              <p className="text-sm font-semibold">This episode is brought to you by Sponsor</p>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-white text-xs font-semibold" style={{ background: site.accentColor }}>
+                <span className="w-2 h-2 rounded-full bg-white/70 animate-pulse" />
+                {seconds}s remaining
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="playing"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-center space-y-4"
+            >
+              <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Now playing</p>
+              <div className="flex items-center justify-center gap-1 h-16">
+                {[3, 7, 5, 9, 4, 8, 3, 6, 7, 4, 9, 5].map((h, i) => (
+                  <motion.div
+                    key={i}
+                    className="w-1.5 rounded-full"
+                    style={{ background: site.accentColor }}
+                    animate={{ height: [h * 4, h * 6, h * 3, h * 5] }}
+                    transition={{ duration: 0.6, repeat: Infinity, repeatType: "reverse", delay: i * 0.05 }}
+                  />
+                ))}
+              </div>
+              <div className="px-4 py-2 rounded-full border border-black/10 text-xs font-medium inline-block">
+                Listen in Spanish
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </PhoneFrame>
   );
 }
 
@@ -430,43 +459,39 @@ function MidRollVideoDemo({ site, samplePosts }: Props) {
   }, [key]);
 
   return (
-    <div className="w-full max-w-lg mx-auto rounded-2xl border border-black/10 shadow-xl bg-black overflow-hidden">
-      <div className="relative aspect-video">
+    <PhoneFrame className="!bg-black">
+      {/* fullscreen vertical video surface */}
+      <div className="absolute inset-0">
         <Thumb post={posts[0]} className="w-full h-full object-cover opacity-80" />
         <AnimatePresence>
           {phase === "ad" && (
             <motion.div
-              className="absolute inset-0 flex flex-col items-center justify-center gap-2"
+              className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4"
               style={{ background: site.accentColor + "ee" }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
               <span className="text-white text-[10px] font-bold uppercase tracking-widest bg-black/30 px-2 py-0.5 rounded">Sponsored</span>
-              <p className="text-white font-bold">Sample Ad Creative</p>
-              <p className="text-white/60 text-xs">Brought to you by Sponsor</p>
+              <p className="text-white font-bold text-center">Sample Ad Creative</p>
+              <p className="text-white/60 text-xs text-center">Brought to you by Sponsor</p>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
-      {/* timeline bar */}
-      <div className="px-3 py-2 bg-black">
+      {/* timeline bar pinned to bottom, mobile-video style */}
+      <div className="absolute bottom-0 left-0 right-0 px-3 py-3 bg-gradient-to-t from-black/80 to-transparent">
         <div className="relative h-1 bg-white/20 rounded-full">
-          <motion.div
-            className="absolute inset-y-0 left-0 bg-white rounded-full"
-            animate={phase === "playing" ? { width: "30%" } : { width: "30%" }}
-            transition={{ duration: 2.5, ease: "linear" }}
-          />
-          {/* sponsored marker */}
+          <div className="absolute inset-y-0 left-0 bg-white rounded-full" style={{ width: "30%" }} />
           <div className="absolute left-[30%] top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-yellow-400 border border-black" />
         </div>
-        <div className="flex justify-between text-white/40 text-[9px] mt-1">
+        <div className="flex justify-between text-white/60 text-[9px] mt-1">
           <span>0:00</span>
           <span className="text-yellow-400 text-[8px]">● SPONSORED</span>
           <span>10:00</span>
         </div>
       </div>
-    </div>
+    </PhoneFrame>
   );
 }
 
@@ -485,7 +510,7 @@ function PostViewOverlayDemo({ site, samplePosts, realBackdropSlug }: Props) {
   }, [key]);
 
   return (
-    <div className="relative w-[280px] h-[420px] mx-auto rounded-2xl overflow-hidden border border-black/10 shadow-xl bg-gray-50">
+    <PhoneFrame className="!bg-gray-50">
       {realBackdropSlug ? (
         <RealBackdrop slug={realBackdropSlug} />
       ) : (
@@ -519,7 +544,7 @@ function PostViewOverlayDemo({ site, samplePosts, realBackdropSlug }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </PhoneFrame>
   );
 }
 
@@ -532,30 +557,29 @@ function PromotedCategoryDemo({ site, samplePosts }: Props) {
   if (categories.length < 4) categories.push("More");
 
   return (
-    <div className="w-full max-w-lg mx-auto rounded-2xl border border-black/10 shadow-xl bg-white overflow-hidden">
-      <div className="flex gap-1 px-3 pt-3 overflow-x-auto">
-        {categories.map((cat, i) => (
-          <div
-            key={i}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium ${i === 1 ? "text-white" : "bg-black/5 text-gray-600"}`}
-            style={i === 1 ? { background: site.accentColor } : {}}
-          >
-            {cat}
-            {i === 1 && <span className="ml-1 text-[9px] opacity-70">· Sponsored</span>}
-          </div>
-        ))}
+    <PhoneFrame>
+      <div className="absolute inset-0 flex flex-col">
+        <div className="flex gap-1 px-2 pt-2 overflow-x-auto shrink-0">
+          {categories.map((cat, i) => (
+            <div
+              key={i}
+              className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium ${i === 1 ? "text-white" : "bg-black/5 text-gray-600"}`}
+              style={i === 1 ? { background: site.accentColor } : {}}
+            >
+              {cat}
+              {i === 1 && <span className="ml-1 text-[8px] opacity-70">· Sponsored</span>}
+            </div>
+          ))}
+        </div>
+        <div className="flex-1 overflow-hidden grid grid-cols-2 gap-1.5 p-2">
+          {posts.slice(0, 8).map((p, i) => (
+            <div key={i} className="aspect-[3/4] rounded-lg overflow-hidden bg-gray-100">
+              <Thumb post={p} className="w-full h-full" />
+            </div>
+          ))}
+        </div>
       </div>
-      <div className="grid grid-cols-3 gap-1.5 p-3">
-        {posts.slice(0, 6).map((p, i) => (
-          <div key={i} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
-            <Thumb post={p} className="w-full h-full" />
-          </div>
-        ))}
-      </div>
-      <div className="px-3 pb-2 text-center">
-        <span className="text-[9px] text-gray-400">preview · coming_soon</span>
-      </div>
-    </div>
+    </PhoneFrame>
   );
 }
 
@@ -571,32 +595,35 @@ function SponsoredReferenceDemo({ site }: Props) {
   ];
 
   return (
-    <div className="w-full max-w-lg mx-auto rounded-2xl border border-black/10 shadow-xl bg-white p-4 space-y-2">
-      <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-3">References</p>
-      {refs.map((r, i) => (
-        <div
-          key={i}
-          className="flex items-center justify-between p-2.5 rounded-lg border border-black/5 hover:border-black/10 transition"
-        >
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded bg-black/5 flex items-center justify-center text-[8px] text-gray-400">{i + 1}</div>
-            <div>
-              <p className="text-xs font-medium">{r.title}</p>
-              <p className="text-[10px] text-gray-400">{r.url}</p>
-            </div>
-          </div>
-          {r.sponsored && (
-            <span
-              className="text-[9px] font-semibold px-1.5 py-0.5 rounded text-white"
-              style={{ background: site.accentColor }}
+    <PhoneFrame>
+      <div className="absolute inset-0 p-3 overflow-y-auto">
+        <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wide mb-2">References</p>
+        <div className="space-y-1.5">
+          {refs.map((r, i) => (
+            <div
+              key={i}
+              className="flex items-center justify-between p-2 rounded-lg border border-black/5 hover:border-black/10 transition"
             >
-              Sponsored
-            </span>
-          )}
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-4 h-4 shrink-0 rounded bg-black/5 flex items-center justify-center text-[8px] text-gray-400">{i + 1}</div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-medium truncate">{r.title}</p>
+                  <p className="text-[9px] text-gray-400 truncate">{r.url}</p>
+                </div>
+              </div>
+              {r.sponsored && (
+                <span
+                  className="shrink-0 ml-2 text-[9px] font-semibold px-1.5 py-0.5 rounded text-white"
+                  style={{ background: site.accentColor }}
+                >
+                  Sponsored
+                </span>
+              )}
+            </div>
+          ))}
         </div>
-      ))}
-      <p className="text-center text-[9px] text-gray-400 pt-1">preview · coming_soon</p>
-    </div>
+      </div>
+    </PhoneFrame>
   );
 }
 
@@ -607,30 +634,32 @@ function SidebarCardDemo({ site, samplePosts }: Props) {
   const posts = usePosts(samplePosts);
 
   return (
-    <div className="w-full max-w-lg mx-auto rounded-2xl border border-black/10 shadow-xl bg-white overflow-hidden flex">
-      {/* main content */}
-      <div className="flex-1 p-3 grid grid-cols-2 gap-1.5 content-start">
-        {posts.slice(0, 4).map((p, i) => (
-          <div key={i} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
-            <Thumb post={p} className="w-full h-full" />
-          </div>
-        ))}
-      </div>
-      {/* sidebar */}
-      <div className="w-28 border-l border-black/5 p-2 flex flex-col gap-2">
-        <p className="text-[9px] text-gray-400 font-medium uppercase tracking-wide">Sidebar</p>
-        {/* sponsor card */}
-        <div
-          className="rounded-xl p-2 text-white flex flex-col gap-1"
-          style={{ background: site.accentColor }}
-        >
-          <p className="text-[9px] opacity-70">Sponsored</p>
-          <p className="text-[11px] font-bold leading-tight">Brand Name</p>
-          <p className="text-[9px] opacity-70">Learn more →</p>
+    <PhoneFrame>
+      <div className="absolute inset-0 flex flex-col">
+        {/* main post grid */}
+        <div className="flex-1 overflow-hidden p-2 grid grid-cols-2 gap-1.5 content-start">
+          {posts.slice(0, 6).map((p, i) => (
+            <div key={i} className="aspect-[3/4] rounded-lg overflow-hidden bg-gray-100">
+              <Thumb post={p} className="w-full h-full" />
+            </div>
+          ))}
         </div>
-        <p className="text-center text-[8px] text-gray-300 mt-auto">coming soon</p>
+        {/* mobile sidebar card sits above the bottom of the feed */}
+        <div className="shrink-0 border-t border-black/5 p-2">
+          <div
+            className="rounded-xl px-3 py-2 text-white flex items-center gap-3"
+            style={{ background: site.accentColor }}
+          >
+            <div className="w-8 h-8 rounded-lg bg-white/20 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] opacity-70 uppercase tracking-wide">Sponsored</p>
+              <p className="text-[11px] font-bold leading-tight">Brand Name</p>
+            </div>
+            <span className="text-[10px] opacity-80 shrink-0">Learn more →</span>
+          </div>
+        </div>
       </div>
-    </div>
+    </PhoneFrame>
   );
 }
 
@@ -649,13 +678,13 @@ function HomepageTakeoverDemo({ site, samplePosts, realBackdropSlug }: Props) {
   }, [key]);
 
   return (
-    <div className="relative w-full max-w-lg mx-auto rounded-2xl border border-black/10 shadow-xl bg-white overflow-hidden" style={{ height: 380 }}>
+    <PhoneFrame>
       {realBackdropSlug ? (
         <RealBackdrop slug={realBackdropSlug} />
       ) : (
-        <div className="p-3 grid grid-cols-3 gap-1.5">
-          {posts.slice(0, 6).map((p, i) => (
-            <div key={i} className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+        <div className="p-2 grid grid-cols-2 gap-1.5">
+          {posts.slice(0, 8).map((p, i) => (
+            <div key={i} className="aspect-[3/4] rounded-lg overflow-hidden bg-gray-100">
               <Thumb post={p} className="w-full h-full" />
             </div>
           ))}
@@ -665,7 +694,6 @@ function HomepageTakeoverDemo({ site, samplePosts, realBackdropSlug }: Props) {
       <AnimatePresence key={key}>
         {showing && (
           <>
-            {/* wash */}
             <motion.div
               className="absolute inset-0"
               style={{ background: site.accentColor + "cc" }}
@@ -674,7 +702,6 @@ function HomepageTakeoverDemo({ site, samplePosts, realBackdropSlug }: Props) {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.4 }}
             />
-            {/* welcome overlay */}
             <motion.div
               className="absolute inset-0 flex items-center justify-center"
               initial={{ scale: 0.85, opacity: 0 }}
@@ -682,7 +709,7 @@ function HomepageTakeoverDemo({ site, samplePosts, realBackdropSlug }: Props) {
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ type: "spring", stiffness: 250, damping: 28 }}
             >
-              <div className="bg-white rounded-2xl p-6 text-center shadow-2xl mx-6">
+              <div className="bg-white rounded-2xl p-5 text-center shadow-2xl mx-5">
                 <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-1">Welcome, sponsored by</p>
                 <p className="font-extrabold text-lg mb-0.5">Sponsor Brand</p>
                 <p className="text-xs text-gray-400">{site.displayName}</p>
@@ -692,7 +719,7 @@ function HomepageTakeoverDemo({ site, samplePosts, realBackdropSlug }: Props) {
           </>
         )}
       </AnimatePresence>
-    </div>
+    </PhoneFrame>
   );
 }
 

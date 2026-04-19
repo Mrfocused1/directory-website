@@ -1,12 +1,10 @@
 /**
  * Notifications for the manual build-operator workflow.
  *
- * BuildMy.Directory currently runs builds manually (the scrape +
- * transcribe + categorize + references pipeline has too many
- * fragile dependencies to be self-serve yet). When a creator clicks
- * "Build my directory" we fire an operator ping via email AND
- * telegram; the operator then runs `bash scripts/build-site.sh <slug>`
- * on their Mac to execute the actual pipeline.
+ * When a creator clicks "Build my directory" we fire an operator ping
+ * via email AND telegram. The telegram message contains a
+ * copy-pasteable Claude prompt the operator can feed into Claude Code
+ * (on Mac) or the claude.ai mobile app to drive the build end-to-end.
  */
 
 import { resend } from "@/lib/email/resend";
@@ -28,38 +26,112 @@ export type BuildRequestPayload = {
 /**
  * Ping the operator (you) that a creator has requested a build.
  * Sent in parallel to both channels; a failure on either is logged
- * but doesn't affect the other. Returns the HTTP-style outcomes so
- * the caller can decide whether to retry.
+ * but doesn't affect the other.
  */
 export async function notifyBuildRequested(payload: BuildRequestPayload) {
-  const { siteId, slug, platform, handle, displayName, userEmail, plan, postLimit } = payload;
+  const { slug, platform, handle, displayName, userEmail, plan, postLimit } = payload;
 
-  const summary = [
-    `*New directory build requested*`,
+  // Telegram has a 4096-char cap per message — keep the header
+  // compact so the full Claude prompt fits comfortably below.
+  const header = [
+    `🆕 *New build requested*`,
+    `*${escapeMarkdown(displayName)}* · ${userEmail || "no email"}`,
+    `@${escapeMarkdown(handle)} · ${platform} · ${plan || "creator"}${postLimit ? ` (${postLimit})` : ""}`,
     ``,
-    `*Creator:* ${escapeMarkdown(displayName)} (${userEmail || "no email"})`,
-    `*Platform:* ${platform}`,
-    `*Handle:* @${escapeMarkdown(handle)}`,
-    `*Slug:* ${escapeMarkdown(slug)}`,
-    `*Plan:* ${plan || "free"}${postLimit ? ` (${postLimit} posts)` : ""}`,
-    ``,
-    `Run on your Mac:`,
-    "```",
-    `bash scripts/build-site.sh ${slug}`,
-    "```",
-    ``,
-    `Or skip to the site: https://buildmy.directory/${slug}`,
+    `📋 *Copy everything below into Claude:*`,
+    `—————————————————————`,
   ].join("\n");
 
+  const claudePrompt = buildClaudePrompt(payload);
+
+  const fullMessage = `${header}\n\n${claudePrompt}`;
+
   const [telegramOk, emailOk] = await Promise.all([
-    sendTelegramMessage(summary),
-    sendOperatorEmail(payload),
+    sendTelegramMessage(fullMessage),
+    sendOperatorEmail(payload, claudePrompt),
   ]);
 
   return { telegramOk, emailOk };
 }
 
-async function sendOperatorEmail(payload: BuildRequestPayload): Promise<boolean> {
+/**
+ * The full prompt the operator pastes into Claude. Deliberately
+ * self-contained: all site info, build command, quality bars, and
+ * verification steps live in one place so Claude doesn't need any
+ * other context to drive the run.
+ */
+function buildClaudePrompt(payload: BuildRequestPayload): string {
+  const { siteId, slug, handle, displayName, userEmail, postLimit } = payload;
+  const cap = postLimit || 500;
+
+  return [
+    `Build a new BuildMy.Directory site. Here are all the details:`,
+    ``,
+    `**Creator:** ${displayName} <${userEmail || "no email"}>`,
+    `**Instagram handle:** @${handle}`,
+    `**Slug:** ${slug}`,
+    `**Site ID:** ${siteId}`,
+    `**Plan cap:** ${cap} posts`,
+    `**Final URL:** https://buildmy.directory/${slug}`,
+    ``,
+    `## Run the build`,
+    ``,
+    `From the project root \`/Users/paulbridges/Desktop/new directory/directory-website\`:`,
+    ``,
+    `\`\`\``,
+    `bash scripts/build-site.sh ${slug}`,
+    `\`\`\``,
+    ``,
+    `This fires the pipeline/run Inngest event and tails the DB until every step completes. On success it emails the creator.`,
+    ``,
+    `## Quality bars for each pipeline step`,
+    ``,
+    `**1. Scrape** (via VPS Puppeteer + stored IG session cookies)`,
+    `- Target: up to ${cap} posts. Active creators usually return 150-500.`,
+    `- If <20 posts come back, the session is probably flagged — run \`bash scripts/ig-session-refresh.sh\` first, then retry.`,
+    ``,
+    `**2. Upload media** (R2, 10 concurrent)`,
+    `- Every post needs mediaUrl + thumbUrl populated.`,
+    `- Failures here usually mean an IG CDN URL expired. Normal loss rate: <5%.`,
+    ``,
+    `**3. Transcribe videos** (Groq → Deepgram fallback)`,
+    `- Aim for ≥75% of videos transcribed with ≥50 chars of text.`,
+    `- Music-only reels legitimately fail — acceptable if ≤25% failure rate.`,
+    `- Each Groq call caps at 3 min; longer videos fall through to Deepgram.`,
+    ``,
+    `**4. Talking points** (Claude Haiku on the transcript)`,
+    `- Replaces raw 30-sec transcript chunks with numbered tips / topic transitions.`,
+    `- Optional — if it fails, raw chunks stay as fallback.`,
+    ``,
+    `**5. Categorize** (Claude Haiku on captions + transcripts)`,
+    `- Detect 4-7 niche-specific categories (not generic "Updates").`,
+    `- Every post gets a category. "Uncategorized" is OK for truly off-topic posts but should stay under ~5% of the total.`,
+    ``,
+    `**6. References** (Claude picks search queries → SearXNG → English filter)`,
+    `- Target 6-8 references per substantive post.`,
+    `- Only English TLDs (.com/.org/.net/.edu/.gov/.io/.co/.uk/.us/.ca/.au/.nz/.ie/.in etc.).`,
+    `- Reject foreign-locale TLDs (.de, .fr, .cn, .jp, .kr, .ru, .tw, .vn, .th, plus baidu/yandex/zhihu).`,
+    `- Relevance: result title must share ≥1 non-stopword with the search query.`,
+    `- Dedupe per post by URL / video ID / normalized title.`,
+    `- Filler posts (greetings, podcast ads, "Happy Sunday") can stay at 0 refs.`,
+    ``,
+    `**7. Publish**`,
+    `- sites.isPublished = true, sites.lastSyncAt stamped.`,
+    `- /${slug} CDN path revalidated.`,
+    `- Creator emailed a "your directory is live" message.`,
+    ``,
+    `## If something fails`,
+    ``,
+    `- **Session dead:** run \`bash scripts/ig-session-refresh.sh\`, then retry the build.`,
+    `- **Anthropic 400/429:** top up at https://console.anthropic.com/settings/billing, then re-run just the failing step (scripts/backfill-refs-*.mjs pattern works for refs).`,
+    `- **VPS unreachable:** ssh to root@46.224.45.79, systemctl restart scraper.`,
+    `- **Pipeline stuck at running 0%:** Vercel function timed out mid-scrape. The monitor should auto-clean it after 10 min; kick \`bash scripts/build-site.sh ${slug}\` again to retry.`,
+    ``,
+    `Verify the final site at https://buildmy.directory/${slug} — open a couple of posts, check transcript + references + categories look right. Then we're done.`,
+  ].join("\n");
+}
+
+async function sendOperatorEmail(payload: BuildRequestPayload, claudePrompt: string): Promise<boolean> {
   if (!resend || !ALERT_EMAIL) return false;
   const { siteId, slug, platform, handle, displayName, userEmail, plan, postLimit } = payload;
   const subject = `[BuildMy.Directory] New build request: @${handle}`;
@@ -70,13 +142,16 @@ Creator:  ${displayName} <${userEmail || "no email"}>
 Platform: ${platform}
 Handle:   @${handle}
 Slug:     ${slug}
-Plan:     ${plan || "free"}${postLimit ? ` (${postLimit} posts)` : ""}
+Plan:     ${plan || "creator"}${postLimit ? ` (${postLimit} posts)` : ""}
 Site ID:  ${siteId}
 
-To build, run on your Mac:
-  bash scripts/build-site.sh ${slug}
-
 Site will be at: https://buildmy.directory/${slug}
+
+----------------------------------------
+Paste the prompt below into Claude:
+----------------------------------------
+
+${claudePrompt}
 `.trim();
 
   try {

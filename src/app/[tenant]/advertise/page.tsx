@@ -104,25 +104,9 @@ export default async function AdvertiseLandingPage({ params }: Props) {
         </div>
       </header>
 
-      {/* Hero — inline-styled gradient so arbitrary Tailwind colors can't
-          silently drop out at build time. Dark purple base with two radial
-          purple/blue glows for depth. */}
-      <section
-        className="relative overflow-hidden text-white"
-        style={{
-          background:
-            "linear-gradient(135deg, #1a0a2e 0%, #2a1248 45%, #1a0a2e 100%)",
-        }}
-      >
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background:
-              "radial-gradient(60% 80% at 85% 15%, rgba(168,85,247,0.35) 0%, transparent 60%), " +
-              "radial-gradient(55% 70% at 10% 90%, rgba(59,130,246,0.28) 0%, transparent 60%)",
-          }}
-        />
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-14 sm:py-20">
+      {/* Hero — solid dark continuous with the top nav strip. */}
+      <section className="relative text-white" style={{ background: "#1a0a2e" }}>
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 pt-10 sm:pt-12 pb-16 sm:pb-20">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 sm:gap-8">
             <div
               className="shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden ring-2 ring-white/20 shadow-lg flex items-center justify-center text-2xl sm:text-3xl font-extrabold tracking-wide"

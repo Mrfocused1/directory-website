@@ -121,6 +121,10 @@ export const posts = pgTable(
     // Manual ordering set by the creator from the dashboard. Lower = first.
     // Resolved as: isFeatured DESC, sortOrder ASC, takenAt DESC.
     sortOrder: integer("sort_order").notNull().default(0),
+    // Owner-detection agent (owner-detect.py) tags each thumb:
+    // owner | owner_with_guest | guest | no_face | unknown.
+    // Drives stricter ref-extraction on guest posts.
+    ownerPresence: varchar("owner_presence", { length: 24 }),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [

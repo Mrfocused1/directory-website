@@ -8,6 +8,11 @@ import { createClient } from "@/lib/supabase/client";
 import MarketingNav from "@/components/marketing/MarketingNav";
 import MarketingFooter from "@/components/marketing/MarketingFooter";
 
+// Flip to true once Google's branding verification completes (the
+// app logo + "Sign in to BuildMy Directory" text will then show on
+// the consent screen instead of the unverified-app warning).
+const SHOW_GOOGLE_AUTH = false;
+
 export default function LoginPage() {
   return (
     <Suspense fallback={null}>
@@ -133,32 +138,40 @@ function LoginContent() {
           </p>
 
           <div className="bg-white rounded-[1.25rem] p-6 sm:p-8">
-            {/* Google sign-in */}
-            <button
-              type="button"
-              onClick={() => handleOAuth("google")}
-              disabled={loading}
-              className="w-full h-12 bg-white border-2 border-[color:var(--bd-dark-faded)] rounded-full text-sm font-semibold text-[color:var(--bd-dark)] hover:bg-[color:var(--bd-dark)]/[0.02] transition disabled:opacity-50 flex items-center justify-center gap-2.5 mb-5"
-            >
-              <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
-                <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/>
-                <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
-                <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.4-4.5 2.2-7.2 2.2-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
-                <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.1 4.1-3.9 5.6l6.2 5.2c-.4.4 6.4-4.7 6.4-14.8 0-1.3-.1-2.3-.4-3.5z"/>
-              </svg>
-              Continue with Google
-            </button>
+            {/* Google sign-in — temporarily hidden until Google finishes
+                reviewing our OAuth branding submission (they show an
+                unverified-app warning otherwise which scares users away).
+                Flip SHOW_GOOGLE_AUTH back on once "Your branding is
+                being shown to users" in the Google Cloud console. */}
+            {SHOW_GOOGLE_AUTH && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleOAuth("google")}
+                  disabled={loading}
+                  className="w-full h-12 bg-white border-2 border-[color:var(--bd-dark-faded)] rounded-full text-sm font-semibold text-[color:var(--bd-dark)] hover:bg-[color:var(--bd-dark)]/[0.02] transition disabled:opacity-50 flex items-center justify-center gap-2.5 mb-5"
+                >
+                  <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
+                    <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.7-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/>
+                    <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+                    <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.4-4.5 2.2-7.2 2.2-5.3 0-9.7-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/>
+                    <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.1 4.1-3.9 5.6l6.2 5.2c-.4.4 6.4-4.7 6.4-14.8 0-1.3-.1-2.3-.4-3.5z"/>
+                  </svg>
+                  Continue with Google
+                </button>
 
-            <div className="relative my-5">
-              <div className="absolute inset-0 flex items-center" aria-hidden>
-                <div className="w-full border-t border-[color:var(--bd-dark-faded)]" />
-              </div>
-              <div className="relative flex justify-center">
-                <span className="bg-white px-3 text-[10px] font-semibold uppercase tracking-widest text-[color:var(--bd-grey)]">
-                  or
-                </span>
-              </div>
-            </div>
+                <div className="relative my-5">
+                  <div className="absolute inset-0 flex items-center" aria-hidden>
+                    <div className="w-full border-t border-[color:var(--bd-dark-faded)]" />
+                  </div>
+                  <div className="relative flex justify-center">
+                    <span className="bg-white px-3 text-[10px] font-semibold uppercase tracking-widest text-[color:var(--bd-grey)]">
+                      or
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>

@@ -40,6 +40,16 @@ export default function PricingButton({
     );
   }
 
+  // Custom plan — no self-serve; route to the contact form on the
+  // marketing page. No Stripe Checkout, no promo flow.
+  if (plan === "custom") {
+    return (
+      <Link href="/#contact" className={baseClass}>
+        {cta}
+      </Link>
+    );
+  }
+
   // Paid plans — Stripe Checkout or promo code
   const handleCheckout = async (usePromo?: boolean) => {
     setLoading(true);

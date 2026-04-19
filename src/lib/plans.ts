@@ -73,13 +73,19 @@ const PLANS: Record<PlanId, PlanConfig> = {
     id: "creator",
     name: "Creator",
     price: 19,
-    postLimit: 150,
+    // Creator is now the only self-serve paid tier and gets the full
+    // feature + post-limit set (previously split across Creator / Pro).
+    // 500 posts covers effectively every real creator short of an
+    // agency multi-brand setup — those are handled by the bespoke
+    // Custom plan (contact-sales, not modeled here).
+    postLimit: 500,
     siteLimit: 1,
     platformLimit: 3,
     accountsPerPlatform: { instagram: 1, tiktok: 1, youtube: 1 },
     features: new Set([
       "analytics_basic",
       "analytics_full",
+      "analytics_ai_insights",
       "newsletter",
       "bookmarks",
       "platforms_multi",
@@ -87,6 +93,8 @@ const PLANS: Record<PlanId, PlanConfig> = {
       "transcription",
       "auto_categorization",
       "custom_domain",
+      "seo_meta",
+      "export_subscribers",
       "sync",
       "tts",
       "qr_codes",
@@ -95,8 +103,7 @@ const PLANS: Record<PlanId, PlanConfig> = {
     // ~1 sync/day. Most creators post once every day or two — this
     // matches the real cadence without burning money on constant
     // re-scrapes. Incremental sync logic means an empty sync costs
-    // only the Apify scrape call (~$0.015), so 30/month worst case is
-    // ~$0.45 in overhead per active creator.
+    // only the scrape call, so 30/month worst case is pennies.
     monthlySyncs: 30,
   },
   pro: {

@@ -17,7 +17,10 @@ import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
 const VALID_PLANS = new Set(["free", "creator", "pro", "agency"]);
 
 function generateToken(): string {
-  return "bmd-verify-" + crypto.randomBytes(32).toString("hex");
+  // verification_token is varchar(64). Prefix is 11 chars, so the random
+  // part must fit in 53 chars. randomBytes(24) → 48 hex → 11 + 48 = 59
+  // chars, well under the cap with room to grow the prefix if needed.
+  return "bmd-verify-" + crypto.randomBytes(24).toString("hex");
 }
 
 /**

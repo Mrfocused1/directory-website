@@ -63,6 +63,40 @@ export async function runPipeline(siteId: string, onProgress?: ProgressCallback)
     await updateJob(siteId, "scrape", "completed", 100, `Scraped ${scrapedPosts.length} posts`);
     await report("scrape", 100, `Scraped ${scrapedPosts.length} posts`);
 
+    // ── Avatar backfill ─────────────────────────────────────────────
+    // Every directory gets the creator's profile picture populated
+    // here, not only later during the post-build refresh-avatar step.
+    // Without this, the directory page renders without an avatar on
+    // first publish. Best-effort: log and continue on any failure.
+    if (!site.avatarUrl && site.platform === "instagram" && site.handle) {
+      try {
+        const res = await fetch(
+          `https://i.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(site.handle.replace(/^@/, ""))}`,
+          {
+            headers: {
+              "X-IG-App-ID": "936619743392459",
+              "User-Agent": "Mozilla/5.0 (compatible; BuildMyDirectory/1.0)",
+            },
+            signal: AbortSignal.timeout(10_000),
+          },
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const picUrl =
+            data?.data?.user?.profile_pic_url_hd ||
+            data?.data?.user?.profile_pic_url;
+          if (typeof picUrl === "string" && picUrl.startsWith("https://")) {
+            await database
+              .update(sites)
+              .set({ avatarUrl: picUrl })
+              .where(eq(sites.id, siteId));
+          }
+        }
+      } catch {
+        // Non-fatal; refresh-avatar.mjs can backfill on the next run.
+      }
+    }
+
     // ── INCREMENTAL SYNC ────────────────────────────────────────────
     // On a re-run (sync), most posts already exist in the DB. Filter
     // down to only the shortcodes we haven't seen before so we don't

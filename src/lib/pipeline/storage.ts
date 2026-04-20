@@ -94,9 +94,31 @@ function isSafeUrl(raw: string): boolean {
     }
   }
 
-  // Block IPv6 loopback and link-local (bracketed in URLs)
-  if (hostname === "[::1]" || hostname.startsWith("[fe80:") || hostname.startsWith("[fd")) {
+  // Block IPv6 loopback and link-local (bracketed in URLs).
+  // URL.hostname keeps brackets on IPv6 literals — strip before checks.
+  const stripped = hostname.replace(/^\[/, "").replace(/\]$/, "");
+  if (stripped === "::1" || stripped.startsWith("fe80:") || stripped.startsWith("fd")) {
     return false;
+  }
+
+  // Block IPv4-mapped IPv6 forms (e.g. ::ffff:127.0.0.1) — without this
+  // an attacker can reach localhost via [::ffff:127.0.0.1] and bypass the
+  // IPv4 range checks above.
+  if (/^::ffff:/i.test(stripped)) {
+    const tail = stripped.slice(7); // after "::ffff:"
+    const mappedIpv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(tail);
+    if (mappedIpv4) {
+      const [, a, b] = mappedIpv4.map(Number);
+      if (
+        a === 127 || a === 10 || a === 0 ||
+        (a === 172 && b >= 16 && b <= 31) ||
+        (a === 192 && b === 168) ||
+        (a === 169 && b === 254)
+      ) return false;
+    } else {
+      // Hex form e.g. ::ffff:7f00:1 — block defensively.
+      return false;
+    }
   }
 
   return true;

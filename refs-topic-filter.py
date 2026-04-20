@@ -115,8 +115,18 @@ def classify_batch(refs: List[Dict]) -> List[Dict]:
     for every ref (conservative — prefer a false positive we can clean up
     later over a false negative).
     """
+    # Strip newlines and control chars from titles before they reach the
+    # prompt — a title with \n\n could shim instructions into the LLM
+    # context. JSON encoding alone protects against quote injection but
+    # not against long prose that derails the classifier. Cap at 80 chars.
+    def sanitize_title(t: str) -> str:
+        if not t:
+            return ""
+        cleaned = "".join(c for c in t if c >= " " and c != "\x7f")
+        return cleaned[:80]
+
     items_for_prompt = [
-        {"id": str(r["id"]), "url": r["url"], "title": (r["title"] or "")[:120]}
+        {"id": str(r["id"]), "url": (r["url"] or "")[:200], "title": sanitize_title(r["title"])}
         for r in refs
     ]
 
@@ -227,11 +237,29 @@ def main():
     refs = cur.fetchall()
     print(f"Classifying {len(refs)} references via LLM fallback chain...")
 
+    # Track which batches actually reached an LLM. If every batch
+    # falls back to the "keep on error" path (all providers down), we
+    # exit non-zero at the end so the gate's failure is visible to the
+    # pipeline instead of silently persisting uncurated refs.
+    FALLBACK_REASONS = {"api_error", "parse_error", "missing_from_response",
+                        "no_data", "retry_exhausted"}
+    batches_total = (len(refs) + BATCH_SIZE - 1) // BATCH_SIZE if refs else 0
+    batches_failed = 0
     to_delete = []
     reasons = []
     for i in range(0, len(refs), BATCH_SIZE):
         batch = refs[i:i + BATCH_SIZE]
         verdicts = classify_batch(batch)
+        # A batch counts as "failed" if EVERY verdict is a fallback
+        # reason. Normal successes return more varied, classifier-
+        # authored reasons.
+        if verdicts and all(
+            (v.get("reason") or "").startswith("http_")
+            or v.get("reason") in FALLBACK_REASONS
+            or (v.get("reason") or "").startswith("no_")
+            for v in verdicts
+        ):
+            batches_failed += 1
         for v in verdicts:
             if not v["keep"]:
                 to_delete.append(v["id"])
@@ -240,7 +268,7 @@ def main():
                     if str(r["id"]) == v["id"]:
                         reasons.append((r["url"], r["title"] or "", v["reason"]))
                         break
-        print(f"  batch {i // BATCH_SIZE + 1}/{(len(refs) + BATCH_SIZE - 1) // BATCH_SIZE}: {len(batch)} refs, {sum(1 for v in verdicts if not v['keep'])} flagged")
+        print(f"  batch {i // BATCH_SIZE + 1}/{batches_total}: {len(batch)} refs, {sum(1 for v in verdicts if not v['keep'])} flagged")
         if i + BATCH_SIZE < len(refs):
             time.sleep(REQ_DELAY_SEC)
 
@@ -281,6 +309,19 @@ def main():
 
     cur.close()
     conn.close()
+
+    # Hard-fail if every batch fell back to the "keep on error" path —
+    # that means no LLM actually classified anything and the gate is
+    # effectively a no-op. Let the operator notice rather than ship the
+    # untouched ref set as if the filter ran.
+    if batches_total > 0 and batches_failed == batches_total:
+        print(
+            "\n✗ Every batch failed to reach any LLM provider — the topic "
+            "filter did NOT run. Refs left untouched. Check GROQ_API_KEY / "
+            "OPENROUTER_API_KEY and re-run.",
+            file=sys.stderr,
+        )
+        sys.exit(4)
 
 
 if __name__ == "__main__":

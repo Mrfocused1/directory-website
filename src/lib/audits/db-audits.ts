@@ -180,7 +180,7 @@ async function siteFreshness(sql: postgres.Sql) {
 }
 
 async function mrrMeter(sql: postgres.Sql) {
-  const PRICE: Record<string, number> = { creator: 1999, pro: 3900, agency: 9900 };
+  const PRICE: Record<string, number> = { creator: 1999, pro: 1999, agency: 1999 };
   const r = newResult("mrr_meter");
   const rows = await sql`SELECT plan, COUNT(*)::int AS n FROM users WHERE subscription_status = 'active' AND plan != 'free' GROUP BY plan`;
   let mrr = 0;

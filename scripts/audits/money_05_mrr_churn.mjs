@@ -1,6 +1,7 @@
 import { sql, makeReporter, cents } from "./lib.mjs";
 
-const PRICE = { creator: 1999, pro: 3900, agency: 9900, free: 0 };
+// Unified £19.99 pricing — pro/agency are legacy plan IDs priced identically.
+const PRICE = { creator: 1999, pro: 1999, agency: 1999, free: 0 };
 
 export async function run() {
   const r = makeReporter("money_05_mrr_churn");

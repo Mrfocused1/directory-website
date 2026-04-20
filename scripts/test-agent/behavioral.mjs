@@ -2235,7 +2235,8 @@ async function test_adminBillingMrrMatchesSum(browser) {
     const planCounts = await sql`
       SELECT plan, COUNT(*)::int AS c FROM users GROUP BY plan
     `;
-    const prices = { free: 0, creator: 19, pro: 39, agency: 99 };
+    // Unified £19.99 pricing — pro/agency are legacy plan IDs priced identically.
+    const prices = { free: 0, creator: 19, pro: 19, agency: 19 };
     const mrr = planCounts.reduce((sum, row) => sum + (prices[row.plan] || 0) * row.c, 0);
     const body = await page.evaluate(() => document.body.innerText);
     // We look for "$mrr" or "mrr" appearing somewhere — flexibility for formatting

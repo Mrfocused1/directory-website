@@ -106,12 +106,14 @@ export default async function AdminOverviewPage() {
     );
   }
 
-  // Estimate of MRR using plan price × user count (no Stripe round-trip)
+  // Estimate of MRR using plan price × user count (no Stripe round-trip).
+  // Every paid tier is £19.99; pro/agency are legacy plan IDs priced
+  // identically to creator.
   const planPriceCents: Record<string, number> = {
     free: 0,
-    creator: 1999, // £19.99 GBP
-    pro: 3900,    // $39 USD
-    agency: 9900, // $99 USD
+    creator: 1999,
+    pro: 1999,
+    agency: 1999,
   };
   const mrrCents = kpis.planRows.reduce(
     (sum, r) => sum + (planPriceCents[r.plan] ?? 0) * r.n,

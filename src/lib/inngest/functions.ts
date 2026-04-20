@@ -259,11 +259,11 @@ export const pruneAnalyticsFunction = inngest.createFunction(
   },
 );
 
-// Plan ID mapping from Stripe price amounts (minor units) to plan IDs
+// Plan ID mapping from Stripe price amounts (pence) to plan IDs.
+// Unified £19.99 pricing — pro/agency are legacy grandfathered plan
+// IDs priced identically, so only the 1999 mapping matters here.
 const PRICE_TO_PLAN: Record<number, string> = {
-  1999: "creator", // £19.99
-  3900: "pro",    // £39
-  9900: "agency", // £99
+  1999: "creator",
 };
 
 /**

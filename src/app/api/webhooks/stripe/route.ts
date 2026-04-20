@@ -8,11 +8,11 @@ import { resend } from "@/lib/email/resend";
 import { invoiceEmail } from "@/lib/email/templates";
 import { notifyAdPurchased, notifyAdApproved } from "@/lib/notifications/ad-purchase";
 
-// Plan ID mapping from Stripe price amounts (minor units / pence) to plan IDs.
+// Plan ID mapping from Stripe price amounts (pence) to plan IDs.
+// Only £19.99 self-serve tier exists; pro/agency are priced identically
+// (legacy grandfathered plan IDs kept for feature gating, not pricing).
 const PRICE_TO_PLAN: Record<number, string> = {
-  1999: "creator", // £19.99
-  3900: "pro",    // £39
-  9900: "agency", // £99
+  1999: "creator",
 };
 
 // POST /api/webhooks/stripe — Handle Stripe webhook events

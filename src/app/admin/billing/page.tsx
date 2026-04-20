@@ -13,11 +13,14 @@ type EventRow = {
   receivedAt: Date;
 };
 
+// Unified £19.99 pricing across every paid tier. Pro and Agency
+// exist as legacy plan IDs for feature gating but no longer have
+// a distinct price point.
 const PLAN_PRICE_CENTS: Record<string, number> = {
   free: 0,
-  creator: 1999, // £19.99 GBP
-  pro: 3900,    // $39 USD
-  agency: 9900, // $99 USD
+  creator: 1999,
+  pro: 1999,
+  agency: 1999,
 };
 
 async function loadBilling() {

@@ -111,7 +111,11 @@ const PLANS: Record<PlanId, PlanConfig> = {
   pro: {
     id: "pro",
     name: "Pro",
-    price: 39,
+    // Priced identically to Creator (£19.99). Pro exists as a legacy
+    // plan ID for grandfathered subscriptions — new sign-ups go via
+    // Creator, not Pro. Kept in the config so legacy DB rows still
+    // resolve to a valid plan.
+    price: 19.99,
     postLimit: 500,
     siteLimit: 3,
     platformLimit: 3,
@@ -141,7 +145,11 @@ const PLANS: Record<PlanId, PlanConfig> = {
   agency: {
     id: "agency",
     name: "Agency",
-    price: 99,
+    // Priced identically to Creator (£19.99). Agency exists as a
+    // legacy plan ID for grandfathered subscriptions — new sign-ups
+    // go via Creator. The custom/bespoke tier on the public pricing
+    // page is "contact sales", not modeled here.
+    price: 19.99,
     postLimit: 2000,
     siteLimit: 10,
     platformLimit: 3,

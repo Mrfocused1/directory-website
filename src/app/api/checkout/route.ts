@@ -24,15 +24,19 @@ const PLAN_PRICES: Record<string, { name: string; price: number; currency: strin
     currency: "gbp",
     features: "Unlimited posts, all platforms, full analytics, newsletter, bookmarks",
   },
+  // Pro and Agency are priced identically to Creator (£19.99) —
+  // kept here for backwards-compat with any UI that still references
+  // those plan IDs. The public pricing page only surfaces Creator +
+  // bespoke "Let's talk" tiers.
   pro: {
     name: "Pro Plan",
-    price: 3900, // £39/month in pence
+    price: 1999, // £19.99/month in pence
     currency: "gbp",
     features: "Everything in Creator + custom domain, SEO, AI insights, remove branding",
   },
   agency: {
     name: "Agency Plan",
-    price: 9900, // £99/month in pence
+    price: 1999, // £19.99/month in pence
     currency: "gbp",
     features: "Everything in Pro + 10 sites, white-label, API access, bulk domains",
   },

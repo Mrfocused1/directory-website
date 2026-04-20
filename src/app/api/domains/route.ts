@@ -291,17 +291,38 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (err) {
-    // Preserve the real error server-side so we can diagnose — the
-    // previous `catch {}` was swallowing Drizzle / Vercel failures and
-    // returning a generic "Invalid request" with no breadcrumb.
-    const msg = err instanceof Error ? err.message : String(err);
+    // Unmask the real failure. Drizzle wraps the pg driver's error with
+    // its own "Failed query: insert into ..." prefix and stashes the
+    // actual Postgres error (with code/constraint/detail) on err.cause.
+    // The previous handler sliced the message to 200 chars, which only
+    // captured Drizzle's prefix and hid the cause entirely — so the UI
+    // showed a truncated query string instead of the real problem.
+    const cause = err instanceof Error ? (err as { cause?: unknown }).cause : undefined;
+    const causeObj = cause && typeof cause === "object" ? cause as Record<string, unknown> : null;
+    const pgCode = causeObj && typeof causeObj.code === "string" ? causeObj.code : null;
+    const pgMessage = causeObj && typeof causeObj.message === "string" ? causeObj.message : null;
+    const pgDetail = causeObj && typeof causeObj.detail === "string" ? causeObj.detail : null;
+    const pgConstraint = causeObj && typeof causeObj.constraint_name === "string"
+      ? causeObj.constraint_name
+      : (causeObj && typeof causeObj.constraint === "string" ? causeObj.constraint : null);
+
+    const topMessage = err instanceof Error ? err.message : String(err);
     const name = err instanceof Error ? err.name : "Error";
-    console.error(`[POST /api/domains] unhandled ${name}: ${msg}`);
+    console.error(`[POST /api/domains] unhandled ${name}: ${topMessage}`);
+    if (pgCode || pgMessage || pgConstraint) {
+      console.error(`  pg.code=${pgCode} constraint=${pgConstraint} message=${pgMessage} detail=${pgDetail}`);
+    }
     if (err instanceof Error && err.stack) {
       console.error(err.stack);
     }
+
+    // Prefer the pg message over the Drizzle prefix; include constraint
+    // name when present so we can diagnose unique/foreign-key hits.
+    const detail = pgMessage
+      ? `${pgMessage}${pgConstraint ? ` (constraint: ${pgConstraint})` : ""}`
+      : topMessage;
     return NextResponse.json(
-      { error: "Invalid request", detail: msg.slice(0, 200) },
+      { error: "Invalid request", detail: detail.slice(0, 400), code: pgCode },
       { status: 400 },
     );
   }

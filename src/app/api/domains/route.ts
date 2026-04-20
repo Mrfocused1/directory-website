@@ -290,8 +290,20 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
-  } catch {
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  } catch (err) {
+    // Preserve the real error server-side so we can diagnose — the
+    // previous `catch {}` was swallowing Drizzle / Vercel failures and
+    // returning a generic "Invalid request" with no breadcrumb.
+    const msg = err instanceof Error ? err.message : String(err);
+    const name = err instanceof Error ? err.name : "Error";
+    console.error(`[POST /api/domains] unhandled ${name}: ${msg}`);
+    if (err instanceof Error && err.stack) {
+      console.error(err.stack);
+    }
+    return NextResponse.json(
+      { error: "Invalid request", detail: msg.slice(0, 200) },
+      { status: 400 },
+    );
   }
 }
 

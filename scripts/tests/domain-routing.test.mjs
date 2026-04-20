@@ -95,20 +95,21 @@ test("custom-domain fallback resolves to the same site when slug misses", async 
   assert.equal(site.display_name, "Domain Test Directory");
 });
 
-test("pending / failed domain status is NOT accepted by the fallback", async () => {
-  // Flip the fixture's status and confirm the guard clause
-  // (`status === "active" || status === "verifying"`) rejects it.
-  await sql`UPDATE custom_domains SET status = 'pending' WHERE domain = ${fixtureHost}`;
+test("terminal statuses (failed, expired) are rejected; non-terminal accepted", async () => {
+  const terminal = new Set(["failed", "expired"]);
 
-  const [mapping] = await sql`
-    SELECT status FROM custom_domains WHERE domain = ${fixtureHost}
-  `;
-  assert.equal(mapping.status, "pending");
+  for (const status of ["pending", "verifying", "active"]) {
+    await sql`UPDATE custom_domains SET status = ${status} WHERE domain = ${fixtureHost}`;
+    const [row] = await sql`SELECT status FROM custom_domains WHERE domain = ${fixtureHost}`;
+    assert.equal(terminal.has(row.status), false, `${status} should NOT be terminal`);
+  }
 
-  const accepted = mapping.status === "active" || mapping.status === "verifying";
-  assert.equal(accepted, false, "pending status should NOT resolve to a site");
+  for (const status of ["failed", "expired"]) {
+    await sql`UPDATE custom_domains SET status = ${status} WHERE domain = ${fixtureHost}`;
+    const [row] = await sql`SELECT status FROM custom_domains WHERE domain = ${fixtureHost}`;
+    assert.equal(terminal.has(row.status), true, `${status} SHOULD be terminal`);
+  }
 
-  // Restore for other tests / reruns.
   await sql`UPDATE custom_domains SET status = 'active' WHERE domain = ${fixtureHost}`;
 });
 

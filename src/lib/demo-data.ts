@@ -52,8 +52,14 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
 
   // Fallback lookup: treat the input as a custom domain. The proxy
   // rewrites incoming custom-domain requests to `/<hostname>`, so
-  // when the slug miss happens we check the customDomains table for
-  // an active mapping and resolve to the owning site.
+  // when the slug miss happens we check the customDomains table.
+  //
+  // Accept every status except the two terminal ones ("failed",
+  // "expired"). Reason: the `status` field is updated lazily when
+  // the creator refreshes in the dashboard, but public visitors
+  // hit the site before that happens. If we only accepted "active",
+  // the domain would 404 for end users while Vercel was already
+  // serving it correctly.
   if (!site && tenantSlug.includes(".")) {
     const host = tenantSlug.toLowerCase().replace(/^www\./, "");
     const mapping = await db!
@@ -61,7 +67,8 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
       .from(customDomains)
       .where(eq(customDomains.domain, host))
       .limit(1);
-    if (mapping[0] && (mapping[0].status === "active" || mapping[0].status === "verifying")) {
+    const terminal = new Set(["failed", "expired"]);
+    if (mapping[0] && !terminal.has(mapping[0].status)) {
       site = await db!.query.sites.findFirst({
         where: eq(sites.id, mapping[0].siteId),
       });

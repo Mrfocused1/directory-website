@@ -88,6 +88,20 @@ export async function GET(request: NextRequest) {
       try {
         const config = await getDomainConfig(domain);
         const verified = config?.configured === true;
+        // Persist the verified state back to the DB — otherwise
+        // custom_domains.status stays "pending" forever and the
+        // public routing fallback (which now accepts every non-
+        // failed status) keeps serving fresh DNS-propagated domains
+        // without ever flipping to "active" for the creator UI.
+        await db
+          .update(customDomains)
+          .set({
+            status: verified ? "active" : "verifying",
+            dnsVerified: verified,
+            sslProvisioned: verified,
+            updatedAt: new Date(),
+          })
+          .where(eq(customDomains.domain, domain.toLowerCase()));
         return NextResponse.json({
           domain,
           status: verified ? "active" : "pending",

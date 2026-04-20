@@ -9,6 +9,7 @@ import {
   addDomainToProject,
   removeDomainFromProject,
   getDomainConfig,
+  getProjectDomain,
   isConfigured,
 } from "@/lib/vercel-domains";
 import { checkRateLimit, apiLimiter } from "@/lib/rate-limit-middleware";
@@ -166,31 +167,77 @@ export async function POST(request: NextRequest) {
       });
       if (!site) return NextResponse.json({ error: "Site not found" }, { status: 404 });
 
+      // Idempotency — if this domain is already on the caller's own
+      // site in our DB, return the existing row instead of 500'ing
+      // on the unique constraint. If it's on a DIFFERENT site owned
+      // by this user (not allowed), 409.
+      const existing = await db.query.customDomains.findFirst({
+        where: eq(customDomains.domain, cleanDomain),
+      });
+      if (existing) {
+        if (existing.siteId === siteId) {
+          return NextResponse.json({
+            domain: {
+              id: existing.id,
+              domain: existing.domain,
+              type: existing.type,
+              status: existing.status,
+              verificationToken: existing.verificationToken,
+              dnsVerified: existing.dnsVerified,
+              sslProvisioned: existing.sslProvisioned,
+            },
+            dnsRecords: [
+              { type: "CNAME", name: "www", value: "cname.vercel-dns.com", purpose: "Points your domain to our servers" },
+              { type: "A", name: "@", value: "76.76.21.21", purpose: "Points your root domain to our servers" },
+              { type: "TXT", name: "@", value: existing.verificationToken, purpose: "Verifies you own this domain" },
+            ],
+            alreadyConnected: true,
+          });
+        }
+        return NextResponse.json(
+          { error: "This domain is already connected to another one of your directories." },
+          { status: 409 },
+        );
+      }
+
       const token = generateToken();
 
-      // Add domain to Vercel project. Surface known failure modes as
-      // 4xx/5xx responses so the UI can tell the user something is
-      // wrong (previously this was swallowed and the user saw
-      // "connected" while Vercel had rejected the domain).
+      // Add domain to Vercel project. Idempotent: if the domain is
+      // already on OUR project (from a previous attempt or a manual
+      // Vercel-dashboard add), we skip the add call. If Vercel
+      // rejects because it's on ANOTHER project, we surface the
+      // conflict so the creator knows to detach it there first.
       if (isConfigured()) {
+        let alreadyOnOurProject = false;
         try {
-          await addDomainToProject(cleanDomain);
+          const existingOnVercel = await getProjectDomain(cleanDomain);
+          alreadyOnOurProject = existingOnVercel !== null;
         } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          console.error("Failed to add domain to Vercel:", msg);
-          // Vercel returns `domain_taken` / status 409 when the hostname
-          // is claimed by another project. Surface that as 409 so the
-          // creator knows the domain is in use.
-          if (/already|taken|409/i.test(msg)) {
+          // Probe failed; fall through to the add and let the
+          // error path below handle any real conflict.
+          console.warn("getProjectDomain probe failed:", err instanceof Error ? err.message : err);
+        }
+
+        if (!alreadyOnOurProject) {
+          try {
+            await addDomainToProject(cleanDomain);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.error("Failed to add domain to Vercel:", msg);
+            if (/already|taken|409/i.test(msg)) {
+              return NextResponse.json(
+                {
+                  error:
+                    "This domain is registered to another Vercel project. Remove it from that project (or transfer it) and try again.",
+                },
+                { status: 409 },
+              );
+            }
             return NextResponse.json(
-              { error: "This domain is already in use. Remove it from the other project first." },
-              { status: 409 },
+              { error: "Failed to register the domain with our host. Try again in a minute." },
+              { status: 502 },
             );
           }
-          return NextResponse.json(
-            { error: "Failed to register the domain with our host. Try again in a minute." },
-            { status: 502 },
-          );
         }
       }
 

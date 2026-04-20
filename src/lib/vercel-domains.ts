@@ -80,6 +80,25 @@ export async function removeDomainFromProject(domain: string) {
 }
 
 /**
+ * Check whether a domain is already attached to OUR Vercel project.
+ * Returns the domain record or null if Vercel 404s (not on this project).
+ * Used to make POST /api/domains idempotent — retrying with a domain
+ * that's already on our project should succeed, not 409.
+ */
+export async function getProjectDomain(domain: string) {
+  try {
+    return await vercelFetch(
+      `/v9/projects/${PROJECT_ID}/domains/${domain}`,
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Vercel returns 404 when the domain isn't attached to this project.
+    if (/\b404\b/.test(msg)) return null;
+    throw err;
+  }
+}
+
+/**
  * Check domain configuration status on Vercel.
  */
 export async function getDomainConfig(domain: string) {

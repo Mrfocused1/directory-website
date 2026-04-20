@@ -68,11 +68,21 @@ function DomainsPageContent() {
       });
       if (res.ok) {
         const data = await res.json();
-        setDomains((prev) => [...prev, data.domain]);
+        // Idempotent retries return the existing row — avoid duplicate
+        // cards in the list when that happens.
+        setDomains((prev) =>
+          prev.some((d) => d.id === data.domain.id) ? prev : [...prev, data.domain],
+        );
         setPendingDns({ domain: data.domain.domain, records: data.dnsRecords });
         setConnectDomain("");
       } else {
-        setConnectError("Failed to connect domain. Please try again.");
+        // Surface the server's real error / detail field instead of a
+        // generic message. The API returns { error, detail? } on
+        // failures; prefer detail if present, otherwise error.
+        const data = await res.json().catch(() => ({} as Record<string, unknown>));
+        const detail = typeof data.detail === "string" ? data.detail : null;
+        const message = typeof data.error === "string" ? data.error : "Failed to connect domain. Please try again.";
+        setConnectError(detail ? `${message} — ${detail}` : message);
       }
     } catch {
       setConnectError("Network error. Please check your connection.");

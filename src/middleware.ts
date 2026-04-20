@@ -2,20 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 /**
- * Proxy for multi-tenant routing.
- *
- * Public URL format: buildmy.directory/<username> (path-based)
+ * Next.js middleware — MUST live at src/middleware.ts (or /middleware.ts)
+ * so Next auto-registers it. Living as src/proxy.ts silently disabled
+ * every rewrite below, which is why the "connect your domain" feature
+ * appeared to be wired yet served 404s in production.
  *
  * Routing rules:
- * - buildmy.directory / www.buildmy.directory (root) → marketing + dashboard
+ * - buildmy.directory / www.buildmy.directory (root) → marketing + dashboard.
  *   Next.js App Router resolves explicit routes (/login, /dashboard, /api, …)
  *   before the dynamic [tenant] catch-all, so no rewrite is needed — tenant
  *   pages live at /[tenant] directly.
- * - *.buildmy.directory (subdomain) — legacy format. We permanently redirect
- *   to the path form (e.g. demo.buildmy.directory → buildmy.directory/demo)
- *   to consolidate SEO and avoid split canonicals.
- * - Custom domains → tenant directory. We rewrite the domain to /[tenant]
- *   internally; the tenant is resolved from customDomain in the DB.
+ * - *.buildmy.directory (subdomain) — legacy format. Permanently redirect
+ *   to the path form (demo.buildmy.directory → buildmy.directory/demo) to
+ *   consolidate SEO and avoid split canonicals.
+ * - Custom domains → tenant directory. Rewrite the hostname into the path
+ *   so /[tenant] resolves via sites.slug OR the customDomains fallback
+ *   (see src/lib/demo-data.ts).
  */
 
 // Subdomains that should NOT be redirected — they map to app functions.
@@ -26,7 +28,7 @@ const RESERVED_SUBDOMAINS = new Set([
   "app", "static", "cdn", "assets", "media",
 ]);
 
-export default async function proxy(request: NextRequest) {
+export default async function middleware(request: NextRequest) {
   // Refresh Supabase auth session on every request
   const sessionResponse = await updateSession(request);
   const url = request.nextUrl.clone();

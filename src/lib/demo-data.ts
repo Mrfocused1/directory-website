@@ -1,5 +1,12 @@
 import { db } from "@/db";
-import { sites, posts, references, platformConnections, users } from "@/db/schema";
+import {
+  sites,
+  posts,
+  references,
+  platformConnections,
+  users,
+  customDomains,
+} from "@/db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import type { SiteConfig, SitePost, Reference, PlatformConnection, Platform } from "@/lib/types";
 import { hasFeature, type PlanId } from "@/lib/plans";
@@ -38,9 +45,28 @@ async function getSiteDataFromDB(tenantSlug: string): Promise<{
   branding: SiteBranding;
   features: { newsletter: boolean; bookmarks: boolean; tts: boolean };
 } | null> {
-  const site = await db!.query.sites.findFirst({
+  // Primary lookup: by slug (buildmy.directory/<slug>).
+  let site = await db!.query.sites.findFirst({
     where: eq(sites.slug, tenantSlug),
   });
+
+  // Fallback lookup: treat the input as a custom domain. The proxy
+  // rewrites incoming custom-domain requests to `/<hostname>`, so
+  // when the slug miss happens we check the customDomains table for
+  // an active mapping and resolve to the owning site.
+  if (!site && tenantSlug.includes(".")) {
+    const host = tenantSlug.toLowerCase().replace(/^www\./, "");
+    const mapping = await db!
+      .select({ siteId: customDomains.siteId, status: customDomains.status })
+      .from(customDomains)
+      .where(eq(customDomains.domain, host))
+      .limit(1);
+    if (mapping[0] && (mapping[0].status === "active" || mapping[0].status === "verifying")) {
+      site = await db!.query.sites.findFirst({
+        where: eq(sites.id, mapping[0].siteId),
+      });
+    }
+  }
 
   if (!site) {
     // No site found in DB — fall back to demo for the "demo" slug

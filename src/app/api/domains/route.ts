@@ -154,12 +154,29 @@ export async function POST(request: NextRequest) {
 
       const token = generateToken();
 
-      // Add domain to Vercel project
+      // Add domain to Vercel project. Surface known failure modes as
+      // 4xx/5xx responses so the UI can tell the user something is
+      // wrong (previously this was swallowed and the user saw
+      // "connected" while Vercel had rejected the domain).
       if (isConfigured()) {
         try {
           await addDomainToProject(cleanDomain);
         } catch (err) {
-          console.error("Failed to add domain to Vercel:", err);
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error("Failed to add domain to Vercel:", msg);
+          // Vercel returns `domain_taken` / status 409 when the hostname
+          // is claimed by another project. Surface that as 409 so the
+          // creator knows the domain is in use.
+          if (/already|taken|409/i.test(msg)) {
+            return NextResponse.json(
+              { error: "This domain is already in use. Remove it from the other project first." },
+              { status: 409 },
+            );
+          }
+          return NextResponse.json(
+            { error: "Failed to register the domain with our host. Try again in a minute." },
+            { status: 502 },
+          );
         }
       }
 

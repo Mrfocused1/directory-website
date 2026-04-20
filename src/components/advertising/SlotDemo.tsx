@@ -122,11 +122,14 @@ function MockPostCard({
   post: DemoPost;
   compact?: boolean;
 }) {
+  // No fixed height — let the card size itself to the content so
+  // the caption and References sit snugly together instead of
+  // leaving an empty middle band. Compact trims only the thumb and
+  // the overall width so it fits inside the phone frame.
   const w = compact ? "w-52" : "w-56";
-  const h = compact ? "h-[290px]" : "h-[340px]";
   const thumbH = compact ? "h-24" : "h-32";
   return (
-    <div className={`${w} ${h} bg-white rounded-xl overflow-hidden border border-black/5 shadow-sm flex flex-col`}>
+    <div className={`${w} bg-white rounded-xl overflow-hidden border border-black/5 shadow-sm`}>
       <div className="relative">
         <Thumb post={post} className={`w-full ${thumbH}`} />
         {post.category && (
@@ -135,14 +138,14 @@ function MockPostCard({
           </span>
         )}
       </div>
-      <div className="px-2.5 pt-2 pb-2 flex-1 flex flex-col min-h-0">
+      <div className="px-2.5 pt-2 pb-2">
         <p className="text-[11px] font-bold text-gray-900 leading-snug line-clamp-2">
           {post.title || "Untitled"}
         </p>
         <p className="text-[9px] text-gray-500 leading-snug mt-1 line-clamp-2">
           {DEMO_CAPTION}
         </p>
-        <div className="mt-auto pt-1.5 border-t border-black/5">
+        <div className="mt-2 pt-1.5 border-t border-black/5">
           <p className="text-[8px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
             References
           </p>

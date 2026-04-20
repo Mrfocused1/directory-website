@@ -147,8 +147,19 @@ export default function AdvertiseSelector({ siteSlug, siteName, creatorName, slo
         setError(data.error || "Failed to send");
       } else {
         setSent(true);
-        // Clear the shared selection so a future visit starts fresh.
+        // Clear every trace of the submitted enquiry — shared
+        // selection AND in-memory form fields — so a future visit to
+        // this page (same tab, same advertiser) doesn't leak contact
+        // details into a new request.
         try { localStorage.removeItem(storageKey); } catch { /* noop */ }
+        setSelected(new Set());
+        setEmail("");
+        setName("");
+        setWebsite("");
+        setBusinessName("");
+        setSocialHandle("");
+        setMessage("");
+        setFiles([]);
       }
     } catch {
       setError("Network error — please try again");

@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import type { Metadata } from "next";
 import { db } from "@/db";
 import { sites, adSlots, users, posts } from "@/db/schema";
@@ -8,6 +7,7 @@ import { and, eq, count } from "drizzle-orm";
 import { SLOT_TYPES } from "@/lib/advertising/slot-types";
 import { SLOT_COPY } from "@/lib/advertising/slot-copy";
 import Logo from "@/components/brand/Logo";
+import AvatarWithFallback from "@/components/brand/AvatarWithFallback";
 import AdvertiseSelector, { type SelectorSlot } from "./AdvertiseSelector";
 
 export const dynamic = "force-dynamic";
@@ -114,20 +114,11 @@ export default async function AdvertiseLandingPage({ params }: Props) {
               className="shrink-0 w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden ring-2 ring-white/20 shadow-lg flex items-center justify-center text-2xl sm:text-3xl font-extrabold tracking-wide hover:ring-white/50 transition"
               style={{ background: "rgba(255,255,255,0.1)" }}
             >
-              {site.avatarUrl ? (
-                <Image
-                  src={site.avatarUrl}
-                  alt={siteName}
-                  width={96}
-                  height={96}
-                  className="w-full h-full object-cover"
-                  priority
-                />
-              ) : (
-                <span className="text-white/90">
-                  {siteName.slice(0, 2).toUpperCase()}
-                </span>
-              )}
+              <AvatarWithFallback
+                src={site.avatarUrl}
+                alt={siteName}
+                fallbackText={siteName.slice(0, 2).toUpperCase()}
+              />
             </Link>
             <div className="flex-1 min-w-0">
               <p className="text-xs sm:text-sm font-semibold tracking-[0.2em] uppercase mb-2" style={{ color: "#c8a2ff" }}>

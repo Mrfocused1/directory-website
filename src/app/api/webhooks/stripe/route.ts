@@ -8,11 +8,11 @@ import { resend } from "@/lib/email/resend";
 import { invoiceEmail } from "@/lib/email/templates";
 import { notifyAdPurchased, notifyAdApproved } from "@/lib/notifications/ad-purchase";
 
-// Plan ID mapping from Stripe price amounts (cents) to plan IDs
+// Plan ID mapping from Stripe price amounts (minor units / pence) to plan IDs.
 const PRICE_TO_PLAN: Record<number, string> = {
-  1999: "creator", // £19.99 GBP
-  3900: "pro",    // $39 USD
-  9900: "agency", // $99 USD
+  1999: "creator", // £19.99
+  3900: "pro",    // £39
+  9900: "agency", // £99
 };
 
 // POST /api/webhooks/stripe — Handle Stripe webhook events

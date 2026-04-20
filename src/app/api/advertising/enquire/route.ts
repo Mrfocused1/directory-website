@@ -70,7 +70,13 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: "Files exceed 35 MB combined limit" }, { status: 413 });
         }
         const buf = Buffer.from(await f.arrayBuffer());
-        attachments.push({ filename: f.name || "creative", content: buf });
+        // Strip path separators, quotes, and control chars from the
+        // filename before it ends up in a MIME header. Keep the
+        // original extension where possible.
+        const safeName = (f.name || "creative")
+          .replace(/[\r\n\0<>:"/\\|?*]/g, "_")
+          .slice(0, 200) || "creative";
+        attachments.push({ filename: safeName, content: buf });
       }
     } else {
       payload = await request.json();

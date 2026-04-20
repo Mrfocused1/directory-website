@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:domains": "node --test scripts/tests/domain-routing.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1030.0",
